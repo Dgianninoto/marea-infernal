@@ -34,62 +34,45 @@ Documento de etapas para retomar el trabajo sin perder el hilo. El juego es un
 - Archivo restaurado al commit `4e0c4ca`, sintaxis OK, 0 corrupción.
 - Estado: COMPLETADO.
 
-### Etapa 1 — Escenario: suelo de baldosas + borde amurallado (opción 2)
-- Reañadir textura de suelo de losas de piedra (cacheada, generada una vez).
-- Reañadir muro perimetral almenado que **delimita** la arena.
-- Hacer el muro infranqueable: el jugador, el jefe y el spawn de enemigos
-  respetan el grosor del muro (constante `WALL`).
-- Verificación: se ve el suelo y el muro; el personaje choca limpio con el borde.
-- Estado: PENDIENTE.
+### Etapa 1 — Escenario: suelo de baldosas + borde amurallado (opción 2)  ✅
+- Textura de losas de piedra cacheada + muro almenado infranqueable (`WALL`).
+- Jugador, dash, jefe y spawn respetan el muro.
+- Estado: COMPLETADO (commit `8438f2c`).
 
-### Etapa 2 — Sin límite de tiempo; morir es la única derrota
-- Quitar el temporizador de marea (`tide`) y su panel/cuenta atrás.
-- El juego termina **solo** cuando la vida del jugador llega a 0.
-- Ajustar el HUD donde estaba el temporizador (se reutiliza para la oleada).
-- Verificación: no hay cuenta atrás; sobrevivir indefinidamente es posible.
-- Estado: PENDIENTE.
+### Etapa 2 — Sin límite de tiempo; morir es la única derrota  ✅
+- Eliminado el temporizador `tide`. El juego termina solo al llegar la vida a 0.
+- HUD reconvertido a "OLEADA N" + progreso.
+- Estado: COMPLETADO (commit `e450c89`).
 
-### Etapa 3 — Oleadas con dificultad siempre creciente
-- Sustituir el avance por tiempo por un sistema por oleadas: cada oleada tiene
-  una cuota de enemigos; al limpiarlos, empieza la siguiente.
-- Escalado sin tope: más enemigos y más fuertes/rápidos cada oleada (con topes
-  razonables en velocidad para que siga siendo justo).
-- HUD muestra "OLEADA N" y progreso (enemigos restantes).
-- Verificación: la dificultad sube de forma perceptible oleada a oleada.
-- Estado: PENDIENTE.
+### Etapa 3 — Oleadas con dificultad siempre creciente  ✅
+- Sistema por oleadas con cuota de enemigos; escalado sin tope (vida/daño/vel.
+  con topes razonables en velocidad). Director de oleadas (`startWave`,
+  `onWaveCleared`).
+- Estado: COMPLETADO (commit `e450c89`).
 
-### Etapa 4 — Intermedio cada 5 oleadas
-- Tras cada 5.ª oleada, pausa breve (sin spawns) para revisar inventario.
-- Banner de "Intermedio" + botón/tecla para continuar antes de tiempo.
-- Verificación: al superar la oleada 5, 10, 15... hay respiro y se puede abrir
-  el inventario con calma.
-- Estado: PENDIENTE.
+### Etapa 4 — Intermedio cada 5 oleadas  ✅
+- Fase "intermission" de 12s (sin spawns) con banner y botón "Continuar ahora".
+- Estado: COMPLETADO (commit `e450c89`).
 
-### Etapa 5 — Jefe cada 10 oleadas
-- El Señor de la Marea aparece en las oleadas 10, 20, 30... y escala con la
-  oleada. La oleada no se considera superada hasta derrotarlo.
-- Verificación: en la oleada 10 aparece el jefe con su barra de vida.
-- Estado: PENDIENTE.
+### Etapa 5 — Jefe cada 10 oleadas  ✅
+- Jefe en oleadas 10, 20, 30... escalado por oleada; la oleada no se supera
+  hasta derrotarlo.
+- Estado: COMPLETADO (commit `e450c89`).
 
-### Etapa 6 — Cambio de escenario cada 10 oleadas
-- Rotación de 3 texturas de suelo (y tinte del muro/viñeta):
-  1. Páramo de cenizas (baldosas) — de la Etapa 1
-  2. Suelo de roca oscura
-  3. Suelo de sangre y obsidiana
-- El escenario cambia al entrar en la oleada 11, 21, 31... (ciclo de 3).
-- Verificación: el suelo y el ambiente cambian visiblemente cada 10 oleadas.
-- Estado: PENDIENTE.
+### Etapa 6 — Cambio de escenario cada 10 oleadas  ✅
+- 3 temas: Páramo de cenizas, Roca oscura, Sangre y obsidiana (suelo + muro +
+  viñeta), rotación cada 10 oleadas.
+- Estado: COMPLETADO (commit `e450c89`).
 
-### Etapa 7 — Ajuste de puntuación y cierre
-- Puntuación coherente con el nuevo bucle (oleada alcanzada, nivel, jefes,
-  cenizas). Actualizar textos de menú/cómo-jugar y pantalla de fin de partida.
-- Verificación: fin de partida muestra oleada alcanzada y guarda score.
-- Estado: PENDIENTE.
+### Etapa 7 — Ajuste de puntuación y textos  ✅
+- Puntuación por oleada/nivel/jefes/cenizas. Textos de cómo-jugar actualizados.
+- Estado: COMPLETADO (commit `e450c89`).
 
 ### Etapa 8 — Commit final y push a GitHub
-- Commit de la versión completa y `git push` al repo privado `marea-infernal`.
-- Estado: PENDIENTE.
+- Estado: EN CURSO.
 
 ## Registro de progreso
 
 - 2026-10-20: Etapa 0 completada (baseline restaurado y verificado).
+- 2026-10-20: Etapa 1 completada (commit 8438f2c).
+- 2026-10-20: Etapas 2-7 completadas (commit e450c89). Pendiente push.
