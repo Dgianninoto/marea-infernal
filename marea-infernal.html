@@ -396,7 +396,7 @@
   <!-- Intermission banner (every 5 waves) -->
   <div id="inter-panel">
     <div class="inter-title">Intermedio</div>
-    <div class="inter-sub">Respira. Revisa tu equipo con <kbd>I</kbd>.</div>
+    <div class="inter-sub">Cofres renovados. Gasta cenizas y revisa tu equipo con <kbd>I</kbd>.</div>
     <button class="btn btn-small" id="inter-continue">Continuar ahora ▶</button>
   </div>
 
@@ -671,9 +671,9 @@
   // Each theme's texture is built once onto an offscreen canvas and tiled with
   // createPattern (free per frame). The scenario rotates every 10 waves (Stage 6).
   const THEMES = [
-    { id: "tiles", name: "Páramo de cenizas",  base: "#211109", wall: "#3a2316", merlon: "#4a2e1c", edge: "rgba(255,110,30,0.35)", vignette: "rgba(80,10,0,0.45)" },
-    { id: "rock",  name: "Roca oscura",        base: "#14100d", wall: "#2a2622", merlon: "#3a342e", edge: "rgba(120,120,130,0.30)", vignette: "rgba(10,10,14,0.55)" },
-    { id: "blood", name: "Sangre y obsidiana", base: "#15060a", wall: "#2a0a12", merlon: "#3a0e18", edge: "rgba(200,20,40,0.40)",  vignette: "rgba(90,0,10,0.55)" },
+    { id: "tiles", name: "Páramo de cenizas",   base: "#211109", wall: "#3a2316", merlon: "#4a2e1c", edge: "rgba(255,110,30,0.35)", vignette: "rgba(80,10,0,0.45)" },
+    { id: "frost", name: "Cripta de hielo",     base: "#0d1a26", wall: "#1c3346", merlon: "#274a63", edge: "rgba(120,220,255,0.40)", vignette: "rgba(10,30,60,0.55)" },
+    { id: "blood", name: "Sangre y obsidiana",  base: "#15060a", wall: "#2a0a12", merlon: "#3a0e18", edge: "rgba(200,20,40,0.40)",  vignette: "rgba(90,0,10,0.55)" },
   ];
   const groundPatterns = []; // one CanvasPattern per theme, same index as THEMES
 
@@ -689,16 +689,21 @@
       texSpeckle(g, SUP, 900, "rgba(255,170,120,", "rgba(0,0,0,");
       texSlabs(g, SUP, TILE);
       texGrout(g, SUP, TILE);
-    } else if (theme.id === "rock") {
-      // dark bedrock: blotches, mineral flecks, hairline fractures (no tidy grout)
-      texSpeckle(g, SUP, 1100, "rgba(180,180,190,", "rgba(0,0,0,");
-      for (let i = 0; i < 70; i++) {
-        const x = Math.random() * SUP, y = Math.random() * SUP, r = 6 + Math.random() * 26;
-        g.fillStyle = "rgba(" + (30 + Math.random() * 30 | 0) + "," + (28 + Math.random() * 28 | 0) + "," + (26 + Math.random() * 26 | 0) + ",0.5)";
+    } else if (theme.id === "frost") {
+      // frozen crypt: deep blue ice with teal pools, frost speckle and glowing cracks
+      texSpeckle(g, SUP, 1000, "rgba(180,235,255,", "rgba(10,30,50,");
+      // icy patches / frozen pools
+      for (let i = 0; i < 55; i++) {
+        const x = Math.random() * SUP, y = Math.random() * SUP, r = 8 + Math.random() * 30;
+        const grd = g.createRadialGradient(x, y, 0, x, y, r);
+        grd.addColorStop(0, "rgba(60,150,200,0.40)");
+        grd.addColorStop(1, "rgba(20,60,100,0)");
+        g.fillStyle = grd;
         g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
       }
-      for (let i = 0; i < 26; i++) texCrack(g, SUP, "rgba(0,0,0,0.45)", 1);
-      for (let i = 0; i < 4; i++) texCrack(g, SUP, "rgba(160,120,90,0.25)", 1);
+      // dark fractures plus a few glowing cyan ice veins
+      for (let i = 0; i < 22; i++) texCrack(g, SUP, "rgba(5,20,40,0.5)", 1);
+      for (let i = 0; i < 6; i++) texCrack(g, SUP, "rgba(130,225,255,0.45)", 1.5);
     } else {
       // blood & obsidian: glassy black stone with crimson pools and facets
       texSpeckle(g, SUP, 700, "rgba(120,0,10,", "rgba(255,40,60,");
@@ -1012,13 +1017,15 @@
   function spawnChests() {
     state.chests = [];
     const count = 5;
+    // cost grows a little with the wave so renewed chests stay meaningful
+    const waveBump = Math.floor(state.wave / 5) * 10;
     for (let i = 0; i < count; i++) {
       state.chests.push({
-        x: rand(200, WORLD.w - 200),
-        y: rand(200, WORLD.h - 200),
+        x: rand(WALL + 160, WORLD.w - WALL - 160),
+        y: rand(WALL + 160, WORLD.h - WALL - 160),
         r: 22,
         opened: false,
-        cost: 15 + i * 10,
+        cost: 15 + i * 10 + waveBump,
         glow: 0,
       });
     }
@@ -1364,7 +1371,9 @@
   function startIntermission() {
     state.phase = "intermission";
     state.interTimer = 12; // seconds
-    showWarning("Intermedio<br><span style='font-size:20px'>Revisa tu inventario \u2014 pulsa I</span>");
+    spawnChests(); // renew chests each breather so ash can be spent again
+    floatText(state.player.x, state.player.y - 72, "¡Cofres renovados!", "#ffd84d");
+    showWarning("Intermedio<br><span style='font-size:20px'>Cofres renovados \u2014 revisa tu equipo (I)</span>");
     interPanel.style.display = "block";
   }
 
