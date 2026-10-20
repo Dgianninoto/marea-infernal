@@ -646,7 +646,64 @@
 
   // ---------------------------------------------------------------- World
   const WORLD = { w: 2600, h: 2600 };
+  const WALL = 34; // impassable border thickness (matches the drawn stone wall)
   const cam = { x: 0, y: 0 };
+
+  // ---------------------------------------------------------------- Ground texture (stone tiles)
+  // Built once onto an offscreen canvas and tiled with createPattern, so it costs
+  // nothing per frame. One "super-tile" holds 4x4 stone slabs with grout, bevel and cracks.
+  let groundPattern = null;
+  function buildGroundTexture() {
+    const TILE = 64, SUP = TILE * 4;
+    const off = document.createElement("canvas");
+    off.width = SUP; off.height = SUP;
+    const g = off.getContext("2d");
+
+    g.fillStyle = "#211109";
+    g.fillRect(0, 0, SUP, SUP);
+
+    // faint ash speckles over the whole super-tile
+    for (let i = 0; i < 900; i++) {
+      const x = Math.random() * SUP, y = Math.random() * SUP, a = Math.random() * 0.06;
+      g.fillStyle = Math.random() < 0.5 ? "rgba(255,170,120," + a + ")" : "rgba(0,0,0," + (a + 0.04) + ")";
+      g.fillRect(x, y, Math.random() < 0.8 ? 1 : 2, Math.random() < 0.8 ? 1 : 2);
+    }
+
+    // each slab: random tint, bevels, optional crack, occasional ember crack
+    for (let ty = 0; ty < SUP; ty += TILE) {
+      for (let tx = 0; tx < SUP; tx += TILE) {
+        const sh = 0.82 + Math.random() * 0.3;
+        g.fillStyle = "rgb(" + Math.round(58 * sh) + "," + Math.round(32 * sh) + "," + Math.round(22 * sh) + ")";
+        g.fillRect(tx + 2, ty + 2, TILE - 4, TILE - 4);
+        g.fillStyle = "rgba(255,160,90,0.08)";
+        g.fillRect(tx + 2, ty + 2, TILE - 4, 2); g.fillRect(tx + 2, ty + 2, 2, TILE - 4);
+        g.fillStyle = "rgba(0,0,0,0.35)";
+        g.fillRect(tx + 2, ty + TILE - 4, TILE - 4, 2); g.fillRect(tx + TILE - 4, ty + 2, 2, TILE - 4);
+        if (Math.random() < 0.3) {
+          g.strokeStyle = "rgba(0,0,0,0.5)"; g.lineWidth = 1;
+          let cx = tx + 8 + Math.random() * (TILE - 16), cy = ty + 8 + Math.random() * (TILE - 16);
+          g.beginPath(); g.moveTo(cx, cy);
+          const steps = 3 + Math.floor(Math.random() * 3);
+          for (let s = 0; s < steps; s++) { cx += (Math.random() - 0.5) * 20; cy += (Math.random() - 0.5) * 20; g.lineTo(cx, cy); }
+          g.stroke();
+        }
+        if (Math.random() < 0.08) {
+          g.strokeStyle = "rgba(255,110,30,0.5)"; g.lineWidth = 1.5;
+          g.beginPath(); g.moveTo(tx + 12, ty + TILE * 0.3); g.lineTo(tx + TILE - 14, ty + TILE * 0.7); g.stroke();
+        }
+      }
+    }
+
+    // dark grout lines between slabs
+    g.strokeStyle = "rgba(0,0,0,0.55)"; g.lineWidth = 2;
+    for (let t = 0; t <= SUP; t += TILE) {
+      g.beginPath(); g.moveTo(t, 0); g.lineTo(t, SUP); g.stroke();
+      g.beginPath(); g.moveTo(0, t); g.lineTo(SUP, t); g.stroke();
+    }
+
+    groundPattern = ctx.createPattern(off, "repeat");
+  }
+  buildGroundTexture();
 
   // ---------------------------------------------------------------- Loot tables
   const RARITY = [
@@ -905,8 +962,8 @@
     const dsp = rand(520, 760);
     let x = p.x + Math.cos(ang) * dsp;
     let y = p.y + Math.sin(ang) * dsp;
-    x = clamp(x, 40, WORLD.w - 40);
-    y = clamp(y, 40, WORLD.h - 40);
+    x = clamp(x, WALL + 20, WORLD.w - WALL - 20);
+    y = clamp(y, WALL + 20, WORLD.h - WALL - 20);
 
     const waveScale = 1 + (state.wave - 1) * 0.16;
     const roll = Math.random();
@@ -1211,8 +1268,8 @@
       if (touch.jx || touch.jy) { mx += touch.jx; my += touch.jy; }
       const ml = Math.hypot(mx, my);
       if (ml > 1) { mx /= ml; my /= ml; }
-      p.x = clamp(p.x + mx * p.speed * dt, p.r, WORLD.w - p.r);
-      p.y = clamp(p.y + my * p.speed * dt, p.r, WORLD.h - p.r);
+      p.x = clamp(p.x + mx * p.speed * dt, WALL + p.r, WORLD.w - WALL - p.r);
+      p.y = clamp(p.y + my * p.speed * dt, WALL + p.r, WORLD.h - WALL - p.r);
     }
 
     // aim
@@ -1240,8 +1297,8 @@
     if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
     if (p.dashTime > 0) {
       p.dashTime -= dt;
-      p.x = clamp(p.x + p.dashVX * p.dashSpeed * dt, p.r, WORLD.w - p.r);
-      p.y = clamp(p.y + p.dashVY * p.dashSpeed * dt, p.r, WORLD.h - p.r);
+      p.x = clamp(p.x + p.dashVX * p.dashSpeed * dt, WALL + p.r, WORLD.w - WALL - p.r);
+      p.y = clamp(p.y + p.dashVY * p.dashSpeed * dt, WALL + p.r, WORLD.h - WALL - p.r);
       // dash trail
       state.particles.push({ x: p.x, y: p.y, vx: rand(-20, 20), vy: rand(-20, 20), life: 0.25, r: rand(3, 6), color: "#6ad1ff" });
     }
@@ -1285,8 +1342,8 @@
       const bd = Math.hypot(bdx, bdy) || 1;
       // keep some distance, orbit a bit
       if (bd > 180) { boss.x += (bdx / bd) * boss.speed * dt; boss.y += (bdy / bd) * boss.speed * dt; }
-      boss.x = clamp(boss.x, boss.r, WORLD.w - boss.r);
-      boss.y = clamp(boss.y, boss.r, WORLD.h - boss.r);
+      boss.x = clamp(boss.x, WALL + boss.r, WORLD.w - WALL - boss.r);
+      boss.y = clamp(boss.y, WALL + boss.r, WORLD.h - WALL - boss.r);
       // contact damage
       if (bd < boss.r + p.r && p.inv <= 0) {
         p.hp -= boss.dmg; p.inv = 0.7; state.shake = Math.max(state.shake, 12); Sound.hurt();
@@ -1478,22 +1535,75 @@
   }
 
   function drawGround() {
-    // ashen ground grid, clipped to world bounds
-    ctx.fillStyle = "#26100a";
-    ctx.fillRect(0, 0, WORLD.w, WORLD.h);
-    ctx.strokeStyle = "rgba(255,90,20,0.06)";
-    ctx.lineWidth = 1;
-    const grid = 80;
-    const startX = Math.floor(cam.x / grid) * grid;
-    const startY = Math.floor(cam.y / grid) * grid;
+    // stone-tile floor (cached pattern; the camera translate anchors it in world space)
+    if (groundPattern) {
+      ctx.save();
+      ctx.fillStyle = groundPattern;
+      ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = "#26100a";
+      ctx.fillRect(0, 0, WORLD.w, WORLD.h);
+    }
+
+    drawWallBorder();
+  }
+
+  // Battlemented stone wall around the whole arena, marking the impassable edge.
+  function drawWallBorder() {
+    const T = WALL, merlon = 40, gap = 26;
+    ctx.save();
+
+    // four wall bands
+    ctx.fillStyle = "#3a2316";
+    ctx.fillRect(0, 0, WORLD.w, T);
+    ctx.fillRect(0, WORLD.h - T, WORLD.w, T);
+    ctx.fillRect(0, 0, T, WORLD.h);
+    ctx.fillRect(WORLD.w - T, 0, T, WORLD.h);
+
+    // ember glow on the inner edge facing the arena
+    ctx.strokeStyle = "rgba(255,110,30,0.35)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(T, T, WORLD.w - T * 2, WORLD.h - T * 2);
+
+    // stone block seams
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.lineWidth = 2;
+    const block = 60;
     ctx.beginPath();
-    for (let x = startX; x < cam.x + W + grid; x += grid) { ctx.moveTo(x, cam.y); ctx.lineTo(x, cam.y + H); }
-    for (let y = startY; y < cam.y + H + grid; y += grid) { ctx.moveTo(cam.x, y); ctx.lineTo(cam.x + W, y); }
+    for (let x = 0; x < WORLD.w; x += block) {
+      ctx.moveTo(x, 0); ctx.lineTo(x, T);
+      ctx.moveTo(x, WORLD.h - T); ctx.lineTo(x, WORLD.h);
+    }
+    for (let y = 0; y < WORLD.h; y += block) {
+      ctx.moveTo(0, y); ctx.lineTo(T, y);
+      ctx.moveTo(WORLD.w - T, y); ctx.lineTo(WORLD.w, y);
+    }
     ctx.stroke();
-    // world border
-    ctx.strokeStyle = "rgba(255,90,20,0.4)";
-    ctx.lineWidth = 6;
-    ctx.strokeRect(0, 0, WORLD.w, WORLD.h);
+
+    // battlement merlons crowning the outer rim
+    ctx.fillStyle = "#4a2e1c";
+    const step = merlon + gap;
+    for (let x = 0; x < WORLD.w; x += step) {
+      ctx.fillRect(x, -10, merlon, 14);
+      ctx.fillRect(x, WORLD.h - 4, merlon, 14);
+    }
+    for (let y = 0; y < WORLD.h; y += step) {
+      ctx.fillRect(-10, y, 14, merlon);
+      ctx.fillRect(WORLD.w - 4, y, 14, merlon);
+    }
+
+    // corner towers
+    const tower = 46;
+    for (const corner of [[0, 0], [WORLD.w, 0], [0, WORLD.h], [WORLD.w, WORLD.h]]) {
+      const cx = corner[0], cy = corner[1];
+      ctx.fillStyle = "#4a2e1c";
+      ctx.beginPath(); ctx.arc(cx, cy, tower, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = "rgba(255,110,30,0.25)";
+      ctx.beginPath(); ctx.arc(cx, cy, tower * 0.55, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
   }
 
   function drawPlayer(p) {
