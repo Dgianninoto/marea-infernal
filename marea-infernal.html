@@ -167,6 +167,16 @@
     100% { opacity: 0; transform: translateX(-50%) scale(1); }
   }
 
+  /* intermission banner */
+  #inter-panel {
+    position: absolute; top: 120px; left: 50%; transform: translateX(-50%);
+    display: none; text-align: center; pointer-events: auto;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 22px; box-shadow: 0 0 30px rgba(255,100,20,0.25); z-index: 15;
+  }
+  .inter-title { font-size: 20px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; color: var(--ember-glow); text-shadow: 0 0 12px var(--ember); }
+  .inter-sub { color: var(--muted); font-size: 13px; margin: 6px 0 10px; }
+
   /* sound toggle */
   #sound-btn {
     pointer-events: auto; background: #2a140c; border: 1px solid var(--border);
@@ -383,6 +393,13 @@
   <!-- Boss warning banner -->
   <div id="warning"></div>
 
+  <!-- Intermission banner (every 5 waves) -->
+  <div id="inter-panel">
+    <div class="inter-title">Intermedio</div>
+    <div class="inter-sub">Respira. Revisa tu equipo con <kbd>I</kbd>.</div>
+    <button class="btn btn-small" id="inter-continue">Continuar ahora ▶</button>
+  </div>
+
   <!-- HUD -->
   <div id="hud">
     <div class="hud-top">
@@ -407,7 +424,8 @@
 
       <div class="panel tide-panel">
         <div class="tide-title">Marea Infernal</div>
-        <div id="tide-timer">03:00</div>
+        <div id="tide-timer">OLEADA 1</div>
+        <div id="wave-progress" style="font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">0 / 0</div>
         <div class="ash"><span>🔥</span><span id="ash-txt">0</span><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">cenizas</span></div>
         <button id="sound-btn">🔊 Sonido</button>
       </div>
@@ -458,10 +476,10 @@
       <div class="menu-view hidden" id="menu-howto">
         <h2>Cómo jugar</h2>
         <div class="howto-body">
-          <p><b style="color:var(--ember-glow)">Objetivo.</b> Resiste los 3 minutos de la marea mientras masacras demonios. Gana <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para hacerte más poderoso.</p>
+          <p><b style="color:var(--ember-glow)">Objetivo.</b> Sobrevive el mayor número de oleadas posible: no hay límite de tiempo y la única forma de perder es quedarte sin vida. Cada oleada sube la dificultad. Gana <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para hacerte más poderoso.</p>
           <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Cada demonio puede soltar ítems de rareza aleatoria (Común → Único). Los ítems se equipan en 6 ranuras y suben tus stats de verdad. Abre tu mochila con <kbd>I</kbd> para equipar, comparar o fundir piezas por cenizas.</p>
           <p><b style="color:var(--ember-glow)">Cofres.</b> Repartidos por el mapa. Acércate y pulsa <kbd>Espacio</kbd> para gastar cenizas y obtener botín garantizado con bonus de suerte.</p>
-          <p><b style="color:#ff5050">El Señor de la Marea.</b> En los últimos 35 segundos despierta el jefe. Derrótalo para un Legendario y un Único garantizados, cenizas y un gran bonus de puntuación.</p>
+          <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. No superas la oleada hasta derrotarlo. Suelta un Legendario y un Único garantizados, cenizas y un gran bonus. Cada 5 oleadas hay un <b>intermedio</b> para revisar tu equipo, y cada 10 cambia el <b>escenario</b>.</p>
 
           <div class="controls-table">
             <div class="ctrl-col">
@@ -649,27 +667,75 @@
   const WALL = 34; // impassable border thickness (matches the drawn stone wall)
   const cam = { x: 0, y: 0 };
 
-  // ---------------------------------------------------------------- Ground texture (stone tiles)
-  // Built once onto an offscreen canvas and tiled with createPattern, so it costs
-  // nothing per frame. One "super-tile" holds 4x4 stone slabs with grout, bevel and cracks.
-  let groundPattern = null;
-  function buildGroundTexture() {
+  // ---------------------------------------------------------------- Scenarios / ground textures
+  // Each theme's texture is built once onto an offscreen canvas and tiled with
+  // createPattern (free per frame). The scenario rotates every 10 waves (Stage 6).
+  const THEMES = [
+    { id: "tiles", name: "Páramo de cenizas",  base: "#211109", wall: "#3a2316", merlon: "#4a2e1c", edge: "rgba(255,110,30,0.35)", vignette: "rgba(80,10,0,0.45)" },
+    { id: "rock",  name: "Roca oscura",        base: "#14100d", wall: "#2a2622", merlon: "#3a342e", edge: "rgba(120,120,130,0.30)", vignette: "rgba(10,10,14,0.55)" },
+    { id: "blood", name: "Sangre y obsidiana", base: "#15060a", wall: "#2a0a12", merlon: "#3a0e18", edge: "rgba(200,20,40,0.40)",  vignette: "rgba(90,0,10,0.55)" },
+  ];
+  const groundPatterns = []; // one CanvasPattern per theme, same index as THEMES
+
+  function buildTile(theme) {
     const TILE = 64, SUP = TILE * 4;
     const off = document.createElement("canvas");
     off.width = SUP; off.height = SUP;
     const g = off.getContext("2d");
-
-    g.fillStyle = "#211109";
+    g.fillStyle = theme.base;
     g.fillRect(0, 0, SUP, SUP);
 
-    // faint ash speckles over the whole super-tile
-    for (let i = 0; i < 900; i++) {
+    if (theme.id === "tiles") {
+      texSpeckle(g, SUP, 900, "rgba(255,170,120,", "rgba(0,0,0,");
+      texSlabs(g, SUP, TILE);
+      texGrout(g, SUP, TILE);
+    } else if (theme.id === "rock") {
+      // dark bedrock: blotches, mineral flecks, hairline fractures (no tidy grout)
+      texSpeckle(g, SUP, 1100, "rgba(180,180,190,", "rgba(0,0,0,");
+      for (let i = 0; i < 70; i++) {
+        const x = Math.random() * SUP, y = Math.random() * SUP, r = 6 + Math.random() * 26;
+        g.fillStyle = "rgba(" + (30 + Math.random() * 30 | 0) + "," + (28 + Math.random() * 28 | 0) + "," + (26 + Math.random() * 26 | 0) + ",0.5)";
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+      }
+      for (let i = 0; i < 26; i++) texCrack(g, SUP, "rgba(0,0,0,0.45)", 1);
+      for (let i = 0; i < 4; i++) texCrack(g, SUP, "rgba(160,120,90,0.25)", 1);
+    } else {
+      // blood & obsidian: glassy black stone with crimson pools and facets
+      texSpeckle(g, SUP, 700, "rgba(120,0,10,", "rgba(255,40,60,");
+      for (let i = 0; i < 40; i++) {
+        const x = Math.random() * SUP, y = Math.random() * SUP, r = 8 + Math.random() * 34;
+        const grd = g.createRadialGradient(x, y, 0, x, y, r);
+        grd.addColorStop(0, "rgba(120,0,12,0.55)");
+        grd.addColorStop(1, "rgba(60,0,6,0)");
+        g.fillStyle = grd;
+        g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+      }
+      for (let i = 0; i < 60; i++) {
+        const x = Math.random() * SUP, y = Math.random() * SUP, s = 4 + Math.random() * 10;
+        g.fillStyle = "rgba(40,40,48," + (0.1 + Math.random() * 0.2) + ")";
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + s, y + s * 0.4); g.lineTo(x + s * 0.3, y + s); g.closePath(); g.fill();
+      }
+    }
+    return ctx.createPattern(off, "repeat");
+  }
+
+  // shared texture helpers
+  function texSpeckle(g, SUP, n, cA, cB) {
+    for (let i = 0; i < n; i++) {
       const x = Math.random() * SUP, y = Math.random() * SUP, a = Math.random() * 0.06;
-      g.fillStyle = Math.random() < 0.5 ? "rgba(255,170,120," + a + ")" : "rgba(0,0,0," + (a + 0.04) + ")";
+      g.fillStyle = (Math.random() < 0.5 ? cA : cB) + (a + 0.04) + ")";
       g.fillRect(x, y, Math.random() < 0.8 ? 1 : 2, Math.random() < 0.8 ? 1 : 2);
     }
-
-    // each slab: random tint, bevels, optional crack, occasional ember crack
+  }
+  function texCrack(g, SUP, color, w) {
+    g.strokeStyle = color; g.lineWidth = w;
+    let cx = Math.random() * SUP, cy = Math.random() * SUP;
+    g.beginPath(); g.moveTo(cx, cy);
+    const steps = 4 + Math.floor(Math.random() * 5);
+    for (let s = 0; s < steps; s++) { cx += (Math.random() - 0.5) * 50; cy += (Math.random() - 0.5) * 50; g.lineTo(cx, cy); }
+    g.stroke();
+  }
+  function texSlabs(g, SUP, TILE) {
     for (let ty = 0; ty < SUP; ty += TILE) {
       for (let tx = 0; tx < SUP; tx += TILE) {
         const sh = 0.82 + Math.random() * 0.3;
@@ -693,17 +759,16 @@
         }
       }
     }
-
-    // dark grout lines between slabs
+  }
+  function texGrout(g, SUP, TILE) {
     g.strokeStyle = "rgba(0,0,0,0.55)"; g.lineWidth = 2;
     for (let t = 0; t <= SUP; t += TILE) {
       g.beginPath(); g.moveTo(t, 0); g.lineTo(t, SUP); g.stroke();
       g.beginPath(); g.moveTo(0, t); g.lineTo(SUP, t); g.stroke();
     }
-
-    groundPattern = ctx.createPattern(off, "repeat");
   }
-  buildGroundTexture();
+  function buildAllTextures() { for (const t of THEMES) groundPatterns.push(buildTile(t)); }
+  buildAllTextures();
 
   // ---------------------------------------------------------------- Loot tables
   const RARITY = [
@@ -807,19 +872,23 @@
       running: false,
       over: false,
       time: 0,
-      tide: 180,          // 3 minutes
-      tideMax: 180,
-      wave: 1,
+      wave: 0,            // becomes 1 on the first startWave()
+      phase: "fighting",  // "fighting" | "intermission"
       spawnTimer: 0,
       spawnInterval: 1.4,
+      toSpawn: 0,         // enemies still to spawn this wave
+      alive: 0,           // enemies currently on the field this wave
+      waveQuota: 0,       // total enemies to clear this wave
+      interTimer: 0,      // intermission countdown
+      theme: 0,           // scenario index (set in Stage 6)
       kills: 0,
       lootCount: 0,
       ash: 0,
       score: 0,
       shake: 0,
       boss: null,
-      bossSpawned: false,
       bossDefeated: false,
+      bossesDown: 0,
       player: {
         x: WORLD.w / 2, y: WORLD.h / 2,
         r: 16,
@@ -965,23 +1034,29 @@
     x = clamp(x, WALL + 20, WORLD.w - WALL - 20);
     y = clamp(y, WALL + 20, WORLD.h - WALL - 20);
 
-    const waveScale = 1 + (state.wave - 1) * 0.16;
+    // never-ending ramp: hp scales fastest; damage and speed more gently (speed capped so it stays fair)
+    const w = state.wave;
+    const hpScale = 1 + (w - 1) * 0.20;
+    const dmgScale = 1 + (w - 1) * 0.10;
+    const spdScale = 1 + Math.min(1.1, (w - 1) * 0.03);
+
     const roll = Math.random();
     let type;
-    if (state.wave >= 3 && roll < 0.14) type = "brute";
-    else if (roll < 0.30) type = "hound";
+    const bruteChance = Math.min(0.30, 0.06 + w * 0.012); // brutes grow more common
+    if (w >= 3 && roll < bruteChance) type = "brute";
+    else if (roll < 0.30 + Math.min(0.25, w * 0.01)) type = "hound";
     else type = "imp";
 
     let e = { x, y, type, flash: 0 };
     if (type === "imp") {
-      e.r = 15; e.speed = rand(70, 95) * (1 + waveScale * 0.05);
-      e.hp = e.maxHp = 24 * waveScale; e.dmg = 9; e.xp = 10; e.ashChance = 0.35; e.color = "#c0392b";
+      e.r = 15; e.speed = rand(70, 95) * spdScale;
+      e.hp = e.maxHp = 24 * hpScale; e.dmg = 9 * dmgScale; e.xp = 10 + w; e.ashChance = 0.35; e.color = "#c0392b";
     } else if (type === "hound") {
-      e.r = 13; e.speed = rand(120, 150) * (1 + waveScale * 0.04);
-      e.hp = e.maxHp = 16 * waveScale; e.dmg = 7; e.xp = 8; e.ashChance = 0.3; e.color = "#e67e22";
+      e.r = 13; e.speed = rand(120, 150) * spdScale;
+      e.hp = e.maxHp = 16 * hpScale; e.dmg = 7 * dmgScale; e.xp = 8 + w; e.ashChance = 0.3; e.color = "#e67e22";
     } else { // brute
-      e.r = 26; e.speed = rand(45, 60);
-      e.hp = e.maxHp = 90 * waveScale; e.dmg = 20; e.xp = 35; e.ashChance = 0.8; e.color = "#7a1d1d";
+      e.r = 26; e.speed = rand(45, 60) * (1 + Math.min(0.5, (w - 1) * 0.02));
+      e.hp = e.maxHp = 90 * hpScale; e.dmg = 20 * dmgScale; e.xp = 35 + w * 2; e.ashChance = 0.8; e.color = "#7a1d1d";
     }
     state.enemies.push(e);
   }
@@ -994,13 +1069,12 @@
     const scale = 1 + (state.wave - 1) * 0.12;
     state.boss = {
       x, y, r: 48, type: "boss",
-      speed: 85,
+      speed: 85 + Math.min(40, state.wave),
       hp: 2600 * scale, maxHp: 2600 * scale,
-      dmg: 26, xp: 600, flash: 0,
+      dmg: 26 * (1 + (state.wave - 1) * 0.05), xp: 600 + state.wave * 20, flash: 0,
       color: "#8a0f2a",
       shootCd: 2, phase: 0,
     };
-    state.bossSpawned = true;
     bossWrap.style.display = "block";
     showWarning("¡El Señor de la Marea<br>ha despertado!");
     state.shake = 18;
@@ -1032,6 +1106,7 @@
 
   function killEnemy(e) {
     state.kills++;
+    state.alive = Math.max(0, state.alive - 1);
     state.score += Math.round(e.xp * 1.5);
     Sound.kill();
     gainXp(e.xp);
@@ -1054,6 +1129,7 @@
   function killBoss(boss) {
     state.boss = null;
     state.bossDefeated = true;
+    state.bossesDown++;
     state.kills++;
     state.score += 1500;
     state.ash += 40;
@@ -1241,22 +1317,66 @@
     while (lootFeed.children.length > 8) lootFeed.removeChild(lootFeed.firstChild);
   }
 
+  // ---------------------------------------------------------------- Wave director
+  // Begins the next wave. Every 10th wave spawns a boss (Stage 5) and, from Stage 6,
+  // rotates the scenario. Difficulty ramps forever (handled in spawnEnemy / startWave).
+  function startWave() {
+    state.wave++;
+    state.phase = "fighting";
+    state.alive = 0;
+    const w = state.wave;
+
+    // scenario rotation every 10 waves (Stage 6 reads state.theme when drawing)
+    const newTheme = Math.floor((w - 1) / 10) % THEMES.length;
+    if (newTheme !== state.theme) {
+      state.theme = newTheme;
+      showWarning("Nuevo escenario<br><span style='font-size:22px'>" + THEMES[newTheme].name + "</span>");
+      state.shake = Math.max(state.shake, 10);
+    }
+
+    // enemy quota grows every wave; spawn cadence tightens (never-ending ramp)
+    state.waveQuota = 6 + Math.floor(w * 2.2);
+    state.toSpawn = state.waveQuota;
+    state.spawnInterval = Math.max(0.28, 1.4 - (w - 1) * 0.04);
+    state.spawnTimer = 0;
+
+    const p = state.player;
+    if (w % 10 === 0) {
+      floatText(p.x, p.y - 56, "OLEADA " + w + " \u2014 \u00a1JEFE!", "#ff5050");
+      spawnBoss();
+    } else {
+      floatText(p.x, p.y - 56, "OLEADA " + w, "#ff7a2a");
+    }
+    updateHud();
+  }
+
+  function onWaveCleared() {
+    const w = state.wave;
+    state.score += 50 + w * 10;
+    state.ash += 3 + Math.floor(w / 3);
+    floatText(state.player.x, state.player.y - 40, "Oleada " + w + " superada", "#6affa0");
+    Sound.levelup();
+    // every 5th wave -> intermission breather; otherwise straight into the next wave
+    if (w % 5 === 0) startIntermission();
+    else startWave();
+  }
+
+  function startIntermission() {
+    state.phase = "intermission";
+    state.interTimer = 12; // seconds
+    showWarning("Intermedio<br><span style='font-size:20px'>Revisa tu inventario \u2014 pulsa I</span>");
+    interPanel.style.display = "block";
+  }
+
+  function endIntermission() {
+    interPanel.style.display = "none";
+    startWave();
+  }
+
   // ---------------------------------------------------------------- Update
   function update(dt) {
     const p = state.player;
-
-    // tide timer
-    state.tide -= dt;
-    if (state.tide <= 0) { endGame(true); return; }
     state.time += dt;
-
-    // wave scaling over time
-    const newWave = 1 + Math.floor(state.time / 20);
-    if (newWave !== state.wave) {
-      state.wave = newWave;
-      state.spawnInterval = Math.max(0.4, 1.4 - (state.wave - 1) * 0.08);
-      floatText(p.x, p.y - 56, "OLEADA " + state.wave, "#ff7a2a");
-    }
 
     // movement (skipped while dashing — dash moves the player instead)
     if (p.dashTime <= 0) {
@@ -1290,9 +1410,6 @@
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
     if (p.inv > 0) p.inv -= dt;
 
-    // boss trigger: 35s before tide ends
-    if (!state.bossSpawned && state.tide <= 35) spawnBoss();
-
     // dash cooldown / active dash
     if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
     if (p.dashTime > 0) {
@@ -1303,12 +1420,23 @@
       state.particles.push({ x: p.x, y: p.y, vx: rand(-20, 20), vy: rand(-20, 20), life: 0.25, r: rand(3, 6), color: "#6ad1ff" });
     }
 
-    // spawn (slow down while boss is alive)
-    state.spawnTimer -= dt;
-    if (state.spawnTimer <= 0) {
-      state.spawnTimer = state.boss ? state.spawnInterval * 2.2 : state.spawnInterval;
-      const batch = state.boss ? 1 : (1 + Math.floor(state.wave / 3));
-      for (let i = 0; i < batch; i++) spawnEnemy();
+    // ---- wave director ----
+    if (state.phase === "intermission") {
+      // breather: no spawns; player can open inventory. Auto-resumes after the timer.
+      state.interTimer -= dt;
+      if (state.interTimer <= 0) endIntermission();
+    } else {
+      // fighting: drip-feed this wave's enemy quota
+      if (state.toSpawn > 0) {
+        state.spawnTimer -= dt;
+        if (state.spawnTimer <= 0) {
+          state.spawnTimer = state.boss ? state.spawnInterval * 2.2 : state.spawnInterval;
+          const batch = state.boss ? 1 : Math.min(state.toSpawn, 1 + Math.floor(state.wave / 4));
+          for (let i = 0; i < batch; i++) { spawnEnemy(); state.toSpawn--; state.alive++; }
+        }
+      }
+      // wave cleared once every enemy is spawned and dead (and the boss, if any, is down)
+      if (state.toSpawn <= 0 && state.alive <= 0 && !state.boss) onWaveCleared();
     }
 
     // bullets
@@ -1330,7 +1458,7 @@
         state.shake = Math.max(state.shake, 9);
         Sound.hurt();
         floatText(p.x, p.y - 26, "-" + Math.round(e.dmg), "#ff5050");
-        if (p.hp <= 0) { endGame(false); return; }
+        if (p.hp <= 0) { endGame(); return; }
       }
     }
 
@@ -1348,7 +1476,7 @@
       if (bd < boss.r + p.r && p.inv <= 0) {
         p.hp -= boss.dmg; p.inv = 0.7; state.shake = Math.max(state.shake, 12); Sound.hurt();
         floatText(p.x, p.y - 26, "-" + Math.round(boss.dmg), "#ff5050");
-        if (p.hp <= 0) { endGame(false); return; }
+        if (p.hp <= 0) { endGame(); return; }
       }
       // ranged attack: fan of projectiles
       boss.shootCd -= dt;
@@ -1370,7 +1498,7 @@
       if (bb.life > 0 && p.inv <= 0 && dist2(bb.x, bb.y, p.x, p.y) < (bb.r + p.r) ** 2) {
         bb.life = 0; p.hp -= bb.dmg; p.inv = 0.5; state.shake = Math.max(state.shake, 8); Sound.hurt();
         floatText(p.x, p.y - 26, "-" + Math.round(bb.dmg), "#ff5050");
-        if (p.hp <= 0) { endGame(false); return; }
+        if (p.hp <= 0) { endGame(); return; }
       }
     }
     state.bossBullets = state.bossBullets.filter(bb => bb.life > 0);
@@ -1526,47 +1654,48 @@
 
     ctx.restore();
 
-    // helltide vignette
+    // scenario vignette
+    const vigColor = THEMES[state ? state.theme % THEMES.length : 0].vignette;
     const grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
     grad.addColorStop(0, "rgba(0,0,0,0)");
-    grad.addColorStop(1, "rgba(80,10,0,0.45)");
+    grad.addColorStop(1, vigColor);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
   }
 
   function drawGround() {
-    // stone-tile floor (cached pattern; the camera translate anchors it in world space)
-    if (groundPattern) {
+    // floor: cached pattern for the active scenario theme
+    const ti = state ? state.theme % THEMES.length : 0;
+    const theme = THEMES[ti];
+    const pat = groundPatterns[ti];
+    if (pat) {
       ctx.save();
-      ctx.fillStyle = groundPattern;
+      ctx.fillStyle = pat;
       ctx.fillRect(0, 0, WORLD.w, WORLD.h);
       ctx.restore();
     } else {
-      ctx.fillStyle = "#26100a";
+      ctx.fillStyle = theme.base;
       ctx.fillRect(0, 0, WORLD.w, WORLD.h);
     }
 
-    drawWallBorder();
+    drawWallBorder(theme);
   }
 
-  // Battlemented stone wall around the whole arena, marking the impassable edge.
-  function drawWallBorder() {
+  // Battlemented stone wall around the whole arena, tinted to the active theme.
+  function drawWallBorder(theme) {
     const T = WALL, merlon = 40, gap = 26;
     ctx.save();
 
-    // four wall bands
-    ctx.fillStyle = "#3a2316";
+    ctx.fillStyle = theme.wall;
     ctx.fillRect(0, 0, WORLD.w, T);
     ctx.fillRect(0, WORLD.h - T, WORLD.w, T);
     ctx.fillRect(0, 0, T, WORLD.h);
     ctx.fillRect(WORLD.w - T, 0, T, WORLD.h);
 
-    // ember glow on the inner edge facing the arena
-    ctx.strokeStyle = "rgba(255,110,30,0.35)";
+    ctx.strokeStyle = theme.edge;
     ctx.lineWidth = 3;
     ctx.strokeRect(T, T, WORLD.w - T * 2, WORLD.h - T * 2);
 
-    // stone block seams
     ctx.strokeStyle = "rgba(0,0,0,0.5)";
     ctx.lineWidth = 2;
     const block = 60;
@@ -1581,8 +1710,7 @@
     }
     ctx.stroke();
 
-    // battlement merlons crowning the outer rim
-    ctx.fillStyle = "#4a2e1c";
+    ctx.fillStyle = theme.merlon;
     const step = merlon + gap;
     for (let x = 0; x < WORLD.w; x += step) {
       ctx.fillRect(x, -10, merlon, 14);
@@ -1593,14 +1721,13 @@
       ctx.fillRect(WORLD.w - 4, y, 14, merlon);
     }
 
-    // corner towers
     const tower = 46;
     for (const corner of [[0, 0], [WORLD.w, 0], [0, WORLD.h], [WORLD.w, WORLD.h]]) {
       const cx = corner[0], cy = corner[1];
-      ctx.fillStyle = "#4a2e1c";
+      ctx.fillStyle = theme.merlon;
       ctx.beginPath(); ctx.arc(cx, cy, tower, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 3; ctx.stroke();
-      ctx.fillStyle = "rgba(255,110,30,0.25)";
+      ctx.fillStyle = theme.edge;
       ctx.beginPath(); ctx.arc(cx, cy, tower * 0.55, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
@@ -1770,8 +1897,10 @@
   const levelTxt = el("level-txt"), ashTxt = el("ash-txt");
   const waveTxt = el("wave-txt"), killsTxt = el("kills-txt"), lootTxt = el("loot-txt");
   const tideTimer = el("tide-timer");
+  const waveProgress = el("wave-progress");
   const bossWrap = el("boss-wrap"), bossFill = el("boss-fill");
   const warningEl = el("warning");
+  const interPanel = el("inter-panel");
   const dashBtnEl = el("dash-btn");
 
   let warnTimer = null;
@@ -1786,6 +1915,11 @@
   el("sound-btn").addEventListener("click", () => {
     const on = Sound.toggle();
     el("sound-btn").textContent = on ? "🔊 Sonido" : "🔇 Silencio";
+  });
+
+  // intermission: let the player skip the breather
+  el("inter-continue").addEventListener("click", () => {
+    if (state && state.phase === "intermission") endIntermission();
   });
 
   // ---------------------------------------------------------------- Inventory UI
@@ -1899,10 +2033,16 @@
     lootTxt.textContent = state.lootCount;
     powerTxt.textContent = p.power;
 
-    const m = Math.floor(state.tide / 60);
-    const s = Math.floor(state.tide % 60);
-    tideTimer.textContent = m + ":" + (s < 10 ? "0" : "") + s;
-    tideTimer.classList.toggle("low", state.tide <= 30);
+    if (state.phase === "intermission") {
+      tideTimer.textContent = "INTERMEDIO";
+      tideTimer.classList.add("low");
+      waveProgress.textContent = "Siguiente en " + Math.ceil(state.interTimer) + "s";
+    } else {
+      tideTimer.textContent = "OLEADA " + state.wave;
+      tideTimer.classList.remove("low");
+      const cleared = state.waveQuota - state.toSpawn - state.alive;
+      waveProgress.textContent = clamp(cleared, 0, state.waveQuota) + " / " + state.waveQuota + (state.boss ? "  👹" : "");
+    }
   }
 
   // ---------------------------------------------------------------- Game flow
@@ -1983,6 +2123,7 @@
     overScreen.classList.add("hidden");
     pauseScreen.classList.add("hidden");
     bossWrap.style.display = "none";
+    interPanel.style.display = "none";
     menuScreen.classList.remove("hidden");
     showMenuView("home");
   }
@@ -2015,24 +2156,25 @@
     overScreen.classList.add("hidden");
     pauseScreen.classList.add("hidden");
     bossWrap.style.display = "none";
+    interPanel.style.display = "none";
     warningEl.classList.remove("show");
     lootFeed.innerHTML = "";
+    startWave(); // begin wave 1
     updateHud();
   }
 
-  function endGame(tideSurvived) {
+  function endGame() {
     if (state.over) return;
     state.running = false;
     state.over = true;
     paused = false;
     pauseScreen.classList.add("hidden");
     const p = state.player;
-    const bossBonus = state.bossDefeated ? 3000 : 0;
-    const finalScore = state.score + p.level * 100 + state.ash * 2 + (tideSurvived ? 1000 : 0) + bossBonus;
+    // score rewards waves reached, levels, bosses felled and ash hoarded
+    const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * 2 + state.bossesDown * 1500;
     bossWrap.style.display = "none";
-    el("over-title").textContent = tideSurvived
-      ? (state.bossDefeated ? "¡Marea conquistada!" : "¡Sobreviviste a la marea!")
-      : "Has caído";
+    interPanel.style.display = "none";
+    el("over-title").textContent = "Has caído";
     el("final-level").textContent = p.level;
     el("final-wave").textContent = state.wave;
     el("final-kills").textContent = state.kills;
@@ -2044,7 +2186,7 @@
     pendingRun = {
       score: finalScore, level: p.level, wave: state.wave,
       kills: state.kills, loot: state.lootCount, ash: state.ash,
-      boss: state.bossDefeated, date: Date.now(),
+      boss: state.bossesDown > 0, date: Date.now(),
     };
 
     const prevBest = bestScore();
@@ -2100,13 +2242,12 @@
       state.running = false;
       state.over = true;
       const p = state.player;
-      const bossBonus = state.bossDefeated ? 3000 : 0;
-      const finalScore = state.score + p.level * 100 + state.ash * 2 + bossBonus;
+      const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * 2 + state.bossesDown * 1500;
       addScore({
         id: "r" + Date.now() + Math.random().toString(36).slice(2, 6),
         name: "Abandono", score: finalScore, level: p.level, wave: state.wave,
         kills: state.kills, loot: state.lootCount, ash: state.ash,
-        boss: state.bossDefeated, date: Date.now(),
+        boss: state.bossesDown > 0, date: Date.now(),
       });
       pendingRun = null;
     }
