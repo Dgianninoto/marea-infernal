@@ -673,7 +673,7 @@
   const THEMES = [
     { id: "tiles", name: "Páramo de cenizas",   base: "#211109", wall: "#3a2316", merlon: "#4a2e1c", edge: "rgba(255,110,30,0.35)", vignette: "rgba(80,10,0,0.45)" },
     { id: "frost", name: "Cripta de hielo",     base: "#0d1a26", wall: "#1c3346", merlon: "#274a63", edge: "rgba(120,220,255,0.40)", vignette: "rgba(10,30,60,0.55)" },
-    { id: "blood", name: "Sangre y obsidiana",  base: "#15060a", wall: "#2a0a12", merlon: "#3a0e18", edge: "rgba(200,20,40,0.40)",  vignette: "rgba(90,0,10,0.55)" },
+    { id: "blood", name: "Sangre y obsidiana",  base: "#120a0e", wall: "#241419", merlon: "#311b22", edge: "rgba(150,40,55,0.30)",  vignette: "rgba(35,8,14,0.5)" },
   ];
   const groundPatterns = []; // one CanvasPattern per theme, same index as THEMES
 
@@ -705,21 +705,25 @@
       for (let i = 0; i < 22; i++) texCrack(g, SUP, "rgba(5,20,40,0.5)", 1);
       for (let i = 0; i < 6; i++) texCrack(g, SUP, "rgba(130,225,255,0.45)", 1.5);
     } else {
-      // blood & obsidian: glassy black stone with crimson pools and facets
-      texSpeckle(g, SUP, 700, "rgba(120,0,10,", "rgba(255,40,60,");
-      for (let i = 0; i < 40; i++) {
-        const x = Math.random() * SUP, y = Math.random() * SUP, r = 8 + Math.random() * 34;
+      // blood & obsidian: dark volcanic glass with sparse, dried-blood accents
+      texSpeckle(g, SUP, 600, "rgba(60,20,24,", "rgba(90,30,36,");
+      // fewer, smaller, darker (dried) blood stains — muted garnet, low opacity
+      for (let i = 0; i < 16; i++) {
+        const x = Math.random() * SUP, y = Math.random() * SUP, r = 6 + Math.random() * 20;
         const grd = g.createRadialGradient(x, y, 0, x, y, r);
-        grd.addColorStop(0, "rgba(120,0,12,0.55)");
-        grd.addColorStop(1, "rgba(60,0,6,0)");
+        grd.addColorStop(0, "rgba(90,22,30,0.35)");
+        grd.addColorStop(1, "rgba(40,10,14,0)");
         g.fillStyle = grd;
         g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
       }
-      for (let i = 0; i < 60; i++) {
-        const x = Math.random() * SUP, y = Math.random() * SUP, s = 4 + Math.random() * 10;
-        g.fillStyle = "rgba(40,40,48," + (0.1 + Math.random() * 0.2) + ")";
+      // obsidian facets: cool dark highlights give the glassy stone its character
+      for (let i = 0; i < 80; i++) {
+        const x = Math.random() * SUP, y = Math.random() * SUP, s = 4 + Math.random() * 11;
+        g.fillStyle = "rgba(46,46,56," + (0.12 + Math.random() * 0.22) + ")";
         g.beginPath(); g.moveTo(x, y); g.lineTo(x + s, y + s * 0.4); g.lineTo(x + s * 0.3, y + s); g.closePath(); g.fill();
       }
+      // a few faint dried-blood cracks instead of bright red veins
+      for (let i = 0; i < 5; i++) texCrack(g, SUP, "rgba(110,30,38,0.3)", 1);
     }
     return ctx.createPattern(off, "repeat");
   }
