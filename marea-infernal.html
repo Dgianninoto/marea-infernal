@@ -1641,11 +1641,7 @@
 
     // bullets
     for (const b of state.bullets) {
-      ctx.save();
-      ctx.shadowBlur = 12; ctx.shadowColor = "#ffb347";
-      ctx.fillStyle = "#fff0c2";
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+      drawArrow(b.x, b.y, b.vx, b.vy, 11, "#e7cda0");
     }
 
     // player
@@ -1749,24 +1745,80 @@
   function drawPlayer(p) {
     // invuln blink
     if (p.inv > 0 && Math.floor(p.inv * 20) % 2 === 0) ctx.globalAlpha = 0.5;
-    // body
+
+    const ang = Math.atan2(p.aimY, p.aimX);
+
+    // ground shadow
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r * 0.7, p.r * 0.9, p.r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // hooded cloak body (ember glow)
     ctx.save();
     ctx.shadowBlur = 16; ctx.shadowColor = "#ff7a2a";
     ctx.fillStyle = "#2b1a12";
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = 3; ctx.strokeStyle = "#ff9d4d";
-    ctx.stroke();
-    ctx.restore();
-    // inner ember core
-    ctx.fillStyle = "#ffb347";
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.45, 0, Math.PI * 2); ctx.fill();
-    // weapon barrel
-    ctx.strokeStyle = "#f3dfce"; ctx.lineWidth = 5; ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    ctx.lineTo(p.x + p.aimX * (p.r + 12), p.y + p.aimY * (p.r + 12));
-    ctx.stroke();
+    ctx.moveTo(p.x, p.y - p.r);                       // hood top
+    ctx.quadraticCurveTo(p.x + p.r, p.y - p.r * 0.3, p.x + p.r * 0.8, p.y + p.r);  // right of cloak
+    ctx.lineTo(p.x - p.r * 0.8, p.y + p.r);           // hem
+    ctx.quadraticCurveTo(p.x - p.r, p.y - p.r * 0.3, p.x, p.y - p.r);              // left back to hood
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = "#ff9d4d"; ctx.stroke();
+    ctx.restore();
+
+    // hood opening (dark face with ember eyes)
+    ctx.fillStyle = "#140b07";
+    ctx.beginPath(); ctx.arc(p.x, p.y - p.r * 0.25, p.r * 0.42, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffcf80";
+    ctx.beginPath(); ctx.arc(p.x - p.r * 0.14, p.y - p.r * 0.28, p.r * 0.07, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x + p.r * 0.14, p.y - p.r * 0.28, p.r * 0.07, 0, Math.PI * 2); ctx.fill();
+
+    // ---- bow, rotated toward the aim direction ----
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(ang);
+    const br = p.r + 10;            // bow radius
+    // bow limb (C-shaped arc opening toward the target)
+    ctx.strokeStyle = "#8a5a2a"; ctx.lineWidth = 3.5; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.arc(2, 0, br, -1.15, 1.15); ctx.stroke();
+    // thin highlight on the bow
+    ctx.strokeStyle = "#c8894a"; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(2, 0, br, -1.15, 1.15); ctx.stroke();
+    // bowstring between the two tips
+    const tipX = 2 + Math.cos(1.15) * br, tipY = Math.sin(1.15) * br;
+    ctx.strokeStyle = "rgba(240,223,206,0.85)"; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(tipX, -tipY); ctx.lineTo(tipX, tipY); ctx.stroke();
+    ctx.restore();
+
     ctx.globalAlpha = 1;
+  }
+
+  // draw a single arrow (used for player arrows), pointing along its velocity
+  function drawArrow(x, y, vx, vy, len, color) {
+    const ang = Math.atan2(vy, vx);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang);
+    ctx.shadowBlur = 8; ctx.shadowColor = "#ffb347";
+    // shaft
+    ctx.strokeStyle = color || "#e7cda0"; ctx.lineWidth = 2.2; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-len, 0); ctx.lineTo(len * 0.6, 0); ctx.stroke();
+    // arrowhead
+    ctx.fillStyle = "#fff0c2";
+    ctx.beginPath();
+    ctx.moveTo(len, 0);
+    ctx.lineTo(len * 0.5, -3.2);
+    ctx.lineTo(len * 0.5, 3.2);
+    ctx.closePath(); ctx.fill();
+    // fletching (feathers at the tail)
+    ctx.fillStyle = "#c0603a";
+    ctx.beginPath();
+    ctx.moveTo(-len, 0); ctx.lineTo(-len - 4, -3.5); ctx.lineTo(-len + 3, 0); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-len, 0); ctx.lineTo(-len - 4, 3.5); ctx.lineTo(-len + 3, 0); ctx.closePath(); ctx.fill();
+    ctx.restore();
   }
 
   function drawEnemy(e) {
