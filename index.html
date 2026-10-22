@@ -917,6 +917,10 @@
       spawnTimer: 0,
       spawnInterval: 1.4,
       toSpawn: 0,         // enemies still to spawn this wave
+      burstSize: 8,       // enemies per internal burst
+      burstLeft: 0,       // enemies left in the current burst
+      burstGap: 0,        // countdown between bursts
+      burstGapMax: 2.5,   // pause length between bursts
       alive: 0,           // enemies currently on the field this wave
       waveQuota: 0,       // total enemies to clear this wave
       interTimer: 0,      // intermission countdown
@@ -1512,11 +1516,18 @@
       state.shake = Math.max(state.shake, 10);
     }
 
-    // enemy quota grows every wave; spawn cadence tightens (never-ending ramp)
-    state.waveQuota = 6 + Math.floor(w * 2.2);
+    // enemy quota grows every wave; spawn cadence tightens (never-ending ramp).
+    // 0.4: TRIPLED total enemies, released in staged bursts (not all at once) so
+    // the player can't simply dodge the whole wave and take a free offensive spot.
+    state.waveQuota = (6 + Math.floor(w * 2.2)) * 3;
     state.toSpawn = state.waveQuota;
-    state.spawnInterval = Math.max(0.28, 1.4 - (w - 1) * 0.04);
+    state.spawnInterval = Math.max(0.12, 0.6 - (w - 1) * 0.02); // gap between enemies inside a burst
     state.spawnTimer = 0;
+    // burst (oleada interna) setup: ~6-10 enemies per burst, a pause between bursts
+    state.burstSize = 6 + Math.floor(w / 3);
+    state.burstLeft = state.burstSize;          // enemies remaining in the current burst
+    state.burstGapMax = Math.max(1.6, 3.2 - w * 0.05); // seconds of pause between bursts
+    state.burstGap = 0;                          // countdown while waiting for next burst
 
     const p = state.player;
     if (w % 10 === 0) {
@@ -1612,13 +1623,27 @@
       state.interTimer -= dt;
       if (state.interTimer <= 0) endIntermission();
     } else {
-      // fighting: drip-feed this wave's enemy quota
+      // fighting: release enemies in staged BURSTS (oleadas internas).
+      // Within a burst, spawn fast; when the burst empties, wait burstGap seconds
+      // before the next burst arrives — forcing repeated engagements per wave.
       if (state.toSpawn > 0) {
-        state.spawnTimer -= dt;
-        if (state.spawnTimer <= 0) {
-          state.spawnTimer = state.boss ? state.spawnInterval * 2.2 : state.spawnInterval;
-          const batch = state.boss ? 1 : Math.min(state.toSpawn, 1 + Math.floor(state.wave / 4));
-          for (let i = 0; i < batch; i++) { spawnEnemy(); state.toSpawn--; state.alive++; }
+        if (state.burstGap > 0) {
+          // waiting between bursts
+          state.burstGap -= dt;
+          if (state.burstGap <= 0) {
+            state.burstLeft = Math.min(state.toSpawn, state.burstSize);
+            state.spawnTimer = 0;
+            floatText(p.x, p.y - 44, "¡Más demonios!", "#ff7a2a");
+          }
+        } else {
+          state.spawnTimer -= dt;
+          if (state.spawnTimer <= 0) {
+            state.spawnTimer = state.boss ? state.spawnInterval * 2.2 : state.spawnInterval;
+            const batch = state.boss ? 1 : Math.min(state.toSpawn, state.burstLeft, 1 + Math.floor(state.wave / 5));
+            for (let i = 0; i < batch; i++) { spawnEnemy(); state.toSpawn--; state.burstLeft--; state.alive++; }
+            // burst finished? start the pause before the next one (if any left)
+            if (state.burstLeft <= 0 && state.toSpawn > 0) state.burstGap = state.burstGapMax;
+          }
         }
       }
       // wave cleared once every enemy is spawned and dead (and the boss, if any, is down)
@@ -2387,7 +2412,8 @@
       tideTimer.textContent = "OLEADA " + state.wave;
       tideTimer.classList.remove("low");
       const cleared = state.waveQuota - state.toSpawn - state.alive;
-      waveProgress.textContent = clamp(cleared, 0, state.waveQuota) + " / " + state.waveQuota + (state.boss ? "  👹" : "");
+      const waiting = state.burstGap > 0 ? "  ⏳ oleada entrante" : "";
+      waveProgress.textContent = clamp(cleared, 0, state.waveQuota) + " / " + state.waveQuota + (state.boss ? "  👹" : "") + waiting;
     }
   }
 
