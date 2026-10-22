@@ -973,29 +973,48 @@
   const mouse = { x: W / 2, y: H / 2, down: false };
 
   window.addEventListener("keydown", e => {
+    // Bug 2: when a text field is focused (e.g. the name input on the game-over
+    // screen) let the keystroke go to it — don't hijack game shortcuts.
+    const t = e.target;
+    const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+    if (typing) return;
+
     keys[e.key.toLowerCase()] = true;
+
+    // Esc works regardless of run state (pause / close menus)
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (invOpen) closeInventory();
+      else if (paused) resumeGame();
+      else if (state && state.running && !state.over) pauseGame();
+      return;
+    }
+
+    // the rest are gameplay actions: only while a run is actually in progress
+    const active = state && state.running && !state.over;
+    if (!active) return;
+
     if (e.key === " " || e.code === "Space") { e.preventDefault(); tryDash(); }
     if (e.key.toLowerCase() === "e") { e.preventDefault(); tryOpenChest(); }
     if (e.key === "1") { e.preventDefault(); useSkill(0); }
     if (e.key === "2") { e.preventDefault(); useSkill(1); }
     if (e.key === "3") { e.preventDefault(); useSkill(2); }
     if (e.key.toLowerCase() === "i") { e.preventDefault(); toggleInventory(); }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      if (invOpen) closeInventory();
-      else if (paused) resumeGame();
-      else if (state && state.running && !state.over) pauseGame();
-    }
   });
   window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+  // Bug 2 safety: if focus leaves the window, clear held keys so none get "stuck".
+  window.addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
 
   canvas.addEventListener("mousemove", e => {
     const r = canvas.getBoundingClientRect();
     mouse.x = e.clientX - r.left;
     mouse.y = e.clientY - r.top;
   });
-  canvas.addEventListener("mousedown", e => { if (e.button === 0) mouse.down = true; });
-  window.addEventListener("mouseup", () => { mouse.down = false; });
+  canvas.addEventListener("mousedown", e => { if (e.button === 0) { e.preventDefault(); mouse.down = true; } });
+  window.addEventListener("mouseup", e => { if (!e || e.button === 0) mouse.down = false; });
+  // Bug 1: right-click opened the browser context menu over the canvas and froze input.
+  // Suppress it so right-click is a no-op in-game.
+  canvas.addEventListener("contextmenu", e => { e.preventDefault(); });
 
   // Touch: left half = joystick, right half = shoot toward touch
   const touch = { moveId: null, mx: 0, my: 0, jx: 0, jy: 0, shootId: null, sx: 0, sy: 0 };
@@ -1153,7 +1172,9 @@
     else if (roll < 0.30 + Math.min(0.25, w * 0.01)) type = "hound";
     else type = "imp";
 
-    let e = { x, y, type, flash: 0 };
+    // steerBias: remembered turn side (+1/-1) so the enemy commits to going around
+    // an obstacle instead of dithering; randomized per enemy so clusters split up.
+    let e = { x, y, type, flash: 0, steerBias: Math.random() < 0.5 ? 1 : -1, stuckT: 0 };
     if (type === "imp") {
       e.r = 15; e.speed = rand(70, 95) * spdScale;
       e.hp = e.maxHp = 24 * hpScale; e.dmg = 9 * dmgScale; e.xp = 10 + w; e.ashChance = 0.35; e.color = "#c0392b";
@@ -1615,9 +1636,49 @@
       if (e.flash > 0) e.flash -= dt;
       const dx = p.x - e.x, dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
-      e.x += (dx / d) * e.speed * dt;
-      e.y += (dy / d) * e.speed * dt;
-      const re = resolveObstacles(e.x, e.y, e.r); e.x = re.x; e.y = re.y;
+      const step = e.speed * dt;
+      const baseAng = Math.atan2(dy, dx);
+      const ox = e.x, oy = e.y; // remember position to measure real progress this frame
+
+      // candidate step for a given heading; returns where the enemy would end up
+      // and whether a wall shoved it back (blocked).
+      const tryAngle = (ang) => {
+        const nx = clamp(e.x + Math.cos(ang) * step, WALL + e.r, WORLD.w - WALL - e.r);
+        const ny = clamp(e.y + Math.sin(ang) * step, WALL + e.r, WORLD.h - WALL - e.r);
+        const r = resolveObstacles(nx, ny, e.r);
+        const blocked = dist2(r.x, r.y, nx, ny) > 1;
+        return { x: r.x, y: r.y, blocked };
+      };
+
+      // Bug 3 (wall-following). Try straight; if blocked, sweep by increasing turn
+      // on the committed side until a clear heading is found — the enemy hugs the
+      // wall and rounds the corner instead of grinding head-on into its flat face.
+      let mv = tryAngle(baseAng);
+      if (mv.blocked) {
+        const bias = e.steerBias;
+        let found = null;
+        // rising turn angles up to ~160 deg; alternate committed side first, then the other
+        for (const mag of [0.35, 0.7, 1.05, 1.4, 1.75, 2.1, 2.45, 2.8]) {
+          const a = tryAngle(baseAng + mag * bias);
+          if (!a.blocked) { found = a; break; }
+          const b = tryAngle(baseAng - mag * bias);
+          if (!b.blocked) { found = b; e.steerBias = -bias; break; }
+        }
+        if (found) { e.x = found.x; e.y = found.y; }
+        else { const r = resolveObstacles(e.x, e.y, e.r); e.x = r.x; e.y = r.y; }
+      } else {
+        e.x = mv.x; e.y = mv.y;
+      }
+
+      // Stuck detection: if the enemy has barely advanced for a short while while
+      // not already touching the player, flip the go-around side to break the loop.
+      const moved = dist2(ox, oy, e.x, e.y);
+      if (moved < (step * 0.25) ** 2 && d > e.r + p.r + 6) {
+        e.stuckT += dt;
+        if (e.stuckT > 0.35) { e.steerBias = -e.steerBias; e.stuckT = 0; }
+      } else {
+        e.stuckT = 0;
+      }
       // contact damage
       if (d < e.r + p.r && p.inv <= 0) {
         p.hp -= e.dmg;
