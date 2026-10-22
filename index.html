@@ -474,7 +474,7 @@
       </div>
       <div id="controls-hint">
         <kbd>W A S D</kbd> / flechas — mover<br/>
-        <kbd>ratón</kbd> apunta — <kbd>clic</kbd> dispara<br/>
+        <kbd>ratón</kbd> apunta — disparo <b>automático</b><br/>
         <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br/>
         <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> habilidades — <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
       </div>
@@ -517,7 +517,7 @@
               <div class="ctrl-title">Teclado y ratón</div>
               <div class="ctrl-row"><kbd>W A S D</kbd><span>/ flechas — moverse</span></div>
               <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar</span></div>
-              <div class="ctrl-row"><kbd>clic izq.</kbd><span>disparar</span></div>
+              <div class="ctrl-row"><kbd>auto</kbd><span>disparo automático</span></div>
               <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
               <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
               <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
@@ -526,7 +526,7 @@
             <div class="ctrl-col">
               <div class="ctrl-title">Móvil / táctil</div>
               <div class="ctrl-row"><span class="ctrl-pad">joystick</span><span>mitad izq. para moverse</span></div>
-              <div class="ctrl-row"><span class="ctrl-pad">toca</span><span>mitad der. para disparar</span></div>
+              <div class="ctrl-row"><span class="ctrl-pad">toca</span><span>mitad der. para apuntar (dispara solo)</span></div>
               <div class="ctrl-row"><span class="ctrl-pad">⚡</span><span>botón de esquive</span></div>
               <div class="ctrl-row"><span class="ctrl-pad">🎒</span><span>botón de inventario</span></div>
             </div>
@@ -962,7 +962,8 @@
         shieldDur: 4,            // how long the shield lasts
       },
       bullets: [],
-      bossBullets: [],
+      bossBullets: [],   // boss + caster projectiles that damage the player
+      aoes: [],          // telegraphed ground areas (bomber) that damage the player
       enemies: [],
       orbs: [],
       chests: [],
@@ -1169,12 +1170,18 @@
     const dmgScale = 1 + (w - 1) * 0.10;
     const spdScale = 1 + Math.min(1.1, (w - 1) * 0.03);
 
-    const roll = Math.random();
-    let type;
-    const bruteChance = Math.min(0.30, 0.06 + w * 0.012); // brutes grow more common
-    if (w >= 3 && roll < bruteChance) type = "brute";
-    else if (roll < 0.30 + Math.min(0.25, w * 0.01)) type = "hound";
-    else type = "imp";
+    // Weighted type pool. New 0.5 types unlock progressively so early waves stay simple:
+    //  leaper (jumps at you), caster (shoots dodgeable projectiles), bomber (telegraphed AoE).
+    const pool = [];
+    pool.push(["imp", 50]);
+    pool.push(["hound", 22 + Math.min(14, w)]);
+    if (w >= 3) pool.push(["brute", Math.min(22, 4 + w)]);
+    if (w >= 4) pool.push(["leaper", Math.min(20, 3 + w)]);
+    if (w >= 6) pool.push(["caster", Math.min(18, 2 + w)]);
+    if (w >= 8) pool.push(["bomber", Math.min(16, 2 + w)]);
+    let total = 0; for (const t of pool) total += t[1];
+    let r = Math.random() * total, type = "imp";
+    for (const t of pool) { r -= t[1]; if (r <= 0) { type = t[0]; break; } }
 
     // steerBias: remembered turn side (+1/-1) so the enemy commits to going around
     // an obstacle instead of dithering; randomized per enemy so clusters split up.
@@ -1185,9 +1192,24 @@
     } else if (type === "hound") {
       e.r = 13; e.speed = rand(120, 150) * spdScale;
       e.hp = e.maxHp = 16 * hpScale; e.dmg = 7 * dmgScale; e.xp = 8 + w; e.ashChance = 0.3; e.color = "#e67e22";
-    } else { // brute
+    } else if (type === "brute") {
       e.r = 26; e.speed = rand(45, 60) * (1 + Math.min(0.5, (w - 1) * 0.02));
       e.hp = e.maxHp = 90 * hpScale; e.dmg = 20 * dmgScale; e.xp = 35 + w * 2; e.ashChance = 0.8; e.color = "#7a1d1d";
+    } else if (type === "leaper") {
+      // closes in, then leaps across a gap; big contact hit on landing
+      e.r = 16; e.speed = rand(90, 115) * spdScale;
+      e.hp = e.maxHp = 30 * hpScale; e.dmg = 16 * dmgScale; e.xp = 16 + w; e.ashChance = 0.4; e.color = "#2e8b57";
+      e.leapCd = rand(1.2, 2.2); e.leaping = 0; e.lvx = 0; e.lvy = 0;
+    } else if (type === "caster") {
+      // keeps its distance and fires dodgeable bolts (big so it reads clearly)
+      e.r = 23; e.speed = rand(55, 75) * spdScale;
+      e.hp = e.maxHp = 34 * hpScale; e.dmg = 6 * dmgScale; e.xp = 18 + w; e.ashChance = 0.45; e.color = "#7b4fc9";
+      e.shootCd = rand(1.4, 2.4); e.projDmg = 12 * dmgScale;
+    } else { // bomber
+      // plants a telegraphed ground AoE you must step out of
+      e.r = 20; e.speed = rand(50, 68) * spdScale;
+      e.hp = e.maxHp = 40 * hpScale; e.dmg = 8 * dmgScale; e.xp = 22 + w; e.ashChance = 0.55; e.color = "#b8860b";
+      e.bombCd = rand(2.0, 3.2); e.aoeDmg = 22 * dmgScale;
     }
     state.enemies.push(e);
   }
@@ -1594,9 +1616,10 @@
     const al = Math.hypot(ax, ay) || 1;
     p.aimX = ax / al; p.aimY = ay / al;
 
-    // fire
+    // fire — arrows now loose automatically at the fireRate cadence toward the aim.
+    // fire() already respects p.fireCd, so calling it every frame just shoots on cooldown.
     p.fireCd -= dt;
-    if (mouse.down) fire();
+    fire();
 
     // regen
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
@@ -1661,9 +1684,65 @@
       if (e.flash > 0) e.flash -= dt;
       const dx = p.x - e.x, dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
-      const step = e.speed * dt;
       const baseAng = Math.atan2(dy, dx);
       const ox = e.x, oy = e.y; // remember position to measure real progress this frame
+
+      // ---- 0.5 special-enemy behavior ----
+      // Returns true if this type handled its own movement and the normal chase
+      // should be skipped this frame.
+      let handledMove = false;
+
+      if (e.type === "leaper") {
+        if (e.leaping > 0) {
+          // mid-leap: fly along the locked velocity (ignores walls briefly for feel,
+          // but still clamped to arena and resolved out of columns)
+          e.leaping -= dt;
+          e.x = clamp(e.x + e.lvx * dt, WALL + e.r, WORLD.w - WALL - e.r);
+          e.y = clamp(e.y + e.lvy * dt, WALL + e.r, WORLD.h - WALL - e.r);
+          const rr = resolveObstacles(e.x, e.y, e.r); e.x = rr.x; e.y = rr.y;
+          state.particles.push({ x: e.x, y: e.y, vx: rand(-20, 20), vy: rand(-20, 20), life: 0.2, r: rand(2, 4), color: "#6affa0" });
+          handledMove = true;
+        } else {
+          e.leapCd -= dt;
+          // leap when at mid range; telegraph with a crouch flash then launch
+          if (e.leapCd <= 0 && d > 70 && d < 360) {
+            e.leaping = 0.34;
+            const spd = 520;
+            e.lvx = (dx / d) * spd; e.lvy = (dy / d) * spd;
+            e.leapCd = rand(1.6, 2.6);
+            state.shake = Math.max(state.shake, 3);
+          }
+        }
+      } else if (e.type === "caster") {
+        // hold at a shooting distance: back off if too close, approach if too far
+        const want = 300;
+        let mvx = 0, mvy = 0;
+        if (d < want - 40) { mvx = -dx / d; mvy = -dy / d; }       // retreat
+        else if (d > want + 40) { mvx = dx / d; mvy = dy / d; }    // approach
+        else { mvx = -dy / d; mvy = dx / d; }                      // strafe sideways
+        const stp = e.speed * dt;
+        e.x = clamp(e.x + mvx * stp, WALL + e.r, WORLD.w - WALL - e.r);
+        e.y = clamp(e.y + mvy * stp, WALL + e.r, WORLD.h - WALL - e.r);
+        const rc = resolveObstacles(e.x, e.y, e.r); e.x = rc.x; e.y = rc.y;
+        handledMove = true;
+        // fire a dodgeable bolt
+        e.shootCd -= dt;
+        if (e.shootCd <= 0 && d < 520) {
+          e.shootCd = rand(1.6, 2.6);
+          const bs = 260;
+          state.bossBullets.push({ x: e.x, y: e.y, vx: (dx / d) * bs, vy: (dy / d) * bs, r: 11, dmg: e.projDmg, life: 3, col: "#b98bff" });
+          Sound.boss();
+        }
+      } else if (e.type === "bomber") {
+        // plant a telegraphed AoE under/near the player, then keep a loose distance
+        e.bombCd -= dt;
+        if (e.bombCd <= 0 && d < 460) {
+          e.bombCd = rand(2.6, 3.8);
+          state.aoes.push({ x: p.x, y: p.y, r: 70, warn: 1.1, active: 0, dmg: e.aoeDmg, hit: false });
+        }
+      }
+
+      const step = e.speed * dt;
 
       // candidate step for a given heading; returns where the enemy would end up
       // and whether a wall shoved it back (blocked).
@@ -1678,31 +1757,33 @@
       // Bug 3 (wall-following). Try straight; if blocked, sweep by increasing turn
       // on the committed side until a clear heading is found — the enemy hugs the
       // wall and rounds the corner instead of grinding head-on into its flat face.
-      let mv = tryAngle(baseAng);
-      if (mv.blocked) {
-        const bias = e.steerBias;
-        let found = null;
-        // rising turn angles up to ~160 deg; alternate committed side first, then the other
-        for (const mag of [0.35, 0.7, 1.05, 1.4, 1.75, 2.1, 2.45, 2.8]) {
-          const a = tryAngle(baseAng + mag * bias);
-          if (!a.blocked) { found = a; break; }
-          const b = tryAngle(baseAng - mag * bias);
-          if (!b.blocked) { found = b; e.steerBias = -bias; break; }
+      if (!handledMove) {
+        let mv = tryAngle(baseAng);
+        if (mv.blocked) {
+          const bias = e.steerBias;
+          let found = null;
+          // rising turn angles up to ~160 deg; alternate committed side first, then the other
+          for (const mag of [0.35, 0.7, 1.05, 1.4, 1.75, 2.1, 2.45, 2.8]) {
+            const a = tryAngle(baseAng + mag * bias);
+            if (!a.blocked) { found = a; break; }
+            const b = tryAngle(baseAng - mag * bias);
+            if (!b.blocked) { found = b; e.steerBias = -bias; break; }
+          }
+          if (found) { e.x = found.x; e.y = found.y; }
+          else { const r = resolveObstacles(e.x, e.y, e.r); e.x = r.x; e.y = r.y; }
+        } else {
+          e.x = mv.x; e.y = mv.y;
         }
-        if (found) { e.x = found.x; e.y = found.y; }
-        else { const r = resolveObstacles(e.x, e.y, e.r); e.x = r.x; e.y = r.y; }
-      } else {
-        e.x = mv.x; e.y = mv.y;
-      }
 
-      // Stuck detection: if the enemy has barely advanced for a short while while
-      // not already touching the player, flip the go-around side to break the loop.
-      const moved = dist2(ox, oy, e.x, e.y);
-      if (moved < (step * 0.25) ** 2 && d > e.r + p.r + 6) {
-        e.stuckT += dt;
-        if (e.stuckT > 0.35) { e.steerBias = -e.steerBias; e.stuckT = 0; }
-      } else {
-        e.stuckT = 0;
+        // Stuck detection: if the enemy has barely advanced for a short while while
+        // not already touching the player, flip the go-around side to break the loop.
+        const moved = dist2(ox, oy, e.x, e.y);
+        if (moved < (step * 0.25) ** 2 && d > e.r + p.r + 6) {
+          e.stuckT += dt;
+          if (e.stuckT > 0.35) { e.steerBias = -e.steerBias; e.stuckT = 0; }
+        } else {
+          e.stuckT = 0;
+        }
       }
       // contact damage
       if (d < e.r + p.r && p.inv <= 0) {
@@ -1749,6 +1830,7 @@
     // boss projectiles
     for (const bb of state.bossBullets) {
       bb.x += bb.vx * dt; bb.y += bb.vy * dt; bb.life -= dt;
+      if (bb.life > 0 && pointInObstacle(bb.x, bb.y)) bb.life = 0; // walls block bolts too
       if (bb.life > 0 && p.inv <= 0 && dist2(bb.x, bb.y, p.x, p.y) < (bb.r + p.r) ** 2) {
         bb.life = 0; p.hp -= bb.dmg; p.inv = 0.5; state.shake = Math.max(state.shake, 8); Sound.hurt();
         floatText(p.x, p.y - 26, "-" + Math.round(bb.dmg), "#ff5050");
@@ -1756,6 +1838,30 @@
       }
     }
     state.bossBullets = state.bossBullets.filter(bb => bb.life > 0);
+
+    // ground AoE zones (bomber): warn-up telegraph, then a brief damaging burst.
+    // Standing in the zone when it detonates hurts — step out to avoid it.
+    for (const z of state.aoes) {
+      if (z.warn > 0) {
+        z.warn -= dt;
+        if (z.warn <= 0) {
+          z.active = 0.35; // burst duration
+          state.shake = Math.max(state.shake, 6);
+          for (let i = 0; i < 18; i++) {
+            const a = rand(0, Math.PI * 2), s = rand(60, 240);
+            state.particles.push({ x: z.x, y: z.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.3, 0.6), r: rand(2, 5), color: "#ffb347" });
+          }
+        }
+      } else if (z.active > 0) {
+        z.active -= dt;
+        if (!z.hit && p.inv <= 0 && dist2(p.x, p.y, z.x, z.y) < (z.r + p.r) ** 2) {
+          z.hit = true; p.hp -= z.dmg; p.inv = 0.6; state.shake = Math.max(state.shake, 10); Sound.hurt();
+          floatText(p.x, p.y - 26, "-" + Math.round(z.dmg), "#ff5050");
+          if (p.hp <= 0) { endGame(); return; }
+        }
+      }
+    }
+    state.aoes = state.aoes.filter(z => z.warn > 0 || z.active > 0);
 
     // bullet vs enemy  (pierce>0 lets the ultimate arrow pass through several)
     for (const b of state.bullets) {
@@ -1860,6 +1966,9 @@
     // obstacles (cover)
     for (const o of state.obstacles) drawObstacle(o);
 
+    // ground AoE zones (drawn on the floor, under entities)
+    for (const z of state.aoes) drawAoe(z);
+
     // chests
     for (const c of state.chests) drawChest(c);
 
@@ -1880,11 +1989,12 @@
     // boss
     if (state.boss) drawBoss(state.boss);
 
-    // boss projectiles
+    // boss + caster projectiles
     for (const bb of state.bossBullets) {
       ctx.save();
-      ctx.shadowBlur = 14; ctx.shadowColor = "#ff2a1a";
-      ctx.fillStyle = "#ff6a4a";
+      const col = bb.col || "#ff6a4a";
+      ctx.shadowBlur = 14; ctx.shadowColor = col;
+      ctx.fillStyle = col;
       ctx.beginPath(); ctx.arc(bb.x, bb.y, bb.r, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
@@ -1989,6 +2099,29 @@
       ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 3; ctx.stroke();
       ctx.fillStyle = theme.edge;
       ctx.beginPath(); ctx.arc(cx, cy, tower * 0.55, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ground AoE: a pulsing warning ring during warn-up, a bright burst on detonation
+  function drawAoe(z) {
+    ctx.save();
+    if (z.warn > 0) {
+      const t = performance.now() / 120;
+      const prog = 1 - z.warn / 1.1; // fills up as it's about to go off
+      ctx.fillStyle = "rgba(255,120,30,0.12)";
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(255,150,40," + (0.5 + Math.sin(t) * 0.3) + ")";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.stroke();
+      // inner fill ring showing countdown
+      ctx.fillStyle = "rgba(255,90,20,0.18)";
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r * prog, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.globalAlpha = clamp(z.active / 0.35, 0, 1);
+      ctx.shadowBlur = 24; ctx.shadowColor = "#ff7a2a";
+      ctx.fillStyle = "#ff8a3a";
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
@@ -2134,6 +2267,22 @@
     const ex = e.x, ey = e.y;
     ctx.beginPath(); ctx.arc(ex - e.r * 0.3, ey - e.r * 0.1, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(ex + e.r * 0.3, ey - e.r * 0.1, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
+    // per-type cue so the three new enemies read at a glance
+    if (e.type === "leaper") {
+      // trailing ring; brighter while charging a leap
+      ctx.strokeStyle = e.leaping > 0 ? "rgba(140,255,180,0.9)" : "rgba(110,255,160,0.35)";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 5, 0, Math.PI * 2); ctx.stroke();
+    } else if (e.type === "caster") {
+      // arcane core
+      ctx.fillStyle = "rgba(185,139,255,0.9)";
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.3, 0, Math.PI * 2); ctx.fill();
+    } else if (e.type === "bomber") {
+      // pulsing warning dot on top
+      const t = performance.now() / 200;
+      ctx.fillStyle = "rgba(255,180,60," + (0.5 + Math.sin(t) * 0.4) + ")";
+      ctx.beginPath(); ctx.arc(e.x, e.y - e.r - 6, 4, 0, Math.PI * 2); ctx.fill();
+    }
     // hp bar
     if (e.hp < e.maxHp) {
       const w = e.r * 2;
