@@ -880,12 +880,12 @@
     { key: "arma",    label: "Arma",    icon: "🏹", name: "Arco",    stats: [
         { key: "dmg",  base: 8, step: 1 },
         { key: "crit", base: 10, step: 2 } ] },
-    { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [
-        { key: "ashBonus", base: 0, step: 2 },
-        { key: "cdr",      base: 10,  step: 2 } ] },
+    { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [{ key: "ashBonus", base: 0, step: 2 }] },
     { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 5 }] },
-    { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [{ key: "fireRate", base: 12,   step: 1 }] },
-    { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 16,   step: 2 }] },
+    { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [
+        { key: "fireRate", base: 0, step: 1 },
+        { key: "cdr",      base: 0, step: 2 } ] },
+    { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 2 }] },
     { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 1, step: 0.1 }] },
   ];
 
