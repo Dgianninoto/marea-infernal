@@ -534,7 +534,7 @@
         <div class="howto-body">
           <div class="howto-text">
           <p><b style="color:var(--ember-glow)">Objetivo.</b> Sobrevive el mayor número de oleadas posible: no hay límite de tiempo y la única forma de perder es quedarte sin vida. Cada oleada sube la dificultad. Gana <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para hacerte más poderoso.</p>
-          <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza). Al llegar a +10 puedes subir su rareza (Común → Único), y la pieza vuelve a +0 en el rango superior.</p>
+          <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza). Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats ya comprados) para repetir el ciclo en el rango superior.</p>
           <p><b style="color:var(--ember-glow)">Cofres.</b> Aparecen con un 5% de probabilidad en cada tanda de enemigos y siempre al matar al jefe. Duran solo 5 segundos: acércate y pulsa <kbd>E</kbd> para abrirlos gratis y recibir 200 + (nivel × 50) cenizas.</p>
           <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. La oleada termina al matar al último bicho. Suelta un Legendario y un Único garantizados, cenizas y un gran bonus. Cada 5 oleadas hay una <b>pausa</b> (sin nuevos enemigos hasta pulsar Continuar) para revisar tu equipo, y cada 10 cambia el <b>escenario</b>.</p>
           </div>
@@ -843,7 +843,7 @@
   // The hero starts with 6 base pieces (one per slot, one stat each). Pieces never drop:
   // they are upgraded with brasas (ash) in two independent ways:
   //  - Stat points: +1 point at a time, each adds `step` to the piece's stat (flat cost).
-  //  - Rarity (level 0..4): multiplies the whole stat by (1 + RARITY_BONUS * level). Cost grows x1.5 per level.
+  //  - Rarity (level 0..4): multiplies the whole stat by RARITY_MULT[level]. Cost grows x1.5 per level.
   const RARITY = [
     { name: "Común",      color: "#d9d2c6" },
     { name: "Mágico",     color: "#5aa0ff" },
@@ -855,11 +855,11 @@
   const MAX_PLUS = 10;            // an item holds at most +10 (each stat point = +1); rarity can only be raised at +10
   const POINT_BASE_COST = 25;     // brasas per +1: 25 + 5 * rarity index of the item
   const POINT_RARITY_COST = 5;
-  const itemPlus = it => it.stats.reduce((n, st) => n + st.points, 0);
+  const itemPlus = it => it.plus; // upgrade indicator 0..10 (stat points themselves are permanent)
   function pointCost(it) { return POINT_BASE_COST + it.level * POINT_RARITY_COST; }
   const RARITY_BASE_COST = 250;   // brasas for the first rarity level
   const RARITY_GROWTH = 1.5;      // each rarity level costs 150% of the previous one
-  const RARITY_BONUS = 0.25;      // +25% of the stat per rarity level
+  const RARITY_MULT = [1, 1.5, 2, 3, 5]; // stat multiplier per rarity: Común, Mágico, Raro, Legendario, Único
   const roundTo25 = v => Math.round(v / 25) * 25;
   // brasas to go from rarity level n to n+1: 250, 375, 575, 850...
   function rarityCost(level) { return roundTo25(RARITY_BASE_COST * Math.pow(RARITY_GROWTH, level)); }
@@ -878,27 +878,27 @@
   // each piece has one or more stats; every stat has its own base value and its own stat points
   const SLOTS = [
     { key: "arma",    label: "Arma",    icon: "🏹", name: "Arco",    stats: [
-        { key: "dmg",  base: 4, step: 1 },
-        { key: "crit", base: 5, step: 2 } ] },
+        { key: "dmg",  base: 8, step: 1 },
+        { key: "crit", base: 10, step: 2 } ] },
     { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [
-        { key: "ashBonus", base: 10, step: 2 },
-        { key: "cdr",      base: 5,  step: 2 } ] },
-    { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 20,  step: 5 }] },
-    { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [{ key: "fireRate", base: 6,   step: 1 }] },
-    { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 8,   step: 2 }] },
-    { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0.5, step: 0.1 }] },
+        { key: "ashBonus", base: 20, step: 2 },
+        { key: "cdr",      base: 10,  step: 2 } ] },
+    { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 5 }] },
+    { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [{ key: "fireRate", base: 12,   step: 1 }] },
+    { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 16,   step: 2 }] },
+    { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 1, step: 0.1 }] },
   ];
 
-  // value of one stat of a piece: (base + points * step) * (1 + RARITY_BONUS * rarity level)
+  // value of one stat of a piece: (base + points * step) * RARITY_MULT[rarity level]
   function statValue(item, st, points, level) {
-    return +((st.base + points * st.step) * (1 + level * RARITY_BONUS)).toFixed(2);
+    return +((st.base + points * st.step) * RARITY_MULT[level]).toFixed(2);
   }
   function statCur(item, st) { return statValue(item, st, st.points, item.level); }
 
   function makeBaseEquipment() {
     const eq = {};
     SLOTS.forEach((sl, i) => {
-      eq[sl.key] = { id: i + 1, slot: sl.key, slotLabel: sl.label, icon: sl.icon, name: sl.name, level: 0, stats: sl.stats.map(st => ({ key: st.key, base: st.base, step: st.step, points: 0 })) };
+      eq[sl.key] = { id: i + 1, slot: sl.key, slotLabel: sl.label, icon: sl.icon, name: sl.name, level: 0, plus: 0, stats: sl.stats.map(st => ({ key: st.key, base: st.base, step: st.step, points: 0 })) };
     });
     return eq;
   }
@@ -949,6 +949,7 @@
     if (state.ash < cost) return;
     state.ash -= cost;
     st.points++;
+    it.plus++;
     state.lootCount++;
     recalcStats(p);
     Sound.chest();
@@ -965,7 +966,7 @@
     if (state.ash < cost) return;
     state.ash -= cost;
     it.level++;
-    for (const st of it.stats) st.points = 0; // back to +0, but one rarity tier higher
+    it.plus = 0; // indicator back to +0; the stat points already bought are kept
     state.lootCount++; // counts upgrades done
     recalcStats(p);
     Sound.chest();
@@ -1342,7 +1343,7 @@
       const n = 7, spread = 0.9;
       for (let k = 0; k < n; k++) {
         const a = base + (k - (n - 1) / 2) * (spread / (n - 1));
-        spawnArrow(a, { dmg: p.dmg * 0.9, spd: 640 });
+        spawnArrow(a, { dmg: p.dmg * 0.9, spd: 640, life: 1.1 }); // life 0.55 -> 1.1 = +100% range
       }
       p.skillCd[0] = p.skillMax[0];
       floatText(p.x, p.y - 34, "¡Abanico!", "#ffd84d");
@@ -2389,7 +2390,7 @@
     const plusFull = totalPts >= MAX_PLUS;
     div.innerHTML =
       `<div class="item-head" style="color:${tier.color}">${item.icon} ${item.name}
-        <span style="color:var(--muted);font-weight:normal;font-size:11px">(${item.slotLabel} · ${tier.name} · +${totalPts}/${MAX_PLUS} · rareza +${Math.round(item.level * RARITY_BONUS * 100)}%)</span>
+        <span style="color:var(--muted);font-weight:normal;font-size:11px">(${item.slotLabel} · ${tier.name} · +${totalPts}/${MAX_PLUS} · rareza ×${RARITY_MULT[item.level]})</span>
       </div>`;
 
     // one row per stat: current value -> value with +1 point, and its own "+1" button
