@@ -13,7 +13,7 @@
     <canvas id="game"></canvas>
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
-    <div id="build-tag">Build 15 · 23/10/2026</div>
+    <div id="build-tag">Build 17 · 23/10/2026</div>
 
     <div id="float-layer"></div>
 
@@ -93,26 +93,26 @@
         <div id="loot-feed"></div>
         <div id="skills-bar">
           <div class="skill" id="skill-0">
-            <div class="skill-icon">🏹</div>
+            <div class="skill-icon"></div>
             <div class="skill-cd"></div>
-            <div class="skill-name">Abanico</div>
+            <div class="skill-name"></div>
           </div>
-          <div class="skill" id="skill-1" style="display:none">
-            <div class="skill-icon">🛡️</div>
+          <div class="skill" id="skill-1">
+            <div class="skill-icon"></div>
             <div class="skill-cd"></div>
-            <div class="skill-name">Escudo</div>
+            <div class="skill-name"></div>
           </div>
           <div class="skill" id="skill-2">
-            <div class="skill-icon">💥</div>
+            <div class="skill-icon"></div>
             <div class="skill-cd"></div>
-            <div class="skill-name">Ulti</div>
+            <div class="skill-name"></div>
           </div>
         </div>
         <div id="controls-hint">
           <kbd>W A S D</kbd> / flechas — mover<br />
-          <kbd>ratón</kbd> apunta — disparo automático continuo<br />
+          <kbd>ratón</kbd> apunta — ataques automáticos<br />
           <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br />
-          habilidades automáticas — <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
+          <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
         </div>
       </div>
     </div>
@@ -141,7 +141,7 @@
               <div class="ctrl-col">
                 <div class="ctrl-title">Controles</div>
                 <div class="ctrl-row"><kbd>W A S D</kbd><span>moverse</span></div>
-                <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar (dispara solo)</span></div>
+                <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar y orientar ataques</span></div>
                 <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
                 <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
                 <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
@@ -149,6 +149,48 @@
               </div>
             </aside>
           </div>
+        </div>
+
+        <!-- Weapon selection view -->
+        <div class="menu-view hidden" id="menu-weapons">
+          <h2>Elige tu arma</h2>
+          <p class="weapon-intro">Tu elección define tu estilo de combate durante toda la partida.</p>
+          <div class="weapon-grid">
+            <article class="weapon-card">
+              <div class="weapon-icon">🏹</div>
+              <h3>Arco</h3>
+              <p>Combate a distancia con precisión y ataques perforantes.</p>
+              <ul>
+                <li>Flecha rápida</li>
+                <li>Abanico de flechas</li>
+                <li>Flecha devastadora</li>
+              </ul>
+              <button class="btn weapon-start" data-weapon="bow">Jugar con arco</button>
+            </article>
+            <article class="weapon-card">
+              <div class="weapon-icon">🪄</div>
+              <h3>Bastón de mago</h3>
+              <p>Proyectiles arcanos y explosiones de energía a distancia.</p>
+              <ul>
+                <li>Orbe arcano</li>
+                <li>Salva explosiva</li>
+                <li>Meteorito de área</li>
+              </ul>
+              <button class="btn weapon-start" data-weapon="staff">Jugar con bastón</button>
+            </article>
+            <article class="weapon-card">
+              <div class="weapon-icon">🪓</div>
+              <h3>Hacha</h3>
+              <p>Golpes cuerpo a cuerpo, barridos y ataques de área.</p>
+              <ul>
+                <li>Tajo frontal</li>
+                <li>Giro amplio</li>
+                <li>Golpe sísmico</li>
+              </ul>
+              <button class="btn weapon-start" data-weapon="axe">Jugar con hacha</button>
+            </article>
+          </div>
+          <button class="btn btn-sec menu-back" data-back>← Volver</button>
         </div>
 
         <!-- HOW TO PLAY view -->
@@ -160,6 +202,13 @@
                 límite de tiempo y la única forma de perder es quedarte sin vida. Cada oleada sube la dificultad. Gana
                 <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para
                 hacerte más poderoso.</p>
+              <p><b style="color:var(--ember-glow)">Armas.</b> Antes de jugar, elige arco, bastón de mago o hacha. Cada
+                arma tiene tres ataques automáticos con cooldown: básico, intermedio y definitivo. El arma elegida queda
+                fija durante esa partida; el ratón orienta los proyectiles y ataques frontales, mientras que los ataques
+                circulares se centran en el jugador. El hacha requiere acercarse a los enemigos.</p>
+              <p><b style="color:#bd8cff">Bastón y hacha.</b> El definitivo del bastón invoca un meteorito: el círculo
+                marca dónde caerá y el área que dañará. Los ataques de giro y golpe sísmico del hacha muestran su radio
+                al impactar; el tajo dibuja el arco frontal de su alcance.</p>
               <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu
                 mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza).
                 Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats
@@ -167,8 +216,8 @@
               <p><b style="color:var(--ember-glow)">Cofres.</b> Aparecen con un 5% de probabilidad en cada tanda de
                 enemigos y siempre al matar al jefe. Duran solo 5 segundos: acércate y pulsa <kbd>E</kbd> para abrirlos
                 gratis y recibir 100 + (nivel × 50) cenizas, aumentadas por tu bonus de Brasas.</p>
-              <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. La oleada termina al matar
-                al último bicho. Suelta un Legendario y un Único garantizados, cenizas y un gran bonus. Cada 5 oleadas
+              <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. Desde la oleada 20 salta
+                para aplastar; desde la 30 invoca lluvia de fuego. Al derrotarlo deja un cofre. Cada 5 oleadas
                 hay una <b>pausa</b> (sin nuevos enemigos hasta pulsar Continuar) para revisar tu equipo, y cada 10
                 cambia el <b>escenario</b>.</p>
             </div>
@@ -177,11 +226,10 @@
               <div class="ctrl-col">
                 <div class="ctrl-title">Teclado y ratón</div>
                 <div class="ctrl-row"><kbd>W A S D</kbd><span>/ flechas — moverse</span></div>
-                <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar</span></div>
-                <div class="ctrl-row"><kbd>auto</kbd><span>dispara siempre hacia el ratón sin pulsar nada</span></div>
+                <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar y orientar los ataques</span></div>
+                <div class="ctrl-row"><kbd>auto</kbd><span>los tres ataques se lanzan solos con sus cooldowns</span></div>
                 <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
                 <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
-                <div class="ctrl-row"><kbd>auto</kbd><span>las habilidades se lanzan solas al estar listas</span></div>
                 <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
                 <div class="ctrl-row"><kbd>Esc</kbd><span>pausar / volver al menú</span></div>
               </div>
@@ -193,11 +241,10 @@
         <!-- SCORES view -->
         <div class="menu-view hidden" id="menu-scores">
           <h2>Puntuaciones</h2>
-          <div id="scores-status" style="font-size:12px;opacity:.7;margin:-4px 0 8px"></div>
           <div id="scores-table"></div>
           <div class="menu-buttons-row">
             <button class="btn btn-sec menu-back" data-back>← Volver</button>
-            <button class="btn btn-danger" id="btn-clear-scores" style="display:none" title="El ranking global no se puede borrar">🗑 Borrar</button>
+            <button class="btn btn-danger" id="btn-clear-scores">🗑 Borrar</button>
           </div>
         </div>
       </div>

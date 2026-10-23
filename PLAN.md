@@ -1,78 +1,130 @@
-# Plan de desarrollo — Marea Infernal
+# Plan temporal: selección de armas y estilos de combate
 
-Documento de etapas para retomar el trabajo sin perder el hilo. El juego es un
-único archivo autocontenido: `marea-infernal.html` (HTML + CSS + JS embebidos).
+> Documento de trabajo temporal. Mantener como referencia durante el diseño e
+> implementación de las nuevas armas; eliminarlo cuando el plan ya no sea
+> necesario.
 
-## Punto de partida (baseline sano)
+## Objetivo
 
-- Commit de referencia: `4e0c4ca` (igual que `origin/main` en GitHub).
-- Esta versión funciona y es jugable. Incluye: menú principal, cómo jugar,
-  tabla de puntuaciones (localStorage), equipo e inventario, cenizas y cofres,
-  jefe (Señor de la Marea), esquive (dash) y sonido (Web Audio).
-- Esta versión **todavía NO tiene**: suelo de baldosas, borde amurallado,
-  escenarios por tema, ni el sistema de oleadas infinitas. Todo eso se
-  reconstruye en las etapas de abajo (se perdió en un incidente de edición).
+Agregar armas con estilos de juego distintos. Antes de cada partida, el jugador
+elige un arma; esa elección queda fija durante la partida. Cada arma tiene tres
+ataques automáticos —básico, intermedio y definitivo— con sus propios tiempos de
+recarga.
 
-## Reglas de trabajo (para no volver a romper el archivo)
+## Decisiones acordadas
 
-1. **Nunca** editar `marea-infernal.html` con PowerShell / `Set-Content` /
-   reescrituras de bytes. El archivo tiene emojis y acentos; esas herramientas
-   corrompen la codificación UTF-8. Editar SOLO con las herramientas de edición
-   que preservan UTF-8 (str_replace / fs_write del editor).
-2. Avanzar en **pasos pequeños**. Un cambio lógico a la vez.
-3. Tras cada etapa: verificar la **sintaxis JS** (`node --check` sobre el
-   `<script>` extraído) y comprobar que **no haya caracteres corruptos** (buscar
-   el carácter de reemplazo U+FFFD). PowerShell SÍ se puede usar para *leer* y
-   verificar; nunca para escribir el HTML.
-4. Hacer **commit al terminar cada etapa** que quede estable, con mensaje claro.
-   Así cada etapa es un punto de retome seguro.
-5. Probar en el navegador al cerrar cada etapa antes de pasar a la siguiente.
+- Armas iniciales: **arco**, **bastón de mago** y **hacha**.
+- Mostrar la selección de arma antes de comenzar la partida.
+- No permitir cambiar el arma una vez iniciada la partida.
+- El ataque básico con recarga reemplaza el disparo continuo actual del arco.
+- Los tres ataques de cada arma son automáticos y tienen cooldown.
+- El ratón sigue definiendo la dirección de apuntado.
+- Usar la ranura **Arma** existente para las estadísticas y mejoras del arma
+  elegida. Las otras cinco piezas de equipo conservan su funcionamiento.
+- Mantener el sistema actual de oleadas, enemigos, progresión, pausa, muerte y
+  puntuaciones.
 
-## Etapas
+## Propuesta inicial de estilos
 
-### Etapa 0 — Baseline verificado  ✅ (hecho)
-- Archivo restaurado al commit `4e0c4ca`, sintaxis OK, 0 corrupción.
-- Estado: COMPLETADO.
+Estos ataques son ejemplos para orientar el diseño, no habilidades finales:
 
-### Etapa 1 — Escenario: suelo de baldosas + borde amurallado (opción 2)  ✅
-- Textura de losas de piedra cacheada + muro almenado infranqueable (`WALL`).
-- Jugador, dash, jefe y spawn respetan el muro.
-- Estado: COMPLETADO (commit `8438f2c`).
+| Arma | Básico | Intermedio | Definitivo |
+| --- | --- | --- | --- |
+| Arco | Flecha rápida a un objetivo | Abanico de flechas | Flecha de gran daño que atraviesa enemigos |
+| Bastón | Proyectil mágico a distancia | Explosión o proyectiles que rebotan | Ataque mágico de área |
+| Hacha | Golpe en arco a corta distancia | Giro que golpea alrededor del jugador | Golpe de suelo de gran alcance |
 
-### Etapa 2 — Sin límite de tiempo; morir es la única derrota  ✅
-- Eliminado el temporizador `tide`. El juego termina solo al llegar la vida a 0.
-- HUD reconvertido a "OLEADA N" + progreso.
-- Estado: COMPLETADO (commit `e450c89`).
+Antes de implementar, definir daño, alcance, cadencia, cooldown, efectos y
+comportamiento visual de cada habilidad. El hacha requiere una regla de
+adquisición de objetivo apropiada para ataques de corto alcance.
 
-### Etapa 3 — Oleadas con dificultad siempre creciente  ✅
-- Sistema por oleadas con cuota de enemigos; escalado sin tope (vida/daño/vel.
-  con topes razonables en velocidad). Director de oleadas (`startWave`,
-  `onWaveCleared`).
-- Estado: COMPLETADO (commit `e450c89`).
+## Estado de implementación (Build 16)
 
-### Etapa 4 — Intermedio cada 5 oleadas  ✅
-- Fase "intermission" de 12s (sin spawns) con banner y botón "Continuar ahora".
-- Estado: COMPLETADO (commit `e450c89`).
+Ya están implementados los tres kits iniciales. Los valores de cooldown son
+provisionales y quedan sujetos a pruebas de balance:
 
-### Etapa 5 — Jefe cada 10 oleadas  ✅
-- Jefe en oleadas 10, 20, 30... escalado por oleada; la oleada no se supera
-  hasta derrotarlo.
-- Estado: COMPLETADO (commit `e450c89`).
+| Arma | Básico | Intermedio | Definitivo |
+| --- | --- | --- | --- |
+| Arco | Flecha (0,29 s) | Abanico (5,5 s) | Devastación (13 s) |
+| Bastón de mago | Orbe arcano (0,58 s) | Salva arcana (5,5 s) | Meteorito (13 s) |
+| Hacha | Tajo (0,62 s) | Giro amplio (5,5 s) | Golpe sísmico (13 s) |
 
-### Etapa 6 — Cambio de escenario cada 10 oleadas  ✅
-- 3 temas: Páramo de cenizas, Roca oscura, Sangre y obsidiana (suelo + muro +
-  viñeta), rotación cada 10 oleadas.
-- Estado: COMPLETADO (commit `e450c89`).
+- La selección aparece antes de iniciar; **Reintentar** conserva el arma.
+- La ranura Arma cambia de nombre e icono según el kit elegido.
+- Cadencia de equipo acelera el básico; crítico y daño afectan los ataques, y
+  reducción de cooldown acelera las recargas.
+- Los ataques automáticos se alternan para evitar lanzar los tres a la vez.
+- El HUD muestra nombres, iconos y cooldowns propios del arma.
+- El jugador ahora representa visualmente el arco, el bastón o el hacha.
+- El meteorito muestra la zona de caída, impacta tras 0,85 s y causa daño de
+  área; el hacha muestra el cono del tajo y el radio de sus golpes circulares.
+- Se actualizaron la ayuda del juego y el README.
 
-### Etapa 7 — Ajuste de puntuación y textos  ✅
-- Puntuación por oleada/nivel/jefes/cenizas. Textos de cómo-jugar actualizados.
-- Estado: COMPLETADO (commit `e450c89`).
+## Etapas de trabajo
 
-### Etapa 8 — Commit final y push a GitHub
-- Estado: EN CURSO.
+### 1. Definir el modelo de los kits — implementado
 
-## Registro de progreso
+- [x] Representar metadatos del arma y habilidades (identificador, nombre, icono,
+  cooldown) por separado de los efectos de combate.
+- [x] Establecer cómo los atributos existentes de la ranura Arma —daño, crítico y
+  cadencia— afectan a cada kit.
+- [x] Conservar el arco como referencia de regresión y no cambiar su balance sin
+  necesidad.
 
-- 2026-10-20: Etapa 0 completada (baseline restaurado y verificado).
-- 2026-10-20: Etapa 1 completada (commit 8438f2c).
-- 2026-10-20: Etapas 2-7 completadas (commit e450c89). Pendiente push.
+### 2. Crear la selección previa a la partida — implementado
+
+- [x] Añadir una vista accesible desde **Jugar**, antes de iniciar el combate.
+- [x] Presentar las tres armas, su estilo y resumen de sus tres habilidades.
+- [x] Iniciar con el arma seleccionada y guardarla en el estado de esa partida.
+- [x] Permitir volver al menú desde la selección sin iniciar una partida.
+- [x] Definir la experiencia de **Reintentar**: reiniciar con la misma arma; volver
+  a la selección para cambiar de arma desde el menú.
+
+### 3. Integrar el arma elegida con equipo y estado — implementado
+
+- [x] Inicializar la selección antes de recalcular las estadísticas del personaje.
+- [x] Hacer que la ranura Arma muestre el arma seleccionada y sus mejoras se
+  apliquen al kit activo.
+- [x] Preservar las otras cinco ranuras, los costes y la progresión existentes.
+- [x] Comprobar que iniciar una nueva partida no conserva estados de cooldown de la
+  partida anterior.
+
+### 4. Implementar los ataques automáticos — implementado
+
+- [x] Reemplazar el disparo continuo por el ataque básico de cada arma con cooldown.
+- [x] Implementar el ataque intermedio y el definitivo, cada uno con cooldown
+  independiente.
+- [x] Lanzar ataques cuando haya enemigos cerca, respetando el apuntado y el alcance
+  apropiado para cada arma.
+- [x] Evitar que todos los ataques listos se activen en un mismo instante si el
+  comportamiento resultara confuso o demasiado potente.
+- [x] Mantener consistentes el daño, críticos, efectos y retroalimentación de
+  combate.
+
+### 5. Actualizar HUD y presentación — implementado
+
+- [x] Mostrar nombre, icono e indicador de recarga para las tres habilidades del
+  arma elegida.
+- [x] Quitar el escudo desactivado como espacio intermedio del kit.
+- [x] Incorporar señales visuales y sonoras que ayuden a distinguir los tres
+  estilos.
+- [x] Verificar que el HUD se actualice al iniciar y reiniciar con cada arma.
+
+### 6. Balancear y validar — en curso
+
+- [x] Probar selección, inicio y reintento conservando el arma.
+- [x] Probar los ataques de cada arma, cooldowns, daño cuerpo a cuerpo y daño
+  explosivo a enemigos cercanos.
+- [ ] Probar adquisición, alcance y rendimiento contra grupos y jefes durante
+  partidas reales.
+- [ ] Probar en juego las mejoras de daño, crítico, cadencia y reducción de
+  cooldown.
+- [x] Confirmar que aparece el menú de muerte y se calcula el puntaje.
+- [ ] Completar una partida para revisar oleadas y puntuaciones de principio a fin.
+- [ ] Ajustar números tras jugar cada kit en oleadas tempranas y avanzadas.
+
+### 7. Actualizar la documentación permanente — implementado
+
+- [x] Actualizar la ayuda dentro del juego con selección y controles actuales.
+- [x] Actualizar `README.md` con las armas, habilidades y diferencias de estilo.
+- Eliminar este `PLAN.md` temporal cuando deje de ser útil como registro.
