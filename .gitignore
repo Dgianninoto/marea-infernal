@@ -11,3 +11,6 @@ Desktop.ini
 *.log
 *.tmp
 _check.js
+
+# Artefactos de workflows/agentes
+.agents/
