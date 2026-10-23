@@ -1,230 +1,275 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Marea Infernal</title>
-<link rel="stylesheet" href="css/estilos.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marea Infernal</title>
+  <link rel="stylesheet" href="css/estilos.css" />
 </head>
+
 <body>
-<div id="game-wrap">
-  <canvas id="game"></canvas>
-  <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash" tabindex="-1">DEBUG ∞ Cenizas</button></div>
-  <div id="build-tag">Build 13 · 22/10/2026</div>
+  <div id="game-wrap">
+    <canvas id="game"></canvas>
+    <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
+        tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
+    <div id="build-tag">Build 14 · 23/10/2026</div>
 
-  <div id="float-layer"></div>
+    <div id="float-layer"></div>
 
-  <!-- Boss bar -->
-  <div id="boss-wrap">
-    <div id="boss-name">Señor de la Marea</div>
-    <div id="boss-bar"><div id="boss-fill"></div></div>
-  </div>
-
-  <!-- Boss warning banner -->
-  <div id="warning"></div>
-
-  <!-- Intermission banner (every 5 waves) -->
-  <div id="inter-panel">
-    <div class="inter-title">Intermedio</div>
-    <div class="inter-sub">Oleada superada. Revisa tu equipo con <kbd>I</kbd> y continúa cuando estés listo.</div>
-    <button class="btn btn-small" id="inter-continue">Continuar ▶</button>
-  </div>
-
-  <!-- HUD -->
-  <div id="hud">
-    <div class="hud-top">
-      <div class="panel">
-        <div class="stat-row">
-          <span class="stat-label">Nivel</span>
-          <span id="level-txt" style="font-size:18px;font-weight:bold;color:var(--ember-glow)">1</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Vida</span>
-          <div class="bar"><div class="fill" id="hp-fill"></div><div class="label" id="hp-txt"></div></div>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Exp</span>
-          <div class="bar"><div class="fill" id="xp-fill"></div><div class="label" id="xp-txt"></div></div>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Esquive</span>
-          <div class="bar"><div class="fill" id="dash-fill"></div><div class="label" id="dash-txt"></div></div>
-        </div>
-      </div>
-
-      <div class="panel tide-panel">
-        <div class="tide-title">Marea Infernal</div>
-        <div id="tide-timer">OLEADA 1</div>
-        <div id="wave-progress" style="font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">0 / 0</div>
-        <div class="ash"><span>🔥</span><span id="ash-txt">0</span><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">cenizas</span></div>
-        <button id="sound-btn">🔊 Sonido</button>
-      </div>
-
-      <div class="panel" style="text-align:right">
-        <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Oleada</span><b id="wave-txt" style="color:var(--ember-glow)">1</b></div>
-        <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Bajas</span><b id="kills-txt">0</b></div>
-        <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Mejoras</span><b id="loot-txt">0</b></div>
-        <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Poder</span><b id="power-txt" style="color:#ffd84d">0</b></div>
-        <button id="inv-btn">🎒 Inventario (I)</button>
+    <!-- Boss bar -->
+    <div id="boss-wrap">
+      <div id="boss-name">Señor de la Marea</div>
+      <div id="boss-bar">
+        <div id="boss-fill"></div>
       </div>
     </div>
 
-    <div class="hud-bottom">
-      <div id="loot-feed"></div>
-      <div id="skills-bar">
-        <div class="skill" id="skill-0"><div class="skill-icon">🏹</div><div class="skill-cd"></div><div class="skill-name">Abanico</div></div>
-        <div class="skill" id="skill-1" style="display:none"><div class="skill-icon">🛡️</div><div class="skill-cd"></div><div class="skill-name">Escudo</div></div>
-        <div class="skill" id="skill-2"><div class="skill-icon">💥</div><div class="skill-cd"></div><div class="skill-name">Ulti</div></div>
+    <!-- Boss warning banner -->
+    <div id="warning"></div>
+
+    <!-- Intermission banner (every 5 waves) -->
+    <div id="inter-panel">
+      <div class="inter-title">Intermedio</div>
+      <div class="inter-sub">Oleada superada. Abre tu cofre de bonificación con <kbd>E</kbd>, revisa tu equipo con <kbd>I</kbd> y continúa cuando estés listo.</div>
+      <button class="btn btn-small" id="inter-continue">Continuar ▶</button>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div class="hud-top">
+        <div class="panel">
+          <div class="stat-row">
+            <span class="stat-label">Nivel</span>
+            <span id="level-txt" style="font-size:18px;font-weight:bold;color:var(--ember-glow)">1</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Vida</span>
+            <div class="bar">
+              <div class="fill" id="hp-fill"></div>
+              <div class="label" id="hp-txt"></div>
+            </div>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Exp</span>
+            <div class="bar">
+              <div class="fill" id="xp-fill"></div>
+              <div class="label" id="xp-txt"></div>
+            </div>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Esquive</span>
+            <div class="bar">
+              <div class="fill" id="dash-fill"></div>
+              <div class="label" id="dash-txt"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel tide-panel">
+          <div class="tide-title">Marea Infernal</div>
+          <div id="tide-timer">OLEADA 1</div>
+          <div id="wave-progress" style="font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">0 / 0
+          </div>
+          <div class="ash"><span>🔥</span><span id="ash-txt">0</span><span
+              style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">cenizas</span></div>
+          <button id="sound-btn">🔊 Sonido</button>
+        </div>
+
+        <div class="panel" style="text-align:right">
+          <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Oleada</span><b id="wave-txt"
+              style="color:var(--ember-glow)">1</b></div>
+          <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Bajas</span><b
+              id="kills-txt">0</b></div>
+          <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Mejoras</span><b
+              id="loot-txt">0</b></div>
+          <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Poder</span><b id="power-txt"
+              style="color:#ffd84d">0</b></div>
+          <button id="inv-btn">🎒 Inventario (I)</button>
+        </div>
       </div>
-      <div id="controls-hint">
-        <kbd>W A S D</kbd> / flechas — mover<br/>
-        <kbd>ratón</kbd> apunta — disparo automático continuo<br/>
-        <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br/>
-        habilidades automáticas — <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
+
+      <div class="hud-bottom">
+        <div id="loot-feed"></div>
+        <div id="skills-bar">
+          <div class="skill" id="skill-0">
+            <div class="skill-icon">🏹</div>
+            <div class="skill-cd"></div>
+            <div class="skill-name">Abanico</div>
+          </div>
+          <div class="skill" id="skill-1" style="display:none">
+            <div class="skill-icon">🛡️</div>
+            <div class="skill-cd"></div>
+            <div class="skill-name">Escudo</div>
+          </div>
+          <div class="skill" id="skill-2">
+            <div class="skill-icon">💥</div>
+            <div class="skill-cd"></div>
+            <div class="skill-name">Ulti</div>
+          </div>
+        </div>
+        <div id="controls-hint">
+          <kbd>W A S D</kbd> / flechas — mover<br />
+          <kbd>ratón</kbd> apunta — disparo automático continuo<br />
+          <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br />
+          habilidades automáticas — <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Main menu overlay -->
-  <div class="overlay" id="menu-screen">
-    <div class="card menu-card">
-      <h1>Marea Infernal</h1>
+    <!-- Main menu overlay -->
+    <div class="overlay" id="menu-screen">
+      <div class="card menu-card">
+        <h1>Marea Infernal</h1>
 
-      <!-- HOME view -->
-      <div class="menu-view" id="menu-home">
-        <div class="home-grid">
-          <div class="home-main">
-            <p class="big">Sobrevive a la marea. Masacra demonios. Saquea el infierno.</p>
-            <div class="menu-buttons">
-              <button class="btn" id="btn-play">▶ Jugar</button>
-              <button class="btn btn-sec" id="btn-how">📖 Cómo jugar</button>
-              <button class="btn btn-sec" id="btn-scores">🏆 Puntuaciones</button>
+        <!-- HOME view -->
+        <div class="menu-view" id="menu-home">
+          <div class="home-grid">
+            <div class="home-main">
+              <p class="big">Sobrevive a la marea. Masacra demonios. Saquea el infierno.</p>
+              <div class="menu-buttons">
+                <button class="btn" id="btn-play">▶ Jugar</button>
+                <button class="btn btn-sec" id="btn-how">📖 Cómo jugar</button>
+                <button class="btn btn-sec" id="btn-scores">🏆 Puntuaciones</button>
+              </div>
             </div>
-          </div>
-          <aside class="home-side">
-            <div class="best-box">
-              <div class="best-label">Mejor puntuación</div>
-              <div class="best-val" id="menu-best">0</div>
-            </div>
-            <div class="ctrl-col">
-              <div class="ctrl-title">Controles</div>
-              <div class="ctrl-row"><kbd>W A S D</kbd><span>moverse</span></div>
-              <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar (dispara solo)</span></div>
-              <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
-              <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
-              <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
-              <div class="ctrl-row"><kbd>Esc</kbd><span>pausar / volver al menú</span></div>
-            </div>
-          </aside>
-        </div>
-      </div>
-
-      <!-- HOW TO PLAY view -->
-      <div class="menu-view hidden" id="menu-howto">
-        <h2>Cómo jugar</h2>
-        <div class="howto-body">
-          <div class="howto-text">
-          <p><b style="color:var(--ember-glow)">Objetivo.</b> Sobrevive el mayor número de oleadas posible: no hay límite de tiempo y la única forma de perder es quedarte sin vida. Cada oleada sube la dificultad. Gana <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para hacerte más poderoso.</p>
-          <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza). Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats ya comprados) para repetir el ciclo en el rango superior.</p>
-          <p><b style="color:var(--ember-glow)">Cofres.</b> Aparecen con un 5% de probabilidad en cada tanda de enemigos y siempre al matar al jefe. Duran solo 5 segundos: acércate y pulsa <kbd>E</kbd> para abrirlos gratis y recibir 100 + (nivel × 50) cenizas, aumentadas por tu bonus de Brasas.</p>
-          <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. La oleada termina al matar al último bicho. Suelta un Legendario y un Único garantizados, cenizas y un gran bonus. Cada 5 oleadas hay una <b>pausa</b> (sin nuevos enemigos hasta pulsar Continuar) para revisar tu equipo, y cada 10 cambia el <b>escenario</b>.</p>
-          </div>
-
-          <div class="controls-table">
-            <div class="ctrl-col">
-              <div class="ctrl-title">Teclado y ratón</div>
-              <div class="ctrl-row"><kbd>W A S D</kbd><span>/ flechas — moverse</span></div>
-              <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar</span></div>
-              <div class="ctrl-row"><kbd>auto</kbd><span>dispara siempre hacia el ratón sin pulsar nada</span></div>
-              <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
-              <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
-              <div class="ctrl-row"><kbd>auto</kbd><span>las habilidades se lanzan solas al estar listas</span></div>
-              <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
-              <div class="ctrl-row"><kbd>Esc</kbd><span>pausar / volver al menú</span></div>
-            </div>
+            <aside class="home-side">
+              <div class="best-box">
+                <div class="best-label">Mejor puntuación</div>
+                <div class="best-val" id="menu-best">0</div>
+              </div>
+              <div class="ctrl-col">
+                <div class="ctrl-title">Controles</div>
+                <div class="ctrl-row"><kbd>W A S D</kbd><span>moverse</span></div>
+                <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar (dispara solo)</span></div>
+                <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
+                <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
+                <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
+                <div class="ctrl-row"><kbd>Esc</kbd><span>pausar / volver al menú</span></div>
+              </div>
+            </aside>
           </div>
         </div>
-        <button class="btn btn-sec menu-back" data-back>← Volver</button>
-      </div>
 
-      <!-- SCORES view -->
-      <div class="menu-view hidden" id="menu-scores">
-        <h2>Puntuaciones</h2>
-        <div id="scores-table"></div>
-        <div class="menu-buttons-row">
+        <!-- HOW TO PLAY view -->
+        <div class="menu-view hidden" id="menu-howto">
+          <h2>Cómo jugar</h2>
+          <div class="howto-body">
+            <div class="howto-text">
+              <p><b style="color:var(--ember-glow)">Objetivo.</b> Sobrevive el mayor número de oleadas posible: no hay
+                límite de tiempo y la única forma de perder es quedarte sin vida. Cada oleada sube la dificultad. Gana
+                <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para
+                hacerte más poderoso.</p>
+              <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu
+                mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza).
+                Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats
+                ya comprados) para repetir el ciclo en el rango superior.</p>
+              <p><b style="color:var(--ember-glow)">Cofres.</b> Aparecen con un 5% de probabilidad en cada tanda de
+                enemigos y siempre al matar al jefe. Duran solo 5 segundos: acércate y pulsa <kbd>E</kbd> para abrirlos
+                gratis y recibir 100 + (nivel × 50) cenizas, aumentadas por tu bonus de Brasas.</p>
+              <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. La oleada termina al matar
+                al último bicho. Suelta un Legendario y un Único garantizados, cenizas y un gran bonus. Cada 5 oleadas
+                hay una <b>pausa</b> (sin nuevos enemigos hasta pulsar Continuar) para revisar tu equipo, y cada 10
+                cambia el <b>escenario</b>.</p>
+            </div>
+
+            <div class="controls-table">
+              <div class="ctrl-col">
+                <div class="ctrl-title">Teclado y ratón</div>
+                <div class="ctrl-row"><kbd>W A S D</kbd><span>/ flechas — moverse</span></div>
+                <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar</span></div>
+                <div class="ctrl-row"><kbd>auto</kbd><span>dispara siempre hacia el ratón sin pulsar nada</span></div>
+                <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
+                <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
+                <div class="ctrl-row"><kbd>auto</kbd><span>las habilidades se lanzan solas al estar listas</span></div>
+                <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
+                <div class="ctrl-row"><kbd>Esc</kbd><span>pausar / volver al menú</span></div>
+              </div>
+            </div>
+          </div>
           <button class="btn btn-sec menu-back" data-back>← Volver</button>
-          <button class="btn btn-danger" id="btn-clear-scores">🗑 Borrar</button>
+        </div>
+
+        <!-- SCORES view -->
+        <div class="menu-view hidden" id="menu-scores">
+          <h2>Puntuaciones</h2>
+          <div id="scores-table"></div>
+          <div class="menu-buttons-row">
+            <button class="btn btn-sec menu-back" data-back>← Volver</button>
+            <button class="btn btn-danger" id="btn-clear-scores">🗑 Borrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause overlay -->
+    <div class="overlay hidden" id="pause-screen">
+      <div class="card">
+        <h2>Pausa</h2>
+        <p>La marea aguarda tu regreso.</p>
+        <div class="menu-buttons">
+          <button class="btn" id="btn-resume">▶ Reanudar</button>
+          <button class="btn btn-sec" id="btn-pause-menu">🏠 Menú principal</button>
+        </div>
+        <p class="menu-foot">Salir al menú termina la partida actual.</p>
+      </div>
+    </div>
+
+    <!-- Inventory overlay -->
+    <div class="overlay hidden" id="inv-screen">
+      <div class="card inv-card">
+        <h2>Inventario</h2>
+        <p id="inv-power">Brasas</p>
+        <div class="inv-cols">
+          <div>
+            <div class="inv-sub">Estadísticas</div>
+            <div class="stat-legend"><b style="color:#5aa0ff">■</b> Nivel (base) &nbsp; <b style="color:#ff9d4d">■</b>
+              Equipo</div>
+            <div id="stats-panel"></div>
+          </div>
+          <div>
+            <div class="inv-sub">Equipo · mejóralo con brasas</div>
+            <div id="equip-list"></div>
+          </div>
+        </div>
+        <button class="btn" id="inv-close">Cerrar (I)</button>
+      </div>
+    </div>
+
+    <!-- Game over overlay -->
+    <div class="overlay hidden" id="over-screen">
+      <div class="card">
+        <h2 id="over-title">Has caído</h2>
+        <p>La marea te ha consumido. Esto es lo que lograste:</p>
+        <div class="stats-grid">
+          <div>Nivel alcanzado <b id="final-level">1</b></div>
+          <div>Oleada <b id="final-wave">1</b></div>
+          <div>Demonios abatidos <b id="final-kills">0</b></div>
+          <div>Mejoras realizadas <b id="final-loot">0</b></div>
+          <div>Cenizas candentes <b id="final-ash">0</b></div>
+          <div>Puntuación <b id="final-score">0</b></div>
+        </div>
+        <p id="best-score" style="color:var(--ember-glow)"></p>
+        <div class="name-row" id="name-row">
+          <label for="name-input">Tu nombre:</label>
+          <input id="name-input" type="text" maxlength="14" placeholder="Héroe" autocomplete="off" />
+          <button class="btn btn-sec btn-small" id="save-score-btn">Guardar</button>
+        </div>
+        <div class="menu-buttons-row">
+          <button class="btn" id="restart-btn">⟳ Reintentar</button>
+          <button class="btn btn-sec" id="over-scores-btn">🏆 Puntuaciones</button>
+          <button class="btn btn-sec" id="over-menu-btn">🏠 Menú</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Pause overlay -->
-  <div class="overlay hidden" id="pause-screen">
-    <div class="card">
-      <h2>Pausa</h2>
-      <p>La marea aguarda tu regreso.</p>
-      <div class="menu-buttons">
-        <button class="btn" id="btn-resume">▶ Reanudar</button>
-        <button class="btn btn-sec" id="btn-pause-menu">🏠 Menú principal</button>
-      </div>
-      <p class="menu-foot">Salir al menú termina la partida actual.</p>
-    </div>
-  </div>
-
-  <!-- Inventory overlay -->
-  <div class="overlay hidden" id="inv-screen">
-    <div class="card inv-card">
-      <h2>Inventario</h2>
-      <p id="inv-power">Brasas</p>
-      <div class="inv-cols">
-        <div>
-          <div class="inv-sub">Estadísticas</div>
-          <div class="stat-legend"><b style="color:#5aa0ff">■</b> Nivel (base) &nbsp; <b style="color:#ff9d4d">■</b> Equipo</div>
-          <div id="stats-panel"></div>
-        </div>
-        <div>
-          <div class="inv-sub">Equipo · mejóralo con brasas</div>
-          <div id="equip-list"></div>
-        </div>
-      </div>
-      <button class="btn" id="inv-close">Cerrar (I)</button>
-    </div>
-  </div>
-
-  <!-- Game over overlay -->
-  <div class="overlay hidden" id="over-screen">
-    <div class="card">
-      <h2 id="over-title">Has caído</h2>
-      <p>La marea te ha consumido. Esto es lo que lograste:</p>
-      <div class="stats-grid">
-        <div>Nivel alcanzado <b id="final-level">1</b></div>
-        <div>Oleada <b id="final-wave">1</b></div>
-        <div>Demonios abatidos <b id="final-kills">0</b></div>
-        <div>Mejoras realizadas <b id="final-loot">0</b></div>
-        <div>Cenizas candentes <b id="final-ash">0</b></div>
-        <div>Puntuación <b id="final-score">0</b></div>
-      </div>
-      <p id="best-score" style="color:var(--ember-glow)"></p>
-      <div class="name-row" id="name-row">
-        <label for="name-input">Tu nombre:</label>
-        <input id="name-input" type="text" maxlength="14" placeholder="Héroe" autocomplete="off" />
-        <button class="btn btn-sec btn-small" id="save-score-btn">Guardar</button>
-      </div>
-      <div class="menu-buttons-row">
-        <button class="btn" id="restart-btn">⟳ Reintentar</button>
-        <button class="btn btn-sec" id="over-scores-btn">🏆 Puntuaciones</button>
-        <button class="btn btn-sec" id="over-menu-btn">🏠 Menú</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Orden de carga clasico (sin modulos ES para que funcione bajo file://):
+  <!-- Orden de carga clasico (sin modulos ES para que funcione bajo file://):
      mecanica.js define el nucleo y los simbolos globales (var/function);
      personajes.js y enemigos.js los usan. enemigos.js arranca el juego al final. -->
-<script src="js/mecanica.js"></script>
-<script src="js/personajes.js"></script>
-<script src="js/enemigos.js"></script>
+  <script src="js/mecanica.js"></script>
+  <script src="js/personajes.js"></script>
+  <script src="js/enemigos.js"></script>
 </body>
+
 </html>

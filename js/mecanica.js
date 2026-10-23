@@ -69,6 +69,26 @@ var Sound = (() => {
     hurt: () => { tone(200, 0.15, "sawtooth", 0.12, 80); noise(0.1, 0.1); },
     boss: () => { tone(90, 0.6, "sawtooth", 0.18, 40); noise(0.4, 0.12); },
     bossdie: () => { tone(120, 0.5, "sawtooth", 0.2, 30); setTimeout(() => tone(80, 0.6, "sawtooth", 0.2, 20), 150); noise(0.5, 0.15); },
+    goblin: () => {
+      tone(580, 0.07, "triangle", 0.12, 880);
+      setTimeout(() => tone(880, 0.08, "sine", 0.14, 1200), 65);
+      setTimeout(() => tone(1100, 0.12, "triangle", 0.14, 1500), 140);
+      setTimeout(() => tone(900, 0.08, "sine", 0.1, 1300), 240);
+    },
+    goblinHit: () => {
+      tone(750, 0.06, "triangle", 0.11, 1100);
+    },
+    goblinDie: () => {
+      tone(440, 0.1, "sine", 0.14, 880);
+      setTimeout(() => tone(660, 0.12, "triangle", 0.15, 1100), 80);
+      setTimeout(() => tone(880, 0.16, "sine", 0.18, 1400), 160);
+      setTimeout(() => tone(1320, 0.25, "triangle", 0.16, 1760), 240);
+      noise(0.2, 0.08);
+    },
+    goblinEscape: () => {
+      tone(600, 0.35, "sawtooth", 0.14, 150);
+      noise(0.3, 0.1);
+    },
   };
 })();
 
@@ -511,6 +531,7 @@ function pointInObstacle(x, y) {
 var CHEST_LIFE = 5;
 var chestReward = p => Math.round((100 + p.level * 50) * (1 + p.ashBonus));
 var CHEST_CHANCE = 0.05;
+var GOBLIN_CHANCE = 0.05; // Misma probabilidad que los cofres
 function spawnChest(x, y) {
   state.chests.push({
     x: clamp(x, WALL + 40, WORLD.w - WALL - 40),
@@ -544,6 +565,43 @@ function spawnChestNearPlayer() {
 
 
 
+function spawnBonusChest() {
+  const p = state.player;
+  let x = p.x, y = p.y - 75;
+  for (let i = 0; i < 20; i++) {
+    const a = -Math.PI / 2 + (i === 0 ? 0 : rand(-Math.PI, Math.PI));
+    const d = (i === 0 ? 75 : rand(65, 130));
+    const cx = clamp(p.x + Math.cos(a) * d, WALL + 40, WORLD.w - WALL - 40);
+    const cy = clamp(p.y + Math.sin(a) * d, WALL + 40, WORLD.h - WALL - 40);
+    const m = 26;
+    if (!pointInObstacle(cx, cy) && !pointInObstacle(cx - m, cy - m) && !pointInObstacle(cx + m, cy - m) &&
+        !pointInObstacle(cx - m, cy + m) && !pointInObstacle(cx + m, cy + m)) { x = cx; y = cy; break; }
+  }
+  const baseReward = randInt(150, 350);
+  const reward = Math.round(baseReward * (1 + (p.ashBonus || 0)));
+  state.chests.push({
+    x: clamp(x, WALL + 40, WORLD.w - WALL - 40),
+    y: clamp(y, WALL + 40, WORLD.h - WALL - 40),
+    r: 24,
+    opened: false,
+    glow: 1,
+    life: 99999, // No expira mientras estás en el intermedio revisando inventario
+    isBonus: true,
+    reward: reward,
+  });
+  Sound.chest();
+  floatText(x, y - 45, "¡Cofre de Bonificación!", "#ffd84d");
+  for (let i = 0; i < 30; i++) {
+    const a = rand(0, Math.PI * 2), s = rand(60, 220);
+    state.particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: rand(0.4, 0.9), r: rand(2.5, 5),
+      color: pick(["#ffd84d", "#ff9d4d", "#ffffff", "#ff7a2a"])
+    });
+  }
+}
+
 function tryOpenChest() {
   if (!state.running) return;
   const p = state.player;
@@ -554,12 +612,18 @@ function tryOpenChest() {
       c.life = Math.min(c.life, 0.8); // fades out quickly once empty
       state.shake = Math.max(state.shake, 8);
       Sound.chest();
-      const reward = chestReward(p);
+      const reward = c.reward || chestReward(p);
       state.ash += reward;
-      floatText(c.x, c.y - 30, "¡COFRE ABIERTO! +" + reward + "🔥", "#ffd84d");
-      for (let i = 0; i < 30; i++) {
-        const a = rand(0, Math.PI * 2), s = rand(80, 300);
-        state.particles.push({ x: c.x, y: c.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.4, 0.9), r: rand(2, 5), color: Math.random() < 0.5 ? "#ffd84d" : "#ff7a2a" });
+      const label = c.isBonus ? "¡BONO DE OLEADA! +" : "¡COFRE ABIERTO! +";
+      floatText(c.x, c.y - 30, label + reward + "🔥", "#ffd84d");
+      for (let i = 0; i < 35; i++) {
+        const a = rand(0, Math.PI * 2), s = rand(80, 320);
+        state.particles.push({
+          x: c.x, y: c.y,
+          vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+          life: rand(0.4, 0.9), r: rand(2, 5),
+          color: c.isBonus ? pick(["#ffd84d", "#ffffff", "#ff9d4d"]) : (Math.random() < 0.5 ? "#ffd84d" : "#ff7a2a")
+        });
       }
       return;
     }
@@ -623,12 +687,25 @@ function startIntermission() {
   state.phase = "intermission";
   // absorb everything left on the floor (xp/ash orbs, boss drops)
   for (const o of state.orbs) o.pull = true;
+  // cofre de bonificación cada 5 oleadas
+  spawnBonusChest();
   // no countdown: the game waits (no new enemies) until the player presses Continue
-  showWarning("Pausa<br><span style='font-size:20px'>Revisa tu equipo (I) y continúa cuando estés listo</span>");
+  showWarning("Pausa<br><span style='font-size:20px'>¡Cofre de bonificación disponible! Revisa tu equipo (I) y continúa</span>");
   interPanel.style.display = "block";
 }
 
 function endIntermission() {
+  // Si el jugador no abrió el cofre de bonificación manualmente con E, se le otorga automáticamente
+  for (const c of state.chests) {
+    if (c.isBonus && !c.opened) {
+      c.opened = true;
+      c.life = 0.8;
+      const reward = c.reward || chestReward(state.player);
+      state.ash += reward;
+      floatText(state.player.x, state.player.y - 30, "¡BONO DE OLEADA! +" + reward + "🔥", "#ffd84d");
+      Sound.chest();
+    }
+  }
   interPanel.style.display = "none";
   startWave();
 }
@@ -709,6 +786,7 @@ function update(dt) {
       for (let i = 0; i < batch; i++) { spawnEnemy(); state.toSpawn--; state.alive++; }
       state.batchesSpawned++;
       if (Math.random() < CHEST_CHANCE) spawnChestNearPlayer();
+      if (Math.random() < GOBLIN_CHANCE && typeof spawnGoblinNearPlayer === "function") spawnGoblinNearPlayer();
     }
     // Waves that end in a pause (every 5th, incl. boss waves) are cleared only when the LAST enemy dies.
     // Other waves start the next one when 15% or less of this wave's enemies remain.
@@ -735,7 +813,10 @@ function update(dt) {
     // ---- special-enemy behavior ----
     // handledMove = true when the type moved on its own and the plain chase is skipped.
     let handledMove = false;
-    if (e.type === "leaper") {
+    if (e.type === "goblin") {
+      if (typeof updateGoblin === "function") updateGoblin(e, dt, p, dx, dy, d);
+      handledMove = true;
+    } else if (e.type === "leaper") {
       if (e.leaping > 0) {
         // mid-leap: fly along the locked velocity (clamped to the arena)
         e.leaping -= dt;
@@ -785,8 +866,8 @@ function update(dt) {
       e.x += (dx / d) * sp * dt;
       e.y += (dy / d) * sp * dt;
     }
-    // contact damage
-    if (d < e.r + p.r && p.inv <= 0) {
+    // contact damage (el duende no daña al jugador)
+    if (e.type !== "goblin" && d < e.r + p.r && p.inv <= 0) {
       p.hp -= e.dmg;
       p.inv = 0.6;
       state.shake = Math.max(state.shake, 9);
@@ -879,6 +960,7 @@ function update(dt) {
           const a = Math.atan2(b.vy, b.vx) + rand(-0.8, 0.8), s = rand(40, 140);
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
         }
+        if (e.type === "goblin" && typeof onGoblinHit === "function") onGoblinHit(e);
         if (e.hp <= 0) killEnemy(e);
         if (b.pierce > 0) { b.pierce--; (b.hitSet || (b.hitSet = new Set())).add(e); }
         else { b.life = 0; break; }
@@ -941,7 +1023,7 @@ function update(dt) {
 
   // chest glow + lifetime
   for (const c of state.chests) {
-    c.life -= dt;
+    if (!c.isBonus || c.opened) c.life -= dt;
     if (!c.opened) {
       const near = dist2(p.x, p.y, c.x, c.y) < (c.r + p.r + 24) ** 2;
       c.glow = clamp(c.glow + (near ? 1 : -1) * dt * 4, 0, 1);
@@ -1144,7 +1226,7 @@ function drawObstacle(o) {
 function drawChest(c) {
   ctx.save();
   if (c.opened) ctx.globalAlpha = clamp(c.life / 0.8, 0, 1);
-  else if (c.life < 1.5 && Math.floor(performance.now() / 120) % 2 === 0) ctx.globalAlpha = 0.35; // blink before vanishing
+  else if (!c.isBonus && c.life < 1.5 && Math.floor(performance.now() / 120) % 2 === 0) ctx.globalAlpha = 0.35; // blink before vanishing (solo cofres normales)
   drawChestBody(c);
   ctx.restore();
 }
@@ -1161,25 +1243,32 @@ function drawChestBody(c) {
   }
   const pulse = 0.5 + Math.sin(t) * 0.3 + c.glow * 0.4;
   ctx.save();
-  ctx.shadowBlur = 20 + c.glow * 20; ctx.shadowColor = "#ffb347";
+  ctx.shadowBlur = (c.isBonus ? 26 : 20) + c.glow * 20;
+  ctx.shadowColor = c.isBonus ? "#ffd84d" : "#ffb347";
   // body
-  ctx.fillStyle = "#6a3a12";
+  ctx.fillStyle = c.isBonus ? "#7a2a08" : "#6a3a12";
   roundRect(c.x - c.r, c.y - c.r * 0.6, c.r * 2, c.r * 1.4, 5); ctx.fill();
   // lid
-  ctx.fillStyle = "#8a5020";
+  ctx.fillStyle = c.isBonus ? "#a84310" : "#8a5020";
   roundRect(c.x - c.r, c.y - c.r * 0.9, c.r * 2, c.r * 0.5, 5); ctx.fill();
-  // lock
+  // lock & trim
   ctx.fillStyle = "#ffd84d";
   ctx.globalAlpha = pulse;
-  ctx.beginPath(); ctx.arc(c.x, c.y - c.r * 0.25, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(c.x, c.y - c.r * 0.25, c.isBonus ? 6.5 : 5, 0, Math.PI * 2); ctx.fill();
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = "#3a2010"; ctx.lineWidth = 3;
+  ctx.strokeStyle = c.isBonus ? "#d4af37" : "#3a2010"; ctx.lineWidth = c.isBonus ? 3.5 : 3;
   roundRect(c.x - c.r, c.y - c.r * 0.9, c.r * 2, c.r * 1.4, 5); ctx.stroke();
   ctx.restore();
-  // reward + time left
+
+  // reward + label
+  const rewardVal = c.reward || chestReward(state.player);
   ctx.fillStyle = "#ffd84d";
   ctx.font = "bold " + Math.round(13 / zoom) + "px sans-serif"; ctx.textAlign = "center";
-  ctx.fillText("🔥 " + chestReward(state.player) + "  ·  " + Math.max(0, c.life).toFixed(1) + "s", c.x, c.y + c.r + 18 / zoom);
+  if (c.isBonus) {
+    ctx.fillText("🎁 BONO 🔥 " + rewardVal, c.x, c.y + c.r + 18 / zoom);
+  } else {
+    ctx.fillText("🔥 " + rewardVal + "  ·  " + Math.max(0, c.life).toFixed(1) + "s", c.x, c.y + c.r + 18 / zoom);
+  }
   ctx.fillStyle = "#fff0c2";
   ctx.font = "bold " + Math.round(12 / zoom) + "px sans-serif";
   ctx.fillText("[E]", c.x, c.y + c.r + 34 / zoom);
@@ -1275,6 +1364,8 @@ for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
   el("dbg-ash").classList.toggle("on", debugInfAsh);
   debugTopUpAsh();
   if (invOpen) renderInventory();
+}], ["dbg-goblin", () => {
+  if (typeof spawnGoblinNearPlayer === "function") spawnGoblinNearPlayer();
 }]]) {
   const b = el(id);
   b.addEventListener("mousedown", e => e.preventDefault()); // keep focus off the button so Space/E don't trigger it

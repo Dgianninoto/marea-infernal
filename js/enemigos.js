@@ -158,6 +158,10 @@ function spawnBoss() {
 }
 
 function killEnemy(e) {
+  if (e.type === "goblin") {
+    killGoblin(e);
+    return;
+  }
   state.kills++;
   state.alive = Math.max(0, state.alive - 1);
   state.score += Math.round(e.xp * 1.5);
@@ -204,6 +208,10 @@ function killBoss(boss) {
 }
 
 function drawEnemy(e) {
+  if (e.type === "goblin") {
+    drawGoblin(e);
+    return;
+  }
   ctx.save();
   if (e.flash > 0) ctx.globalAlpha = 0.9;
   // spiky demon body
@@ -303,6 +311,511 @@ function drawBoss(b) {
   ctx.fillStyle = "#ffe36a";
   ctx.beginPath(); ctx.arc(b.x - b.r * 0.28, b.y - b.r * 0.1, b.r * 0.1, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(b.x + b.r * 0.28, b.y - b.r * 0.1, b.r * 0.1, 0, Math.PI * 2); ctx.fill();
+}
+
+// ---------------------------------------------------------------- Duende del Tesoro (Goblin de Diablo)
+function spawnGoblin(x, y) {
+  const p = state.player;
+  const w = state.wave;
+  const hpScale = 1 + (w - 1) * 0.18;
+  const e = {
+    x: clamp(x, WALL + 30, WORLD.w - WALL - 30),
+    y: clamp(y, WALL + 30, WORLD.h - WALL - 30),
+    type: "goblin",
+    r: 18,
+    speed: 155, // ágil y escurridizo
+    hp: 130 * hpScale,
+    maxHp: 130 * hpScale,
+    dmg: 0, // ¡no daña al jugador!
+    xp: 70 + w * 12,
+    color: "#2ecc71",
+    flash: 0,
+    id_: ++enemySeq,
+    vx: 0,
+    vy: 0,
+    facing: 1,
+    hopPhase: 0,
+    hopHeight: 0,
+    ashTimer: rand(1.1, 1.6),
+    trailTimer: 0,
+    panicTimer: 0,
+    escapeTimer: 32, // tiempo total antes de escapar
+    portalState: "none", // "none" | "opening"
+    portalTime: 0,
+  };
+  state.enemies.push(e);
+  if (Sound && Sound.goblin) Sound.goblin();
+  floatText(e.x, e.y - 50, "¡Duende del Tesoro!", "#ffd84d");
+  showWarning("¡Un Duende del Tesoro ha aparecido!<br><span style='font-size:18px;color:#ffd84d'>¡Persíguelo antes de que escape con las cenizas!</span>");
+  for (let i = 0; i < 24; i++) {
+    const a = rand(0, Math.PI * 2), s = rand(50, 200);
+    state.particles.push({
+      x: e.x, y: e.y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: rand(0.4, 0.8), r: rand(2, 4),
+      color: pick(["#ffd84d", "#ff9d4d", "#2ecc71", "#ffffff"])
+    });
+  }
+  return e;
+}
+
+function spawnGoblinNearPlayer() {
+  if (state.enemies.some(e => e.type === "goblin" && e.hp > 0)) return;
+  const p = state.player;
+  let x = p.x, y = p.y + 240;
+  for (let i = 0; i < 30; i++) {
+    const a = rand(0, Math.PI * 2), d = rand(280, 460);
+    const gx = clamp(p.x + Math.cos(a) * d, WALL + 50, WORLD.w - WALL - 50);
+    const gy = clamp(p.y + Math.sin(a) * d, WALL + 50, WORLD.h - WALL - 50);
+    const m = 26;
+    if (!pointInObstacle(gx, gy) && !pointInObstacle(gx - m, gy - m) && !pointInObstacle(gx + m, gy - m) &&
+        !pointInObstacle(gx - m, gy + m) && !pointInObstacle(gx + m, gy + m)) {
+      x = gx; y = gy; break;
+    }
+  }
+  spawnGoblin(x, y);
+}
+
+function updateGoblin(e, dt, p, dx, dy, d) {
+  if (e.panicTimer > 0) e.panicTimer -= dt;
+  e.escapeTimer -= dt;
+
+  // Apertura de portal de escape al acabarse el tiempo
+  if (e.escapeTimer <= 5 && e.portalState === "none") {
+    e.portalState = "opening";
+    e.portalTime = 0;
+    floatText(e.x, e.y - 45, "¡Abriendo portal!", "#e056fd");
+  }
+
+  const channeling = e.portalState === "opening" && e.panicTimer <= 0;
+  if (channeling) {
+    e.portalTime += dt;
+    if (Math.random() < 0.6) {
+      const a = rand(0, Math.PI * 2), dist = rand(15, 36);
+      state.particles.push({
+        x: e.x + Math.cos(a) * dist,
+        y: e.y + Math.sin(a) * dist,
+        vx: -Math.cos(a) * 45 + rand(-10, 10),
+        vy: -Math.sin(a) * 45 + rand(-10, 10),
+        life: 0.4, r: rand(2, 4),
+        color: pick(["#e056fd", "#be2edd", "#ffd84d"])
+      });
+    }
+    if (e.escapeTimer <= 0) {
+      e.hp = 0; // Desaparece a través del portal
+      if (Sound && Sound.goblinEscape) Sound.goblinEscape();
+      floatText(e.x, e.y - 40, "¡El Duende escapó!", "#ff7675");
+      for (let i = 0; i < 30; i++) {
+        const a = rand(0, Math.PI * 2), s = rand(60, 240);
+        state.particles.push({
+          x: e.x, y: e.y,
+          vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+          life: rand(0.4, 0.8), r: rand(2, 5),
+          color: pick(["#e056fd", "#be2edd", "#ffffff"])
+        });
+      }
+      return;
+    }
+  }
+
+  // Velocidad y huida del jugador
+  let moveSpd = e.speed;
+  if (e.panicTimer > 0) moveSpd *= 1.45; // sprint de pánico
+
+  let fleeX = -dx / (d || 1);
+  let fleeY = -dy / (d || 1);
+
+  // Evitar paredes del mapa suavemente
+  const edgeDist = 180;
+  if (e.x < WALL + edgeDist) fleeX += 0.8;
+  if (e.x > WORLD.w - WALL - edgeDist) fleeX -= 0.8;
+  if (e.y < WALL + edgeDist) fleeY += 0.8;
+  if (e.y > WORLD.h - WALL - edgeDist) fleeY -= 0.8;
+
+  // Zigzag errático al huir
+  const zigzag = Math.sin(performance.now() / 240) * 0.35;
+  const perpX = -fleeY, perpY = fleeX;
+  fleeX += perpX * zigzag;
+  fleeY += perpY * zigzag;
+
+  const fLen = Math.hypot(fleeX, fleeY) || 1;
+  fleeX /= fLen; fleeY /= fLen;
+
+  if (!channeling) {
+    e.vx = fleeX * moveSpd;
+    e.vy = fleeY * moveSpd;
+    e.x += e.vx * dt;
+    e.y += e.vy * dt;
+    if (fleeX !== 0) e.facing = fleeX > 0 ? 1 : -1;
+  } else {
+    e.vx = 0;
+    e.vy = 0;
+  }
+
+  e.x = clamp(e.x, WALL + e.r, WORLD.w - WALL - e.r);
+  e.y = clamp(e.y, WALL + e.r, WORLD.h - WALL - e.r);
+
+  const ro = resolveObstacles(e.x, e.y, e.r);
+  e.x = ro.x; e.y = ro.y;
+
+  // Ciclo de saltos ("va saltando")
+  const hopRate = channeling ? 4 : (e.panicTimer > 0 ? 16 : 10);
+  e.hopPhase = (e.hopPhase || 0) + dt * hopRate;
+  const sinHop = Math.sin(e.hopPhase);
+  e.hopHeight = Math.max(0, sinHop) * (channeling ? 5 : (e.panicTimer > 0 ? 17 : 13));
+
+  // Pistas de partículas brillantes y cenizas
+  e.trailTimer -= dt;
+  if (e.trailTimer <= 0) {
+    e.trailTimer = channeling ? 0.2 : (e.panicTimer > 0 ? 0.05 : 0.09);
+    state.particles.push({
+      x: e.x + rand(-6, 6),
+      y: e.y + rand(-3, 3),
+      vx: rand(-15, 15),
+      vy: rand(-15, 15),
+      life: rand(0.4, 0.7),
+      r: rand(1.5, 3),
+      color: pick(["#ffd84d", "#ff9d4d", "#ff7a2a", "#f1c40f"])
+    });
+  }
+
+  // Dejar orbes de ceniza reales como pistas en el camino ("dejando pistas o en este caso cenizas")
+  e.ashTimer -= dt;
+  if (!channeling && e.ashTimer <= 0) {
+    e.ashTimer = rand(1.1, 1.7);
+    const ashVal = randInt(1, 2);
+    state.orbs.push({
+      x: e.x + rand(-8, 8),
+      y: e.y + rand(-8, 8),
+      r: 8,
+      kind: "ash",
+      val: ashVal,
+      vx: rand(-30, 30),
+      vy: rand(-30, 30)
+    });
+    for (let i = 0; i < 4; i++) {
+      state.particles.push({
+        x: e.x, y: e.y,
+        vx: rand(-30, 30), vy: rand(-30, 30),
+        life: 0.35, r: rand(1.5, 3),
+        color: "#ff9d4d"
+      });
+    }
+  }
+}
+
+function onGoblinHit(e) {
+  e.panicTimer = 1.2;
+  if (e.portalState === "opening") {
+    e.escapeTimer = Math.min(12, e.escapeTimer + 2.2);
+    e.portalState = "none";
+    floatText(e.x, e.y - 45, "¡Portal interrumpido!", "#ffd84d");
+  }
+  if (Sound && Sound.goblinHit) Sound.goblinHit();
+  // Deja caer cenizas extras al ser golpeado
+  const dropCount = randInt(1, 3);
+  for (let i = 0; i < dropCount; i++) {
+    state.orbs.push({
+      x: e.x + rand(-12, 12),
+      y: e.y + rand(-12, 12),
+      r: 8,
+      kind: "ash",
+      val: randInt(2, 3),
+      vx: rand(-50, 50),
+      vy: rand(-50, 50)
+    });
+  }
+}
+
+function killGoblin(e) {
+  state.kills++;
+  state.score += 800;
+  if (Sound && Sound.goblinDie) Sound.goblinDie();
+  else if (Sound && Sound.chest) Sound.chest();
+
+  const p = state.player;
+  const baseReward = 200;
+  const totalAsh = Math.round(baseReward * (1 + (p.ashBonus || 0)));
+
+  gainXp(e.xp || 100);
+  state.shake = Math.max(state.shake, 14);
+  floatText(e.x, e.y - 45, "¡DUENDE ANIQUILADO! +" + totalAsh + "🔥", "#ffd84d");
+
+  // Lluvia explosiva de orbes de ceniza que suman 200 (afectados por bonus de cenizas)
+  const orbCount = 10;
+  const perOrb = Math.floor(totalAsh / orbCount);
+  const remainder = totalAsh - perOrb * orbCount;
+
+  for (let i = 0; i < orbCount; i++) {
+    const angle = (i / orbCount) * Math.PI * 2 + rand(-0.2, 0.2);
+    const speed = rand(80, 220);
+    state.orbs.push({
+      x: e.x,
+      y: e.y,
+      r: 10,
+      kind: "ash",
+      val: perOrb + (i === 0 ? remainder : 0),
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed
+    });
+  }
+
+  // Orbes de experiencia
+  for (let i = 0; i < 3; i++) {
+    state.orbs.push({
+      x: e.x + rand(-10, 10),
+      y: e.y + rand(-10, 10),
+      r: 8,
+      kind: "xp",
+      val: Math.round(e.xp * 0.35),
+      vx: rand(-70, 70),
+      vy: rand(-70, 70)
+    });
+  }
+
+  // Fuegos artificiales de partículas (oro, fuego, gemas)
+  for (let i = 0; i < 60; i++) {
+    const a = rand(0, Math.PI * 2), s = rand(60, 340);
+    state.particles.push({
+      x: e.x, y: e.y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: rand(0.5, 1.2), r: rand(2.5, 6),
+      color: pick(["#ffd84d", "#ff9d4d", "#ff5252", "#2ecc71", "#ffffff", "#f1c40f", "#e056fd"])
+    });
+  }
+}
+
+function drawSparkle(ctx, x, y, size) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - size);
+  ctx.lineTo(x + size * 0.3, y - size * 0.3);
+  ctx.lineTo(x + size, y);
+  ctx.lineTo(x + size * 0.3, y + size * 0.3);
+  ctx.lineTo(x, y + size);
+  ctx.lineTo(x - size * 0.3, y + size * 0.3);
+  ctx.lineTo(x - size, y);
+  ctx.lineTo(x - size * 0.3, y - size * 0.3);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawGoblin(e) {
+  // Sombra dinámica en el suelo según la altura del salto
+  const hopH = e.hopHeight || 0;
+  const shadowScale = clamp(1 - (hopH / 30), 0.45, 1);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0," + (0.45 * shadowScale) + ")";
+  ctx.beginPath();
+  ctx.ellipse(e.x, e.y + 6, (e.r + 2) * shadowScale, ((e.r + 2) * 0.45) * shadowScale, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Portal de escape dimensional si está canalizando
+  if (e.portalState === "opening") {
+    const t = performance.now() / 200;
+    ctx.save();
+    ctx.translate(e.x, e.y + 4);
+    ctx.scale(1, 0.45);
+    const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, 42);
+    grad.addColorStop(0, "rgba(224, 86, 253, 0.85)");
+    grad.addColorStop(0.6, "rgba(108, 92, 231, 0.5)");
+    grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(0, 0, 42, 0, Math.PI * 2); ctx.fill();
+
+    ctx.rotate(t);
+    ctx.strokeStyle = "rgba(255, 216, 77, 0.75)";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let a = 0; a < Math.PI * 4; a += 0.2) {
+      const pr = 4 + a * 2.8;
+      const px = Math.cos(a) * pr, py = Math.sin(a) * pr;
+      if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Dibujo del Duende
+  ctx.save();
+  ctx.translate(e.x, e.y - hopH);
+  if (e.facing === -1) {
+    ctx.scale(-1, 1);
+  }
+
+  // Deformación de salto y aterrizaje (squash & stretch)
+  const sinHop = Math.sin(e.hopPhase || 0);
+  let sx = 1, sy = 1;
+  if (sinHop > 0.35) {
+    sx = 0.88; sy = 1.14; // estiramiento en el aire
+  } else if (sinHop < 0.1 && sinHop > -0.3) {
+    sx = 1.15; sy = 0.88; // aplastamiento al aterrizar
+  }
+  ctx.scale(sx, sy);
+
+  if (e.flash > 0) ctx.globalAlpha = 0.85;
+
+  // 1. Saco de botín gigante sobrecargado en la espalda
+  ctx.save();
+  const jiggle = Math.sin((e.hopPhase || 0) * 0.8) * 0.1;
+  ctx.rotate(jiggle - 0.15);
+
+  ctx.shadowColor = "#ffd84d";
+  ctx.shadowBlur = 12;
+
+  // Cuerpo del saco de cuero
+  const sackGrad = ctx.createRadialGradient(-10, -8, 2, -10, -6, 20);
+  sackGrad.addColorStop(0, "#a06535");
+  sackGrad.addColorStop(0.7, "#6b3e1b");
+  sackGrad.addColorStop(1, "#42220c");
+  ctx.fillStyle = sackGrad;
+  ctx.strokeStyle = "#2e1506";
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.ellipse(-12, -4, 15, 17, -0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Costuras del saco
+  ctx.strokeStyle = "#d4a373";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-16, -6); ctx.lineTo(-12, -2);
+  ctx.moveTo(-15, -3); ctx.lineTo(-13, -5);
+  ctx.stroke();
+
+  // Cuerda dorada del saco
+  ctx.fillStyle = "#ffd84d";
+  ctx.fillRect(-15, -19, 8, 3.5);
+
+  // Monedas y gemas desbordándose
+  ctx.fillStyle = "#ffe066";
+  ctx.beginPath(); ctx.arc(-13, -22, 3.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-9, -21, 2.8, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-15, -20, 2.5, 0, Math.PI * 2); ctx.fill();
+
+  // Rubí brillante
+  ctx.fillStyle = "#ff3366";
+  ctx.beginPath();
+  ctx.moveTo(-11, -25); ctx.lineTo(-8, -22); ctx.lineTo(-11, -19); ctx.lineTo(-14, -22);
+  ctx.closePath(); ctx.fill();
+
+  // Esmeralda brillante
+  ctx.fillStyle = "#00e676";
+  ctx.beginPath();
+  ctx.moveTo(-7, -23); ctx.lineTo(-5, -20); ctx.lineTo(-7, -17); ctx.lineTo(-9, -20);
+  ctx.closePath(); ctx.fill();
+
+  // Brillo titilante
+  const sparkleTime = performance.now() / 250;
+  const sparkleAlpha = 0.5 + Math.sin(sparkleTime) * 0.5;
+  ctx.fillStyle = "rgba(255, 255, 255, " + sparkleAlpha + ")";
+  drawSparkle(ctx, -10, -26, 4 + Math.sin(sparkleTime) * 1.5);
+
+  ctx.restore();
+
+  // 2. Patas y cuerpo del Duende
+  const legSwing = Math.sin((e.hopPhase || 0) * 1.2) * 5;
+  ctx.fillStyle = "#1e392a";
+  ctx.beginPath(); ctx.ellipse(-6 + legSwing, 12, 4.5, 3, 0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(6 - legSwing, 12, 4.5, 3, -0.2, 0, Math.PI * 2); ctx.fill();
+
+  // Túnica carmesí
+  ctx.fillStyle = "#8e1b24";
+  ctx.strokeStyle = "#38070b";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-3, 0); ctx.lineTo(9, 1); ctx.lineTo(7, 10); ctx.lineTo(-5, 9);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Cinturón dorado
+  ctx.fillStyle = "#d4af37";
+  ctx.fillRect(-4, 5, 12, 2.5);
+
+  // Brazo sujetando la correa
+  ctx.fillStyle = "#27ae60";
+  ctx.strokeStyle = "#145a32";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.ellipse(3, 4, 3.5, 5, 0.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // 3. Cabeza y rostro del Duende
+  ctx.save();
+  ctx.translate(5, -6);
+
+  // Orejas puntiagudas características
+  ctx.fillStyle = "#27ae60";
+  ctx.strokeStyle = "#145a32";
+  ctx.beginPath();
+  ctx.moveTo(-4, -1); ctx.lineTo(-15, -6); ctx.lineTo(-4, 4);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#e07b89";
+  ctx.beginPath();
+  ctx.moveTo(-4, 0); ctx.lineTo(-12, -5); ctx.lineTo(-4, 3);
+  ctx.closePath(); ctx.fill();
+
+  // Cabeza base
+  ctx.fillStyle = e.flash > 0 ? "#ffffff" : "#2ecc71";
+  ctx.strokeStyle = "#145a32";
+  ctx.lineWidth = 1.8;
+  ctx.beginPath(); ctx.ellipse(0, 0, 8.5, 7.5, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // Nariz curva prominente
+  ctx.fillStyle = "#27ae60";
+  ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(12, 2); ctx.lineTo(4, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // Ojos brillantes amarillos
+  ctx.fillStyle = "#fff066";
+  ctx.shadowColor = "#ffd84d";
+  ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.ellipse(3, -2, 3.2, 4, 0.1, 0, Math.PI * 2); ctx.fill();
+
+  // Pupila mirando hacia atrás (al jugador)
+  ctx.fillStyle = "#111";
+  ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(1.8, -2, 1.4, 0, Math.PI * 2); ctx.fill();
+
+  // Sonrisa pícara con colmillo
+  ctx.strokeStyle = "#145a32";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(2, 4, 4, 0.2, Math.PI * 0.8); ctx.stroke();
+
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.moveTo(3, 4); ctx.lineTo(4, 6.5); ctx.lineTo(5, 4); ctx.closePath(); ctx.fill();
+
+  // Pequeña capucha
+  ctx.fillStyle = "#8e1b24";
+  ctx.beginPath(); ctx.moveTo(-5, -6); ctx.lineTo(1, -12); ctx.lineTo(6, -6); ctx.closePath(); ctx.fill();
+
+  ctx.restore(); // fin cabeza
+  ctx.restore(); // fin cuerpo duende
+
+  // Interfaz flotante: Nombre + Barra de vida
+  const barW = 36;
+  const barY = e.y - hopH - 26;
+
+  ctx.fillStyle = "rgba(0,0,0,0.7)";
+  roundRect(e.x - barW / 2 - 2, barY - 12, barW + 4, 18, 3);
+  ctx.fill();
+
+  ctx.fillStyle = "#ffd84d";
+  ctx.font = "bold 9px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("💰 Duende 💰", e.x, barY - 3);
+
+  ctx.fillStyle = "rgba(40, 10, 10, 0.8)";
+  ctx.fillRect(e.x - barW / 2, barY, barW, 3.5);
+  ctx.fillStyle = "#2ecc71";
+  const hpPct = clamp(e.hp / e.maxHp, 0, 1);
+  ctx.fillRect(e.x - barW / 2, barY, barW * hpPct, 3.5);
+
+  if (e.portalState === "opening") {
+    ctx.fillStyle = "#ff7675";
+    ctx.font = "bold 10px sans-serif";
+    ctx.fillText("¡Portal! " + Math.max(0, e.escapeTimer).toFixed(1) + "s", e.x, barY - 14);
+  }
+
+  ctx.textAlign = "left";
 }
 
 // ---------------------------------------------------------------- Arranque
