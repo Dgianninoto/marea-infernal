@@ -1006,9 +1006,9 @@
         aimX: 1, aimY: 0,
         inv: 0,            // invulnerability frames after hit
         // base stats (raised by level-ups); effective stats are derived in recalcStats()
-        base: { speed: 150, maxHp: 100, dmg: 12, fireRate: 0.28, regen: 1.5 },
+        base: { speed: 150, maxHp: 100, dmg: 12, fireRate: 0.28, regen: 0 },
         // effective stats after equipment (filled by recalcStats)
-        speed: 150, maxHp: 100, dmg: 12, fireRate: 0.28, regen: 1.5, ashBonus: 0, crit: 0, cdr: 0,
+        speed: 150, maxHp: 100, dmg: 12, fireRate: 0.28, regen: 0, ashBonus: 0, crit: 0, cdr: 0,
         // equipment: slotKey -> item (or null)
         equipped: makeBaseEquipment(), // start with the 6 base pieces
         power: 0,          // total gear score
@@ -1304,7 +1304,7 @@
     state.bullets.push({
       x: p.x + p.aimX * p.r, y: p.y + p.aimY * p.r,
       vx: p.aimX * spd, vy: p.aimY * spd,
-      r: 5, dmg: p.dmg * (crit ? 2 : 1), life: 0.55, crit,
+      r: 5, dmg: p.dmg * DMG_MULT * (crit ? 2 : 1), life: 0.55, crit,
     });
     // muzzle sparks
     for (let i = 0; i < 4; i++) {
@@ -1318,6 +1318,7 @@
   }
 
   // Spawn a single arrow heading at angle `ang`. opts: {dmg, r, spd, pierce, big, color}
+  const DMG_MULT = 1.3; // +30% to every damage source of the player (basic shot, fan, ultimate)
   function spawnArrow(ang, opts) {
     const p = state.player;
     const o = opts || {};
@@ -1326,7 +1327,7 @@
     state.bullets.push({
       x: p.x + Math.cos(ang) * p.r, y: p.y + Math.sin(ang) * p.r,
       vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-      r: o.r || 5, dmg: (o.dmg || p.dmg) * (crit ? 2 : 1), life: o.life || 0.55, crit,
+      r: o.r || 5, dmg: (o.dmg || p.dmg) * DMG_MULT * (crit ? 2 : 1), life: o.life || 0.55, crit,
       pierce: o.pierce || 0, big: !!o.big, color: o.color || null,
     });
   }
