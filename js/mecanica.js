@@ -277,35 +277,6 @@ var AFFIX = {
   crit:     { label: "Crítico",   color: "#ffd84d", fmt: v => "+" + v + "%" },
   cdr:      { label: "Recarga",   color: "#c58aff", fmt: v => "+" + v + "%" },
 };
-var WEAPONS = {
-  bow: {
-    id: "bow", name: "Arco", icon: "🏹", color: "#ffd84d",
-    skills: [
-      { name: "Flecha", icon: "➶", cooldown: 0.29 },
-      { name: "Abanico", icon: "🏹", cooldown: 5.5 },
-      { name: "Devastación", icon: "💥", cooldown: 13 },
-    ],
-  },
-  staff: {
-    id: "staff", name: "Bastón de mago", icon: "🪄", color: "#bd8cff",
-    skills: [
-      { name: "Orbe arcano", icon: "🔮", cooldown: 0.58 },
-      { name: "Salva arcana", icon: "✨", cooldown: 5.5 },
-      { name: "Meteorito", icon: "☄️", cooldown: 13 },
-    ],
-  },
-  axe: {
-    id: "axe", name: "Hacha", icon: "🪓", color: "#ff7659",
-    skills: [
-      { name: "Tajo", icon: "🪓", cooldown: 0.62 },
-      { name: "Giro amplio", icon: "🌀", cooldown: 5.5 },
-      { name: "Golpe sísmico", icon: "💥", cooldown: 13 },
-    ],
-  },
-};
-var selectedWeaponId = "bow";
-function getWeapon(id) { return WEAPONS[id] || WEAPONS.bow; }
-
 // each piece has one or more stats; every stat has its own base value and its own stat points
 var SLOTS = [
   { key: "arma",    label: "Arma",    icon: "🏹", name: "Arco",    stats: [
@@ -326,18 +297,10 @@ function statValue(item, st, points, level) {
 }
 function statCur(item, st) { return statValue(item, st, st.points, item.level); }
 
-function makeBaseEquipment(weaponId) {
+function makeBaseEquipment() {
   const eq = {};
-  const weapon = getWeapon(weaponId || selectedWeaponId);
   SLOTS.forEach((sl, i) => {
-    const isWeapon = sl.key === "arma";
-    eq[sl.key] = {
-      id: i + 1, slot: sl.key, slotLabel: sl.label,
-      icon: isWeapon ? weapon.icon : sl.icon,
-      name: isWeapon ? weapon.name : sl.name,
-      level: 0, plus: 0,
-      stats: sl.stats.map(st => ({ key: st.key, base: st.base, step: st.step, points: 0 })),
-    };
+    eq[sl.key] = { id: i + 1, slot: sl.key, slotLabel: sl.label, icon: sl.icon, name: sl.name, level: 0, plus: 0, stats: sl.stats.map(st => ({ key: st.key, base: st.base, step: st.step, points: 0 })) };
   });
   return eq;
 }
@@ -353,12 +316,6 @@ function equipSum(p, key) {
   return sum;
 }
 
-function weaponSkillCooldown(p, index) {
-  const cooldown = getWeapon(state.weaponId).skills[index].cooldown;
-  if (index !== 0) return cooldown;
-  return 1 / (1 / cooldown + equipSum(p, "fireRate"));
-}
-
 // Recompute effective stats from base + equipment. Keeps current hp ratio when maxHp changes.
 function recalcStats(p) {
   const prevMax = p.maxHp || 1;
@@ -367,6 +324,7 @@ function recalcStats(p) {
   p.maxHp = Math.round(p.base.maxHp + equipSum(p, "maxHp"));
   p.dmg = p.base.dmg + equipSum(p, "dmg");
   // Cadencia: equipment adds attacks per second (A/s) on top of the level-based A/s; no minimum interval
+  p.fireRate = 1 / (1 / p.base.fireRate + equipSum(p, "fireRate"));  // seconds between shots
   p.regen = p.base.regen + equipSum(p, "regen");
   p.ashBonus = equipSum(p, "ashBonus") / 100;
   p.crit = clamp(equipSum(p, "crit") / 100, 0, 1);                 // crit chance 0..1 (crit = x2 damage)
@@ -419,10 +377,8 @@ function upgradeItem(slotKey) {
 
 // ---------------------------------------------------------------- Game state
 var state;
-function newState(weaponId) {
-  const weapon = getWeapon(weaponId || selectedWeaponId);
+function newState() {
   return {
-    weaponId: weapon.id,
     running: false,
     over: false,
     time: 0,
@@ -447,14 +403,15 @@ function newState(weaponId) {
       r: 20,             // bigger hero so it reads clearly against loot/ash
       hp: 100,
       level: 1, xp: 0, xpNext: 1000,
+      fireCd: 0,
       aimX: 1, aimY: 0,
       inv: 0,            // invulnerability frames after hit
       // base stats (raised by level-ups); effective stats are derived in recalcStats()
-      base: { speed: 150, maxHp: 100, dmg: 12, regen: 0.5 },
+      base: { speed: 150, maxHp: 100, dmg: 12, fireRate: 1 / 3.5, regen: 0.5 }, // base 3.5 A/s, does not scale with level
       // effective stats after equipment (filled by recalcStats)
-      speed: 150, maxHp: 100, dmg: 12, regen: 0.5, ashBonus: 0, crit: 0, cdr: 0,
+      speed: 150, maxHp: 100, dmg: 12, fireRate: 1 / 3.5, regen: 0.5, ashBonus: 0, crit: 0, cdr: 0,
       // equipment: slotKey -> item (or null)
-      equipped: makeBaseEquipment(weapon.id), // start with the 6 base pieces
+      equipped: makeBaseEquipment(), // start with the 6 base pieces
       power: 0,          // total gear score
       dashCd: 0,         // current cooldown remaining
       dashMax: 2.2,      // cooldown length
@@ -462,15 +419,15 @@ function newState(weaponId) {
       dashDur: 0.16,     // dash duration
       dashSpeed: 900,    // dash velocity
       dashVX: 0, dashVY: 0,
+      // abilities (keys 1/2/3): current cooldown and max cooldown each
       skillCd: [0, 0, 0],
-      skillMax: weapon.skills.map(skill => skill.cooldown),
-      autoSkillCd: 0,
-      nextAutoSkill: 0,
+      skillMax: [6, 12, 13],   // fan, shield, ultimate
+      shieldTime: 0,           // active energy-shield seconds remaining
+      shieldDur: 4,            // how long the shield lasts
     },
     bullets: [],
     bossBullets: [],   // boss + caster projectiles that damage the player
-    aoes: [],          // telegraphed ground areas that damage the player
-    weaponEffects: [],
+    aoes: [],          // telegraphed ground areas (bomber) that damage the player
     enemies: [],
     orbs: [],
     chests: [],
@@ -719,38 +676,32 @@ function update(dt) {
   const al = Math.hypot(ax, ay) || 1;
   p.aimX = ax / al; p.aimY = ay / al;
 
+  // auto-fire: always shooting toward the mouse, as if the button were held down
+  p.fireCd -= dt;
+  if (state.phase !== "intermission") {
+    // several shots per frame are allowed so very high A/s still works at any fps
+    let n = 0;
+    while (p.fireCd <= 0 && n++ < 20) fire();
+    if (p.fireCd < 0) p.fireCd = 0;
+  } else if (p.fireCd < 0) p.fireCd = 0; // no shooting during the pause
+
   // regen
   if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
   if (p.inv > 0) p.inv -= dt;
 
-  // Weapon skill cooldowns
+  // ability cooldowns + active shield
   for (let i = 0; i < 3; i++) if (p.skillCd[i] > 0) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt * (1 + p.cdr)); // Recarga = faster cooldown tick
-  if (p.autoSkillCd > 0) p.autoSkillCd = Math.max(0, p.autoSkillCd - dt);
+  if (p.shieldTime > 0) { p.shieldTime -= dt; p.inv = Math.max(p.inv, 0.05); }
 
-  // Auto-fire the next ready weapon skill while a target is within engagement range.
-  if (state.phase !== "intermission" && p.autoSkillCd <= 0) {
-    const weapon = getWeapon(state.weaponId);
-    const range = weapon.id === "axe" ? 210 : 450;
-    const rangeSq = range * range;
-    let threat = !!(state.boss && dist2(p.x, p.y, state.boss.x, state.boss.y) < rangeSq);
-    if (!threat) {
-      for (const e of state.enemies) {
-        if (e.hp > 0 && dist2(p.x, p.y, e.x, e.y) < rangeSq) { threat = true; break; }
-      }
-    }
-    if (threat) {
-      for (let offset = 0; offset < 3; offset++) {
-        const index = (p.nextAutoSkill + offset) % 3;
-        if (p.skillCd[index] <= 0) {
-          useSkill(index);
-          p.autoSkillCd = 0.22;
-          p.nextAutoSkill = (index + 1) % 3;
-          break;
-        }
-      }
-    }
+  // auto-cast: every skill fires by itself as soon as it is ready
+  // (only while some enemy is close, so they are not wasted on an empty arena)
+  {
+    let threat = false;
+    const R2 = 450 * 450;
+    if (state.boss && dist2(p.x, p.y, state.boss.x, state.boss.y) < R2) threat = true;
+    if (!threat) for (const e of state.enemies) { if (dist2(p.x, p.y, e.x, e.y) < R2) { threat = true; break; } }
+    if (threat) for (let i = 0; i < 3; i++) if (p.skillCd[i] <= 0) useSkill(i);
   }
-  updateWeaponEffects(dt);
 
   // dash cooldown / active dash
   if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
@@ -1031,10 +982,6 @@ function update(dt) {
         }
         if (e.type === "goblin" && typeof onGoblinHit === "function") onGoblinHit(e);
         if (e.hp <= 0) killEnemy(e);
-        if (b.splashRadius > 0) {
-          damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, e);
-          weaponBurst(b.x, b.y, b.splashRadius, b.color || "#bd8cff", 8);
-        }
         if (b.pierce > 0) { b.pierce--; (b.hitSet || (b.hitSet = new Set())).add(e); }
         else { b.life = 0; break; }
       }
@@ -1049,10 +996,6 @@ function update(dt) {
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
         }
         if (boss.hp <= 0) killBoss(boss);
-        if (b.splashRadius > 0) {
-          damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, boss);
-          weaponBurst(b.x, b.y, b.splashRadius, b.color || "#bd8cff", 8);
-        }
         if (b.pierce > 0) { b.pierce--; (b.hitSet || (b.hitSet = new Set())).add(boss); }
         else b.life = 0;
       }
@@ -1165,7 +1108,6 @@ function draw() {
 
   // boss
   if (state.boss) drawBoss(state.boss);
-  drawWeaponEffects();
 
   // boss + caster projectiles
   for (const bb of state.bossBullets) {
@@ -1179,15 +1121,7 @@ function draw() {
 
   // bullets
   for (const b of state.bullets) {
-    if (b.kind === "orb") {
-      ctx.save();
-      ctx.shadowBlur = 18; ctx.shadowColor = b.color || "#bd8cff";
-      ctx.fillStyle = b.color || "#bd8cff";
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#fff0ff";
-      ctx.beginPath(); ctx.arc(b.x - b.r * 0.25, b.y - b.r * 0.25, Math.max(2, b.r * 0.28), 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-    } else if (b.big) drawArrow(b.x, b.y, b.vx, b.vy, 24, b.color || "#ff7a2a", 2.4);
+    if (b.big) drawArrow(b.x, b.y, b.vx, b.vy, 24, b.color || "#ff7a2a", 2.4);
     else drawArrow(b.x, b.y, b.vx, b.vy, 11, b.color || "#e7cda0", 1);
   }
 
@@ -1401,8 +1335,6 @@ var xpFill = el("xp-fill"), xpTxt = el("xp-txt");
 var dashFill = el("dash-fill"), dashTxt = el("dash-txt");
 var skillEls = [el("skill-0"), el("skill-1"), el("skill-2")];
 var skillCdEls = skillEls.map(s => s.querySelector(".skill-cd"));
-var skillIconEls = skillEls.map(s => s.querySelector(".skill-icon"));
-var skillNameEls = skillEls.map(s => s.querySelector(".skill-name"));
 var levelTxt = el("level-txt"), ashTxt = el("ash-txt");
 var waveTxt = el("wave-txt"), killsTxt = el("kills-txt"), lootTxt = el("loot-txt");
 var tideTimer = el("tide-timer");
@@ -1410,16 +1342,6 @@ var waveProgress = el("wave-progress");
 var bossWrap = el("boss-wrap"), bossFill = el("boss-fill");
 var warningEl = el("warning");
 var interPanel = el("inter-panel");
-
-function updateWeaponHud(weaponId) {
-  const weapon = getWeapon(weaponId);
-  for (let i = 0; i < weapon.skills.length; i++) {
-    const skill = weapon.skills[i];
-    skillIconEls[i].textContent = skill.icon;
-    skillNameEls[i].textContent = skill.name;
-    skillEls[i].title = skill.name + " · " + skill.cooldown + " s";
-  }
-}
 
 var warnTimer = null;
 function showWarning(html) {
@@ -1541,12 +1463,12 @@ function itemCard(item) {
 // Stats panel: splits each stat into what comes from level (base) and from equipment.
 function renderStatsPanel(p) {
   const f1 = v => (Math.round(v * 10) / 10).toString();
-  const shots = 1 / getWeapon(state.weaponId).skills[0].cooldown;
+  const shots = 1 / p.base.fireRate;           // A/s from level only
   const rows = [
     { label: "Daño",      color: AFFIX.dmg.color,      lvl: p.base.dmg,   eq: equipSum(p, "dmg"),      fmt: v => f1(v) },
     { label: "Vida máx",  color: AFFIX.maxHp.color,    lvl: p.base.maxHp, eq: equipSum(p, "maxHp"),    fmt: v => f1(v) },
     { label: "Velocidad", color: AFFIX.speed.color,    lvl: p.base.speed, eq: equipSum(p, "speed"),    fmt: v => f1(v) },
-    { label: "Cadencia básica", color: AFFIX.fireRate.color, lvl: shots, eq: equipSum(p, "fireRate"), fmt: v => f1(v * 100) / 100 + " A/s", dec: 2 },
+    { label: "Cadencia",  color: AFFIX.fireRate.color, lvl: shots,        eq: equipSum(p, "fireRate"), fmt: v => f1(v * 100) / 100 + " A/s", dec: 2 },
     { label: "Regen",     color: AFFIX.regen.color,    lvl: p.base.regen, eq: equipSum(p, "regen"),    fmt: v => f1(v) + "/s" },
     { label: "Brasas",    color: AFFIX.ashBonus.color, lvl: 0,            eq: equipSum(p, "ashBonus"), fmt: v => f1(v) + "%" },
     { label: "Crítico",   color: AFFIX.crit.color,     lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%", cap: 100 },
@@ -1606,7 +1528,7 @@ function updateHud() {
   // ability cooldown overlays (curtain shrinks to 0% when ready)
   for (let i = 0; i < 3; i++) {
     const ready = p.skillCd[i] <= 0;
-    skillCdEls[i].style.height = (ready ? 0 : (p.skillCd[i] / weaponSkillCooldown(p, i)) * 100) + "%";
+    skillCdEls[i].style.height = (ready ? 0 : (p.skillCd[i] / p.skillMax[i]) * 100) + "%";
     skillEls[i].classList.toggle("ready", ready);
   }
 
@@ -1657,6 +1579,40 @@ function bestScore() {
   const s = loadScores();
   return s.length ? s[0].score : 0;
 }
+// ---- Ranking global (Supabase). La clave "publishable" es publica por diseno: la
+// seguridad la dan las politicas RLS de la tabla (ver supabase-setup.sql).
+var SUPABASE_URL = "https://bpempqucqtitqzaihtoc.supabase.co";
+var SUPABASE_KEY = "sb_publishable_5Lw10GaXnWv75Sf1BUrnvw_yrUAW7nQ";
+var globalScores = null;          // ultimo top global traido (null = aun no / sin conexion)
+var sbPending = Promise.resolve(); // cola de envios, para no leer el ranking antes de que llegue la partida
+
+function sbRequest(path, opts) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  return fetch(SUPABASE_URL + "/rest/v1/" + path, Object.assign({ signal: ctrl.signal }, opts, {
+    headers: Object.assign({ apikey: SUPABASE_KEY, "Content-Type": "application/json" }, opts && opts.headers),
+  })).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r; })
+    .finally(() => clearTimeout(timer));
+}
+function sbInsertScore(entry) {
+  const row = {
+    name: String(entry.name || "Anónimo").slice(0, 14), score: entry.score | 0, wave: entry.wave | 0,
+    level: entry.level | 0, kills: entry.kills | 0, loot: entry.loot | 0, ash: entry.ash | 0, boss: !!entry.boss,
+  };
+  sbPending = sbPending
+    .then(() => sbRequest("scores", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) }))
+    .catch(() => {}); // sin conexion: la partida igual queda en el ranking local
+}
+async function fetchGlobalScores() {
+  await sbPending;
+  try {
+    const r = await sbRequest("scores?select=name,score,wave,level,kills,loot,ash,boss,created_at&order=score.desc&limit=" + MAX_SCORES);
+    const rows = await r.json();
+    globalScores = rows.map(x => Object.assign({}, x, { date: Date.parse(x.created_at) }));
+  } catch (e) { globalScores = null; }
+  return globalScores;
+}
+
 // Add a run to the board. Returns the saved entry (so we can highlight it).
 function addScore(entry) {
   const list = loadScores();
@@ -1664,10 +1620,13 @@ function addScore(entry) {
   list.sort((a, b) => b.score - a.score);
   if (list.length > MAX_SCORES) list.length = MAX_SCORES;
   saveScores(list);
+  sbInsertScore(entry);
   return entry;
 }
 function renderScores(highlightId) {
-  const list = loadScores();
+  const list = globalScores || loadScores();
+  const st = el("scores-status");
+  if (st) st.textContent = globalScores ? "🌐 Ranking global" : "💾 Solo este dispositivo (sin conexión al ranking global)";
   const table = el("scores-table");
   table.innerHTML = "";
   if (list.length === 0) {
@@ -1687,7 +1646,7 @@ function renderScores(highlightId) {
       `<div class="rank">${rank}</div>
        <div class="nm">${escapeHtml(s.name || "Anónimo")}</div>
        <div class="sc">${(s.score || 0).toLocaleString()}</div>
-       <div class="meta">Nv ${s.level || 1} · ${s.kills || 0} bajas · ${s.loot || 0} loot${s.boss ? " · 👹 jefe" : ""} · ${date}</div>`;
+       <div class="meta">Oleada ${s.wave || 1} · Nv ${s.level || 1} · ${s.kills || 0} bajas · ${s.loot || 0} loot${s.boss ? " · 👹 jefe" : ""} · ${date}</div>`;
     table.appendChild(row);
   });
 }
@@ -1699,10 +1658,13 @@ function escapeHtml(str) {
 var pendingRun = null;
 
 // ---------------------------------------------------------------- Menu navigation
-var menuViews = { home: el("menu-home"), weapons: el("menu-weapons"), howto: el("menu-howto"), scores: el("menu-scores") };
+var menuViews = { home: el("menu-home"), howto: el("menu-howto"), scores: el("menu-scores") };
 function showMenuView(name) {
   for (const k in menuViews) menuViews[k].classList.toggle("hidden", k !== name);
-  if (name === "scores") renderScores();
+  if (name === "scores") {
+    renderScores();
+    fetchGlobalScores().then(() => { if (!menuViews.scores.classList.contains("hidden")) renderScores(); });
+  }
   if (name === "home") el("menu-best").textContent = bestScore().toLocaleString();
 }
 function openMenu() {
@@ -1729,11 +1691,9 @@ function resumeGame() {
 }
 
 // ---------------------------------------------------------------- Start / end
-function startGame(weaponId) {
+function startGame() {
   Sound.resume(); // unlock audio on user gesture
-  if (typeof weaponId === "string") selectedWeaponId = getWeapon(weaponId).id;
-  state = newState(selectedWeaponId);
-  updateWeaponHud(state.weaponId);
+  state = newState();
   recalcStats(state.player); // initialize effective stats
   closeInventory();
   resumeGame();
@@ -1815,10 +1775,7 @@ function saveCurrentScore() {
 }
 
 // ---- menu buttons
-el("btn-play").addEventListener("click", () => showMenuView("weapons"));
-document.querySelectorAll("[data-weapon]").forEach(button => {
-  button.addEventListener("click", () => startGame(button.dataset.weapon));
-});
+el("btn-play").addEventListener("click", startGame);
 el("btn-how").addEventListener("click", () => showMenuView("howto"));
 el("btn-scores").addEventListener("click", () => showMenuView("scores"));
 document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => showMenuView("home")));

@@ -1,77 +1,40 @@
 # Marea Infernal
 
-Juego de acción y supervivencia en arenas, visto desde arriba y hecho con HTML,
-CSS y JavaScript. Elige un arma, sobrevive a oleadas interminables de demonios,
-mejora tu equipo con cenizas y derrota al Señor de la Marea.
+Juego de acción top-down inspirado en las Mareas Infernales (Helltide) de Diablo IV,
+hecho en un **único archivo HTML** con CSS y JavaScript embebidos. No necesita
+dependencias ni servidor: se abre directamente en el navegador.
 
 ## Jugar
 
-Abre `index.html` en un navegador moderno. No requiere instalación de
-dependencias ni servidor web.
+Abre `marea-infernal.html` con doble clic en cualquier navegador moderno.
 
-## Cómo se juega
+## Características
 
-- **Sobrevive:** no hay temporizador ni límite de oleadas. La partida termina
-  cuando la vida del personaje llega a cero.
-- **Elige tu arma antes de jugar:** el arco combate a distancia con flechas; el
-  bastón lanza orbes y un meteorito de área; el hacha golpea de cerca con tajos
-  y ataques de área visibles. El arma queda fija durante esa partida.
-- **Lee las zonas de impacto:** el meteorito marca el área antes de caer y la
-  muestra al impactar. El hacha dibuja el arco frontal del tajo y el radio de
-  sus ataques circulares.
-- **Ataca automáticamente:** cada arma tiene tres ataques —básico, intermedio y
-  definitivo— que se activan solos cuando hay enemigos cerca y termina su
-  cooldown. Apunta con el ratón para orientar proyectiles y ataques frontales.
-- **Muévete:** desplázate por la arena para esquivar peligros y posicionarte.
-- **Esquiva:** usa el dash para desplazarte rápidamente y evitar daño. Tiene
-  tiempo de recarga e incluye un breve periodo de invulnerabilidad.
-- **Sube de nivel:** recoge la experiencia que dejan los enemigos. Cada nivel
-  aumenta tus atributos y restaura toda tu vida.
-- **Reúne cenizas:** los enemigos pueden dejar cenizas. También recibes una
-  recompensa al superar oleadas y al derrotar jefes.
-- **Mejora el equipo:** abre el inventario durante la partida para gastar
-  cenizas en las seis piezas iniciales —arma, casco, pecho, guantes, botas y
-  anillo—. Cada pieza tiene atributos mejorables; al llegar a +10 puedes subir
-  su rareza y continuar mejorándola.
-- **Abre cofres:** acércate y pulsa `E` antes de que desaparezcan. Pueden
-  aparecer durante las tandas de enemigos y siempre aparecen al derrotar al
-  jefe. En los intermedios hay un cofre de bonificación: ábrelo con `E` o
-  continúa para recibir la recompensa automáticamente.
-- **Prepárate para los jefes:** el Señor de la Marea aparece cada 10 oleadas.
-  A partir de las oleadas avanzadas suma nuevos ataques: salto desde la oleada
-  20 y lluvia de fuego desde la 30.
-- **Descansa entre ciclos:** cada cinco oleadas, elimina a todos los enemigos
-  para entrar en un intermedio. No aparecerán nuevos enemigos hasta que pulses
-  **Continuar**; puedes revisar el inventario y reclamar el cofre de
-  bonificación antes de seguir.
-- **Observa los escenarios:** el entorno cambia cada 10 oleadas.
+- **Marea con temporizador** de 3 minutos y oleadas de demonios que escalan con el tiempo.
+- **Progresión**: mata demonios para ganar experiencia, subir de nivel y hacerte más fuerte.
+- **Botín con rareza** (Común → Mágico → Raro → Legendario → Único) que genera ítems reales.
+- **Sistema de equipo e inventario**: 6 ranuras (arma, casco, pecho, guantes, botas, anillo)
+  con afijos que modifican tus stats. Equipa, compara y funde piezas por cenizas.
+- **Cenizas candentes** 🔥 para abrir cofres repartidos por el mapa y conseguir loot garantizado.
+- **Jefe final**: el Señor de la Marea despierta en los últimos segundos; derrótalo para
+  un Legendario y un Único garantizados.
+- **Esquive (dash)** con cooldown e invulnerabilidad.
+- **Efectos de sonido** generados con Web Audio API (sin archivos externos).
+- **Menú principal** con explicación, controles y **tabla de puntuaciones** persistente
+  (guardada en `localStorage`).
+- Diseño responsivo con controles táctiles (joystick + botones) para móvil.
 
 ## Controles
 
-| Acción | Control |
-| --- | --- |
-| Moverse | `W`, `A`, `S`, `D` o flechas |
-| Apuntar y orientar ataques | Mover el ratón |
-| Ataques del arma | Automáticos, con cooldown |
-| Esquivar (dash) | `Espacio` |
-| Abrir un cofre cercano | `E` |
-| Abrir o cerrar el inventario | `I` |
-| Pausar o volver desde una pausa | `Esc` |
+| Acción          | Teclado / ratón           | Móvil                     |
+|-----------------|---------------------------|---------------------------|
+| Moverse         | `W A S D` / flechas       | Joystick (mitad izq.)     |
+| Apuntar/disparar| Ratón + clic izquierdo    | Tocar (mitad der.)        |
+| Esquive (dash)  | `Shift`                   | Botón ⚡                   |
+| Abrir cofre     | `Espacio`                 | —                         |
+| Inventario      | `I`                       | Botón 🎒                   |
+| Pausa / menú    | `Esc`                     | —                         |
 
-Los ataques se activan de forma escalonada para no disparar todas las
-habilidades a la vez. El inventario también pausa la acción para que puedas
-hacer mejoras.
+## Tecnología
 
-## Puntuaciones
-
-Al terminar una partida puedes guardar el resultado con un nombre. La tabla de
-puntuaciones y el récord se almacenan localmente en el navegador (`localStorage`);
-no se sincronizan entre dispositivos o navegadores.
-
-## Archivos del proyecto
-
-- `index.html`: estructura del juego y orden de carga de scripts.
-- `css/estilos.css`: estilos, HUD, menús y overlays.
-- `js/mecanica.js`: estado, oleadas, combate, inventario y puntuaciones.
-- `js/personajes.js`: movimiento, disparo, habilidades y progresión del jugador.
-- `js/enemigos.js`: enemigos, cofres, jefes y renderizado asociado.
+HTML5 Canvas, CSS y JavaScript puro (vanilla), todo en un solo archivo.
