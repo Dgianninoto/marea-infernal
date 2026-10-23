@@ -17,7 +17,7 @@ var enemySeq = 0;
 // si sale, brillan en blanco (sin sonido) y reaparecen en el lado opuesto del jugador,
 // en la misma direccion: el jugador queda como punto medio entre la posicion vieja y la nueva.
 var TP_INTERVAL = 1;      // segundos entre cada tirada
-var TP_CHANCE = 0.10;     // base: probabilidad real = (bichos en pantalla / bichos por tanda) * TP_CHANCE
+var TP_CHANCE = 0.03;     // base: probabilidad real = (bichos en pantalla / bichos por tanda) * TP_CHANCE
 var TP_CROWD_RADIUS = 50; // radio (px, centro a centro) para contar vecinos del tamano de un imp (r=15)
 var TP_CROWD_BONUS = 0.10; // +10% por cada bicho dentro de ese radio
 function tpChance(e) {
