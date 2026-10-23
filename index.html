@@ -282,6 +282,14 @@
     text-shadow: 0 1px 2px #000; pointer-events: none; font-variant-numeric: tabular-nums;
   }
 
+  /* TEMP DEBUG panel (remove together with the DEBUG block in the script) */
+  #debug-panel { position: absolute; left: 10px; bottom: 20px; z-index: 95; display: flex; gap: 6px; }
+  #debug-panel button {
+    font: bold 11px sans-serif; padding: 5px 9px; border-radius: 6px; cursor: pointer;
+    background: rgba(20,8,4,0.85); color: #ffb347; border: 1px solid #7a3a12;
+  }
+  #debug-panel button.on { background: #7a3a12; color: #fff0c2; }
+
   /* main menu: widescreen (PC) layout */
   .menu-card {
     max-width: min(1180px, 94vw); width: 100%;
@@ -419,6 +427,7 @@
 <body>
 <div id="game-wrap">
   <canvas id="game"></canvas>
+  <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash" tabindex="-1">DEBUG ∞ Cenizas</button></div>
   <div id="build-tag">Build 13 · 22/10/2026</div>
 
   <div id="float-layer"></div>
@@ -867,14 +876,13 @@
   const AFFIX = {
     dmg:      { label: "Daño",      color: "#ff8a5a", fmt: v => "+" + v },
     maxHp:    { label: "Vida máx",  color: "#ff5a5a", fmt: v => "+" + v },
-    fireRate: { label: "Cadencia",  color: "#6ad1ff", fmt: v => "+" + v + "%" },
+    fireRate: { label: "Cadencia",  color: "#6ad1ff", fmt: v => "+" + v + " A/s" },
     speed:    { label: "Velocidad", color: "#aaffaa", fmt: v => "+" + v },
     regen:    { label: "Regen",     color: "#9affd0", fmt: v => "+" + v + "/s" },
     ashBonus: { label: "Brasas",    color: "#ffb347", fmt: v => "+" + v + "%" },
     crit:     { label: "Crítico",   color: "#ffd84d", fmt: v => "+" + v + "%" },
     cdr:      { label: "Recarga",   color: "#c58aff", fmt: v => "+" + v + "%" },
   };
-  const CDR_CAP = 60; // max % cooldown reduction on skills
   // each piece has one or more stats; every stat has its own base value and its own stat points
   const SLOTS = [
     { key: "arma",    label: "Arma",    icon: "🏹", name: "Arco",    stats: [
@@ -883,7 +891,7 @@
     { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [{ key: "ashBonus", base: 0, step: 2 }] },
     { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 5 }] },
     { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [
-        { key: "fireRate", base: 0, step: 3 },
+        { key: "fireRate", base: 0, step: 0.2 },
         { key: "cdr",      base: 0, step: 5 } ] },
     { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 2 }] },
     { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0, step: 0.1 }] },
@@ -921,13 +929,12 @@
     p.speed = p.base.speed + equipSum(p, "speed");
     p.maxHp = Math.round(p.base.maxHp + equipSum(p, "maxHp"));
     p.dmg = p.base.dmg + equipSum(p, "dmg");
-    // fireRate is a % reduction of the base interval
-    const frPct = equipSum(p, "fireRate");
-    p.fireRate = Math.max(0.08, p.base.fireRate * (1 - frPct / 100));
+    // Cadencia: equipment adds attacks per second (A/s) on top of the level-based A/s; no minimum interval
+    p.fireRate = 1 / (1 / p.base.fireRate + equipSum(p, "fireRate"));  // seconds between shots
     p.regen = p.base.regen + equipSum(p, "regen");
     p.ashBonus = equipSum(p, "ashBonus") / 100;
     p.crit = clamp(equipSum(p, "crit") / 100, 0, 1);                 // crit chance 0..1 (crit = x2 damage)
-    p.cdr = Math.min(CDR_CAP, equipSum(p, "cdr")) / 100;             // skill cooldown reduction 0..0.6
+    p.cdr = equipSum(p, "cdr") / 100;                                // Recarga: no cap; cooldowns tick (1 + cdr) times faster
     p.hp = Math.min(p.maxHp, Math.max(1, Math.round(hpRatio * p.maxHp)));
     let power = 0;
     for (const sk in p.equipped) {
@@ -1006,9 +1013,9 @@
         aimX: 1, aimY: 0,
         inv: 0,            // invulnerability frames after hit
         // base stats (raised by level-ups); effective stats are derived in recalcStats()
-        base: { speed: 150, maxHp: 100, dmg: 12, fireRate: 0.28, regen: 0.5 },
+        base: { speed: 150, maxHp: 100, dmg: 12, fireRate: 1 / 3.5, regen: 0.5 }, // base 3.5 A/s, does not scale with level
         // effective stats after equipment (filled by recalcStats)
-        speed: 150, maxHp: 100, dmg: 12, fireRate: 0.28, regen: 0.5, ashBonus: 0, crit: 0, cdr: 0,
+        speed: 150, maxHp: 100, dmg: 12, fireRate: 1 / 3.5, regen: 0.5, ashBonus: 0, crit: 0, cdr: 0,
         // equipment: slotKey -> item (or null)
         equipped: makeBaseEquipment(), // start with the 6 base pieces
         power: 0,          // total gear score
@@ -1297,13 +1304,13 @@
   // ---------------------------------------------------------------- Combat / loot
   function fire() {
     const p = state.player;
-    if (p.fireCd > 0) return;
-    p.fireCd = p.fireRate;
-    Sound.shoot();
+    const lag = Math.max(0, -p.fireCd);   // time elapsed since this shot was due (spreads multi-shot frames)
+    p.fireCd += p.fireRate;
+    if (state.time - (p.lastShootSnd || -1) > 0.06) { p.lastShootSnd = state.time; Sound.shoot(); }
     const spd = 620;
     const crit = Math.random() < p.crit; // critical hit: damage x2
     state.bullets.push({
-      x: p.x + p.aimX * p.r, y: p.y + p.aimY * p.r,
+      x: p.x + p.aimX * (p.r + spd * lag), y: p.y + p.aimY * (p.r + spd * lag),
       vx: p.aimX * spd, vy: p.aimY * spd,
       r: 5, dmg: p.dmg * (crit ? 2 : 1), life: 0.55, crit,
     });
@@ -1428,7 +1435,6 @@
       p.base.maxHp += 12;
       p.base.dmg += 2.5;
       p.base.speed += 4;
-      if (p.level % 3 === 0) p.base.fireRate = Math.max(0.1, p.base.fireRate - 0.01);
       recalcStats(p);
       p.hp = p.maxHp; // full heal on level up
       state.shake = Math.max(state.shake, 10);
@@ -1582,14 +1588,19 @@
 
     // auto-fire: always shooting toward the mouse, as if the button were held down
     p.fireCd -= dt;
-    if (state.phase !== "intermission") fire(); // no shooting during the pause
+    if (state.phase !== "intermission") {
+      // several shots per frame are allowed so very high A/s still works at any fps
+      let n = 0;
+      while (p.fireCd <= 0 && n++ < 20) fire();
+      if (p.fireCd < 0) p.fireCd = 0;
+    } else if (p.fireCd < 0) p.fireCd = 0; // no shooting during the pause
 
     // regen
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
     if (p.inv > 0) p.inv -= dt;
 
     // ability cooldowns + active shield
-    for (let i = 0; i < 3; i++) if (p.skillCd[i] > 0) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt / (1 - p.cdr)); // Recarga = faster cooldown tick
+    for (let i = 0; i < 3; i++) if (p.skillCd[i] > 0) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt * (1 + p.cdr)); // Recarga = faster cooldown tick
     if (p.shieldTime > 0) { p.shieldTime -= dt; p.inv = Math.max(p.inv, 0.05); }
 
     // auto-cast: every skill fires by itself as soon as it is ready
@@ -2365,6 +2376,34 @@
     if (state && state.phase === "intermission") endIntermission();
   });
 
+  // ---------------------------------------------------------------- TEMP DEBUG (remove this block + #debug-panel)
+  let debugInfAsh = false;
+  const DEBUG_ASH = 999999;
+  function debugTopUpAsh() { if (debugInfAsh && state) state.ash = Math.max(state.ash, DEBUG_ASH); }
+  function debugNextWave() {
+    if (!state || !state.running || state.over) return;
+    // wipe whatever is on the field, then jump straight into the next wave
+    state.enemies = [];
+    state.bossBullets = [];
+    state.aoes = [];
+    state.boss = null;
+    bossWrap.style.display = "none";
+    state.toSpawn = 0;
+    state.alive = 0;
+    interPanel.style.display = "none";
+    startWave();
+  }
+  for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
+    debugInfAsh = !debugInfAsh;
+    el("dbg-ash").classList.toggle("on", debugInfAsh);
+    debugTopUpAsh();
+    if (invOpen) renderInventory();
+  }]]) {
+    const b = el(id);
+    b.addEventListener("mousedown", e => e.preventDefault()); // keep focus off the button so Space/E don't trigger it
+    b.addEventListener("click", fn);
+  }
+
   // ---------------------------------------------------------------- Inventory UI
   const invScreen = el("inv-screen");
   const powerTxt = el("power-txt");
@@ -2432,19 +2471,18 @@
   // Stats panel: splits each stat into what comes from level (base) and from equipment.
   function renderStatsPanel(p) {
     const f1 = v => (Math.round(v * 10) / 10).toString();
-    const shots = 1 / p.base.fireRate;           // shots/s from level only
-    const shotsTotal = 1 / p.fireRate;           // shots/s with equipment
+    const shots = 1 / p.base.fireRate;           // A/s from level only
     const rows = [
       { label: "Daño",      color: AFFIX.dmg.color,      lvl: p.base.dmg,   eq: equipSum(p, "dmg"),      fmt: v => f1(v) },
       { label: "Vida máx",  color: AFFIX.maxHp.color,    lvl: p.base.maxHp, eq: equipSum(p, "maxHp"),    fmt: v => f1(v) },
       { label: "Velocidad", color: AFFIX.speed.color,    lvl: p.base.speed, eq: equipSum(p, "speed"),    fmt: v => f1(v) },
-      { label: "Cadencia",  color: AFFIX.fireRate.color, lvl: shots,        eq: shotsTotal - shots,      fmt: v => f1(v * 100) / 100 + "/s" , dec: 2 },
+      { label: "Cadencia",  color: AFFIX.fireRate.color, lvl: shots,        eq: equipSum(p, "fireRate"), fmt: v => f1(v * 100) / 100 + " A/s", dec: 2 },
       { label: "Regen",     color: AFFIX.regen.color,    lvl: p.base.regen, eq: equipSum(p, "regen"),    fmt: v => f1(v) + "/s" },
       { label: "Brasas",    color: AFFIX.ashBonus.color, lvl: 0,            eq: equipSum(p, "ashBonus"), fmt: v => f1(v) + "%" },
       { label: "Crítico",   color: AFFIX.crit.color,     lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%", cap: 100 },
-      { label: "Recarga",   color: AFFIX.cdr.color,      lvl: 0,            eq: equipSum(p, "cdr"),      fmt: v => f1(v) + "%", cap: CDR_CAP },
+      { label: "Recarga",   color: AFFIX.cdr.color,      lvl: 0,            eq: equipSum(p, "cdr"),      fmt: v => f1(v) + "%" },
     ];
-    const fmtV = (r, v) => r.dec ? (Math.round(v * 100) / 100) + "/s" : r.fmt(v);
+    const fmtV = (r, v) => r.dec ? (Math.round(v * 100) / 100) + " A/s" : r.fmt(v);
     el("stats-panel").innerHTML = rows.map(r => {
       const raw = r.lvl + r.eq;
       const total = r.cap ? Math.min(raw, r.cap) : raw;
@@ -2461,6 +2499,7 @@
 
   function renderInventory() {
     if (!state) return;
+    debugTopUpAsh();
     const p = state.player;
     renderStatsPanel(p);
     el("inv-power").textContent = "Brasas 🔥 " + state.ash
@@ -2482,6 +2521,7 @@
   el("inv-close").addEventListener("click", closeInventory);
 
   function updateHud() {
+    debugTopUpAsh();
     const p = state.player;
     hpFill.style.width = clamp(p.hp / p.maxHp * 100, 0, 100) + "%";
     hpTxt.textContent = Math.max(0, Math.round(p.hp)) + " / " + Math.round(p.maxHp);
