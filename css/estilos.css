@@ -292,6 +292,17 @@
   }
   .menu-card > h1 { font-size: clamp(44px, 6.2vw, 88px); line-height: 1; margin-bottom: 4px; }
   .menu-card h2 { font-size: 30px; margin-bottom: 18px; }
+  .weapon-intro { text-align: center; }
+  .weapon-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 14px; }
+  .weapon-card {
+    min-width: 0; padding: 18px 16px; text-align: center;
+    background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 12px;
+  }
+  .weapon-card .weapon-icon { font-size: 40px; line-height: 1.2; }
+  .weapon-card h3 { color: var(--ember-glow); font-size: 20px; margin: 7px 0; }
+  .weapon-card p { min-height: 48px; font-size: 13px; }
+  .weapon-card ul { min-height: 75px; margin: 8px 0 14px; list-style: none; color: var(--text); font-size: 13px; line-height: 1.7; }
+  .weapon-card .weapon-start { width: 100%; margin-top: 0; padding: 11px 8px; font-size: 13px; }
   .home-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; margin-top: 18px; }
   .home-main .big { font-size: 22px; line-height: 1.5; }
   .home-main .menu-buttons { align-items: stretch; margin-top: 26px; }
@@ -305,6 +316,8 @@
   .best-box .best-val { color: var(--ember-glow); font-size: 40px; font-weight: bold; font-variant-numeric: tabular-nums; text-shadow: 0 0 16px rgba(255,100,20,0.5); }
   @media (max-width: 860px) {
     .menu-card { padding: 28px 22px; text-align: center; min-height: 0; }
+    .weapon-grid { grid-template-columns: 1fr; max-height: 55vh; overflow-y: auto; padding: 2px 4px; }
+    .weapon-card p, .weapon-card ul { min-height: 0; }
     .home-grid { grid-template-columns: 1fr; gap: 22px; }
     .home-main .menu-buttons { align-items: center; }
     .home-main .menu-buttons .btn { text-align: center; padding-left: 34px; }
@@ -414,4 +427,3 @@
   .item .mini:disabled { opacity: 0.4; cursor: not-allowed; }
   .item.empty { color: var(--muted); font-style: italic; opacity: 0.7; }
   .bag-empty { color: var(--muted); font-style: italic; padding: 8px; }
-
