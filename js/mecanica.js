@@ -287,7 +287,7 @@ var SLOTS = [
   { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [
       { key: "fireRate", base: 0, step: 0.2 },
       { key: "cdr",      base: 0, step: 5 } ] },
-  { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 2 }] },
+  { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 1 }] },
   { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0, step: 0.1 }] },
 ];
 
@@ -531,7 +531,7 @@ function pointInObstacle(x, y) {
 var CHEST_LIFE = 5;
 var chestReward = p => Math.round((100 + p.level * 50) * (1 + p.ashBonus));
 var CHEST_CHANCE = 0.05;
-var GOBLIN_CHANCE = 0.05; // Misma probabilidad que los cofres
+var GOBLIN_CHANCE = 0.01; // 1% por tanda de enemigos
 function spawnChest(x, y) {
   state.chests.push({
     x: clamp(x, WALL + 40, WORLD.w - WALL - 40),
@@ -553,53 +553,6 @@ function spawnChestNearPlayer() {
   }
   spawnChest(x, y);
   floatText(x, y - 40, "¡Cofre!", "#ffd84d");
-}
-
-
-
-
-
-
-
-
-
-
-
-function spawnBonusChest() {
-  const p = state.player;
-  let x = p.x, y = p.y - 75;
-  for (let i = 0; i < 20; i++) {
-    const a = -Math.PI / 2 + (i === 0 ? 0 : rand(-Math.PI, Math.PI));
-    const d = (i === 0 ? 75 : rand(65, 130));
-    const cx = clamp(p.x + Math.cos(a) * d, WALL + 40, WORLD.w - WALL - 40);
-    const cy = clamp(p.y + Math.sin(a) * d, WALL + 40, WORLD.h - WALL - 40);
-    const m = 26;
-    if (!pointInObstacle(cx, cy) && !pointInObstacle(cx - m, cy - m) && !pointInObstacle(cx + m, cy - m) &&
-        !pointInObstacle(cx - m, cy + m) && !pointInObstacle(cx + m, cy + m)) { x = cx; y = cy; break; }
-  }
-  const baseReward = randInt(150, 350);
-  const reward = Math.round(baseReward * (1 + (p.ashBonus || 0)));
-  state.chests.push({
-    x: clamp(x, WALL + 40, WORLD.w - WALL - 40),
-    y: clamp(y, WALL + 40, WORLD.h - WALL - 40),
-    r: 24,
-    opened: false,
-    glow: 1,
-    life: 99999, // No expira mientras estás en el intermedio revisando inventario
-    isBonus: true,
-    reward: reward,
-  });
-  Sound.chest();
-  floatText(x, y - 45, "¡Cofre de Bonificación!", "#ffd84d");
-  for (let i = 0; i < 30; i++) {
-    const a = rand(0, Math.PI * 2), s = rand(60, 220);
-    state.particles.push({
-      x, y,
-      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-      life: rand(0.4, 0.9), r: rand(2.5, 5),
-      color: pick(["#ffd84d", "#ff9d4d", "#ffffff", "#ff7a2a"])
-    });
-  }
 }
 
 function tryOpenChest() {
@@ -687,25 +640,12 @@ function startIntermission() {
   state.phase = "intermission";
   // absorb everything left on the floor (xp/ash orbs, boss drops)
   for (const o of state.orbs) o.pull = true;
-  // cofre de bonificación cada 5 oleadas
-  spawnBonusChest();
   // no countdown: the game waits (no new enemies) until the player presses Continue
-  showWarning("Pausa<br><span style='font-size:20px'>¡Cofre de bonificación disponible! Revisa tu equipo (I) y continúa</span>");
+  showWarning("Pausa<br><span style='font-size:20px'>Revisa tu equipo (I) y continúa cuando estés listo</span>");
   interPanel.style.display = "block";
 }
 
 function endIntermission() {
-  // Si el jugador no abrió el cofre de bonificación manualmente con E, se le otorga automáticamente
-  for (const c of state.chests) {
-    if (c.isBonus && !c.opened) {
-      c.opened = true;
-      c.life = 0.8;
-      const reward = c.reward || chestReward(state.player);
-      state.ash += reward;
-      floatText(state.player.x, state.player.y - 30, "¡BONO DE OLEADA! +" + reward + "🔥", "#ffd84d");
-      Sound.chest();
-    }
-  }
   interPanel.style.display = "none";
   startWave();
 }
@@ -862,12 +802,33 @@ function update(dt) {
       }
     }
 
+    // ---- teletransporte (imp rojo, hound violeta y brute; silencioso) ----
+    if (e.type === "imp" || e.type === "hound" || e.type === "brute") {
+      if (e.tpArrive > 0) e.tpArrive -= dt;
+      if (e.tpCharge > 0) {
+        e.tpCharge -= dt;
+        if (e.tpCharge <= 0) {
+          // el jugador es el punto medio: nueva pos = 2*jugador - pos actual (dentro de la arena)
+          e.x = clamp(2 * p.x - e.x, WALL + e.r, WORLD.w - WALL - e.r);
+          e.y = clamp(2 * p.y - e.y, WALL + e.r, WORLD.h - WALL - e.r);
+          e.tpCharge = 0;
+          e.tpArrive = TP_ARRIVE_TIME; // parpadea en blanco sin hacer dano
+        }
+      } else if (!(e.tpArrive > 0)) {
+        e.tpTimer -= dt;
+        if (e.tpTimer <= 0) {
+          e.tpTimer += TP_INTERVAL;
+          if (d > TP_MIN_DIST && Math.random() < tpChance(e)) e.tpCharge = TP_CHARGE_TIME;
+        }
+      }
+    }
+
     if (!handledMove) {
       e.x += (dx / d) * sp * dt;
       e.y += (dy / d) * sp * dt;
     }
     // contact damage (el duende no daña al jugador)
-    if (e.type !== "goblin" && d < e.r + p.r && p.inv <= 0) {
+    if (e.type !== "goblin" && !(e.tpArrive > 0) && d < e.r + p.r && p.inv <= 0 && !debugGod) {
       p.hp -= e.dmg;
       p.inv = 0.6;
       state.shake = Math.max(state.shake, 9);
@@ -932,7 +893,7 @@ function update(dt) {
     }
 
     // contact damage
-    if (bd < boss.r + p.r && p.inv <= 0) {
+    if (bd < boss.r + p.r && p.inv <= 0 && !debugGod) {
       p.hp -= boss.dmg; p.inv = 0.7; state.shake = Math.max(state.shake, 12); Sound.hurt();
       floatText(p.x, p.y - 26, "-" + Math.round(boss.dmg), "#ff5050");
       if (p.hp <= 0) { endGame(); return; }
@@ -973,7 +934,7 @@ function update(dt) {
   // boss projectiles
   for (const bb of state.bossBullets) {
     bb.x += bb.vx * dt; bb.y += bb.vy * dt; bb.life -= dt;
-    if (bb.life > 0 && p.inv <= 0 && dist2(bb.x, bb.y, p.x, p.y) < (bb.r + p.r) ** 2) {
+    if (bb.life > 0 && p.inv <= 0 && !debugGod && dist2(bb.x, bb.y, p.x, p.y) < (bb.r + p.r) ** 2) {
       bb.life = 0; p.hp -= bb.dmg; p.inv = 0.5; state.shake = Math.max(state.shake, 8); Sound.hurt();
       floatText(p.x, p.y - 26, "-" + Math.round(bb.dmg), "#ff5050");
       if (p.hp <= 0) { endGame(); return; }
@@ -996,7 +957,7 @@ function update(dt) {
       }
     } else if (z.active > 0) {
       z.active -= dt;
-      if (!z.hit && p.inv <= 0 && dist2(p.x, p.y, z.x, z.y) < (z.r + p.r) ** 2) {
+      if (!z.hit && p.inv <= 0 && !debugGod && dist2(p.x, p.y, z.x, z.y) < (z.r + p.r) ** 2) {
         z.hit = true; p.hp -= z.dmg; p.inv = 0.6; state.shake = Math.max(state.shake, 10); Sound.hurt();
         floatText(p.x, p.y - 26, "-" + Math.round(z.dmg), "#ff5050");
         if (p.hp <= 0) { endGame(); return; }
@@ -1403,6 +1364,7 @@ el("inter-continue").addEventListener("click", () => {
 
 // ---------------------------------------------------------------- TEMP DEBUG (remove this block + #debug-panel)
 var debugInfAsh = false;
+var debugGod = false; // invulnerable: nada le baja vida al jugador
 var DEBUG_ASH = 999999;
 function debugTopUpAsh() { if (debugInfAsh && state) state.ash = Math.max(state.ash, DEBUG_ASH); }
 function debugNextWave() {
@@ -1423,6 +1385,9 @@ for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
   el("dbg-ash").classList.toggle("on", debugInfAsh);
   debugTopUpAsh();
   if (invOpen) renderInventory();
+}], ["dbg-god", () => {
+  debugGod = !debugGod;
+  el("dbg-god").classList.toggle("on", debugGod);
 }], ["dbg-goblin", () => {
   if (typeof spawnGoblinNearPlayer === "function") spawnGoblinNearPlayer();
 }]]) {

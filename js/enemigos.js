@@ -13,6 +13,31 @@
 // The heavier body (bigger radius) moves less; the boss is immovable. A leaper mid-air is ignored.
 var enemySeq = 0;
 
+// Habilidad de los bichos (imp rojo, hound violeta y brute: la estrella grande roja): cada 1 s tiran un dado;
+// si sale, brillan en blanco (sin sonido) y reaparecen en el lado opuesto del jugador,
+// en la misma direccion: el jugador queda como punto medio entre la posicion vieja y la nueva.
+var TP_INTERVAL = 1;      // segundos entre cada tirada
+var TP_CHANCE = 0.10;     // base: probabilidad real = (bichos en pantalla / bichos por tanda) * TP_CHANCE
+var TP_CROWD_RADIUS = 50; // radio (px, centro a centro) para contar vecinos del tamano de un imp (r=15)
+var TP_CROWD_BONUS = 0.10; // +10% por cada bicho dentro de ese radio
+function tpChance(e) {
+  const b = state.batchSize || 1;
+  let near = 0;
+  // las estrellas grandes (brute, jefe...) cuentan tambien: su radio se suma al alcance
+  const count = (o) => {
+    if (!o || o === e || o.hp <= 0) return;
+    const reach = TP_CROWD_RADIUS + Math.max(0, o.r - 15);
+    const dx = o.x - e.x, dy = o.y - e.y;
+    if (dx * dx + dy * dy <= reach * reach) near++;
+  };
+  for (const o of state.enemies) count(o);
+  count(state.boss);
+  return Math.min(1, (state.alive / b) * TP_CHANCE + near * TP_CROWD_BONUS);
+}
+var TP_CHARGE_TIME = 0.45; // segundos que brilla en blanco antes de desaparecer
+var TP_ARRIVE_TIME = 0.4;  // segundos que parpadea en blanco al reaparecer, sin hacer dano
+var TP_MIN_DIST = 100;    // si esta mas cerca que esto no se teletransporta (seria inutil)
+
 function separateEnemies() {
   const list = state.enemies;
   const n = list.length;
@@ -111,12 +136,15 @@ function spawnEnemy() {
   if (type === "imp") {
     e.r = 15; e.speed = rand(70, 95) * spdScale;
     e.hp = e.maxHp = 24 * hpScale; e.dmg = 9 * dmgScale; e.xp = 10 + w; e.ashChance = 0.35; e.color = "#c0392b";
+    e.tpTimer = rand(0, TP_INTERVAL); e.tpCharge = 0; e.tpArrive = 0; // teletransporte
   } else if (type === "hound") {
     e.r = 13; e.speed = rand(120, 150) * spdScale;
     e.hp = e.maxHp = 16 * hpScale; e.dmg = 7 * dmgScale; e.xp = 8 + w; e.ashChance = 0.3; e.color = "#8e44ad";
+    e.tpTimer = rand(0, TP_INTERVAL); e.tpCharge = 0; e.tpArrive = 0; // teletransporte
   } else if (type === "brute") {
     e.r = 26; e.speed = rand(45, 60) * (1 + Math.min(0.5, (w - 1) * 0.02));
     e.hp = e.maxHp = 90 * hpScale; e.dmg = 20 * dmgScale; e.xp = 35 + w * 2; e.ashChance = 0.8; e.color = "#7a1d1d";
+    e.tpTimer = rand(0, TP_INTERVAL); e.tpCharge = 0; e.tpArrive = 0; // teletransporte
   } else if (type === "leaper") {
     // closes in, then leaps across a gap; big contact hit on landing
     e.r = 16; e.speed = rand(90, 115) * spdScale;
@@ -250,6 +278,19 @@ function drawEnemy(e) {
   ctx.shadowBlur = 10; ctx.shadowColor = e.color;
   ctx.fillStyle = e.flash > 0 ? "#fff" : e.color;
   ctx.fill();
+  // cargando el teletransporte: brilla en blanco (pulso rapido)
+  if (e.tpCharge > 0) {
+    const k = 1 - e.tpCharge / TP_CHARGE_TIME; // 0 -> 1 mientras carga
+    ctx.shadowBlur = 22 + k * 22; ctx.shadowColor = "#fff";
+    ctx.fillStyle = "rgba(255,255,255," + (0.55 + 0.45 * k) + ")";
+    ctx.fill();
+  }
+  // recien reaparecido: parpadea en blanco (inofensivo)
+  if (e.tpArrive > 0 && Math.floor(e.tpArrive * 20) % 2 === 0) {
+    ctx.shadowBlur = 26; ctx.shadowColor = "#fff";
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fill();
+  }
   ctx.restore();
   // eyes
   ctx.fillStyle = "#ffe36a";
