@@ -535,7 +535,7 @@
           <div class="howto-text">
           <p><b style="color:var(--ember-glow)">Objetivo.</b> Sobrevive el mayor número de oleadas posible: no hay límite de tiempo y la única forma de perder es quedarte sin vida. Cada oleada sube la dificultad. Gana <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para hacerte más poderoso.</p>
           <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza). Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats ya comprados) para repetir el ciclo en el rango superior.</p>
-          <p><b style="color:var(--ember-glow)">Cofres.</b> Aparecen con un 5% de probabilidad en cada tanda de enemigos y siempre al matar al jefe. Duran solo 5 segundos: acércate y pulsa <kbd>E</kbd> para abrirlos gratis y recibir 200 + (nivel × 50) cenizas.</p>
+          <p><b style="color:var(--ember-glow)">Cofres.</b> Aparecen con un 5% de probabilidad en cada tanda de enemigos y siempre al matar al jefe. Duran solo 5 segundos: acércate y pulsa <kbd>E</kbd> para abrirlos gratis y recibir 100 + (nivel × 50) cenizas, aumentadas por tu bonus de Brasas.</p>
           <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. La oleada termina al matar al último bicho. Suelta un Legendario y un Único garantizados, cenizas y un gran bonus. Cada 5 oleadas hay una <b>pausa</b> (sin nuevos enemigos hasta pulsar Continuar) para revisar tu equipo, y cada 10 cambia el <b>escenario</b>.</p>
           </div>
 
@@ -1119,9 +1119,10 @@
     return false;
   }
 
-  // Temporary free chests: they live CHEST_LIFE seconds, open with E, and pay 200 + level*50 brasas.
+  // Temporary free chests: they live CHEST_LIFE seconds, open with E, and pay (100 + level*50) brasas, boosted by the Brasas bonus.
   // They appear with a 5% chance per batch of enemies and always when the boss dies.
   const CHEST_LIFE = 5;
+  const chestReward = p => Math.round((100 + p.level * 50) * (1 + p.ashBonus));
   const CHEST_CHANCE = 0.05;
   function spawnChest(x, y) {
     state.chests.push({
@@ -1473,7 +1474,7 @@
         c.life = Math.min(c.life, 0.8); // fades out quickly once empty
         state.shake = Math.max(state.shake, 8);
         Sound.chest();
-        const reward = 200 + p.level * 50;
+        const reward = chestReward(p);
         state.ash += reward;
         floatText(c.x, c.y - 30, "¡COFRE ABIERTO! +" + reward + "🔥", "#ffd84d");
         for (let i = 0; i < 30; i++) {
@@ -2289,7 +2290,7 @@
     // reward + time left
     ctx.fillStyle = "#ffd84d";
     ctx.font = "bold " + Math.round(13 / zoom) + "px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("🔥 " + (200 + state.player.level * 50) + "  ·  " + Math.max(0, c.life).toFixed(1) + "s", c.x, c.y + c.r + 18 / zoom);
+    ctx.fillText("🔥 " + chestReward(state.player) + "  ·  " + Math.max(0, c.life).toFixed(1) + "s", c.x, c.y + c.r + 18 / zoom);
     ctx.fillStyle = "#fff0c2";
     ctx.font = "bold " + Math.round(12 / zoom) + "px sans-serif";
     ctx.fillText("[E]", c.x, c.y + c.r + 34 / zoom);
