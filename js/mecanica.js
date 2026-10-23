@@ -886,20 +886,61 @@ function update(dt) {
     if (boss.flash > 0) boss.flash -= dt;
     const bdx = p.x - boss.x, bdy = p.y - boss.y;
     const bd = Math.hypot(bdx, bdy) || 1;
-    // keep some distance, orbit a bit
-    if (bd > 180) { boss.x += (bdx / bd) * boss.speed * dt; boss.y += (bdy / bd) * boss.speed * dt; }
-    boss.x = clamp(boss.x, WALL + boss.r, WORLD.w - WALL - boss.r);
-    boss.y = clamp(boss.y, WALL + boss.r, WORLD.h - WALL - boss.r);
-    const rb = resolveObstacles(boss.x, boss.y, boss.r); boss.x = rb.x; boss.y = rb.y;
+
+    // ---- Skill 2: Salto aplastante (wave 20+) ----
+    if (boss.hasLeap) {
+      if (boss.leaping > 0) {
+        // En el aire: vuela hacia el punto objetivo con estela de fuego
+        boss.leaping -= dt;
+        boss.x = clamp(boss.x + boss.lvx * dt, WALL + boss.r, WORLD.w - WALL - boss.r);
+        boss.y = clamp(boss.y + boss.lvy * dt, WALL + boss.r, WORLD.h - WALL - boss.r);
+        if (Math.random() < 0.7) {
+          state.particles.push({ x: boss.x + rand(-10,10), y: boss.y + rand(-10,10), vx: rand(-40,40), vy: rand(-40,40), life: 0.3, r: rand(4, 9), color: pick(["#ff3a1a","#ff9d4d","#8a0f2a"]) });
+        }
+        if (boss.leaping <= 0) {
+          // Aterrizaje: AoE de golpe en zona grande
+          const slamDmg = boss.dmg * 1.8;
+          state.aoes.push({ x: boss.x, y: boss.y, r: 115, warn: 0, active: 0.5, dmg: slamDmg, hit: false });
+          state.shake = Math.max(state.shake, 18);
+          for (let i = 0; i < 50; i++) {
+            const a = rand(0, Math.PI * 2), s = rand(100, 420);
+            state.particles.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.4, 1.0), r: rand(3, 8), color: pick(["#ff3a1a","#ff9d4d","#8a0f2a","#ffffff"]) });
+          }
+          floatText(boss.x, boss.y - boss.r - 14, "¡IMPACTO!", "#6affa0");
+          Sound.boss();
+          boss.leapCd = rand(5.0, 8.0);
+        }
+      } else {
+        boss.leapCd -= dt;
+        if (boss.leapCd <= 0 && bd > 140 && bd < 560 && boss.shootCd > 0.5) {
+          boss.leaping = 0.42;
+          const lspd = 820;
+          boss.lvx = (bdx / bd) * lspd;
+          boss.lvy = (bdy / bd) * lspd;
+          floatText(boss.x, boss.y - boss.r - 14, "¡SALTO!", "#6affa0");
+          state.shake = Math.max(state.shake, 6);
+        }
+      }
+    }
+
+    // Movimiento normal solo cuando no está saltando
+    if (!boss.hasLeap || boss.leaping <= 0) {
+      if (bd > 180) { boss.x += (bdx / bd) * boss.speed * dt; boss.y += (bdy / bd) * boss.speed * dt; }
+      boss.x = clamp(boss.x, WALL + boss.r, WORLD.w - WALL - boss.r);
+      boss.y = clamp(boss.y, WALL + boss.r, WORLD.h - WALL - boss.r);
+      const rb = resolveObstacles(boss.x, boss.y, boss.r); boss.x = rb.x; boss.y = rb.y;
+    }
+
     // contact damage
     if (bd < boss.r + p.r && p.inv <= 0) {
       p.hp -= boss.dmg; p.inv = 0.7; state.shake = Math.max(state.shake, 12); Sound.hurt();
       floatText(p.x, p.y - 26, "-" + Math.round(boss.dmg), "#ff5050");
       if (p.hp <= 0) { endGame(); return; }
     }
-    // ranged attack: fan of projectiles
+
+    // Skill 1 (siempre): abanico de proyectiles
     boss.shootCd -= dt;
-    if (boss.shootCd <= 0) {
+    if (boss.shootCd <= 0 && (!boss.hasLeap || boss.leaping <= 0)) {
       boss.shootCd = 2.2;
       const base = Math.atan2(bdy, bdx);
       const n = 7;
@@ -908,6 +949,24 @@ function update(dt) {
         state.bossBullets.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, r: 9, dmg: 16 * ENEMY_DMG_MULT, life: 3 });
       }
       Sound.boss();
+    }
+
+    // ---- Skill 3: Lluvia de bombas en patron circular (wave 30+) ----
+    if (boss.hasBombs) {
+      boss.bombRainCd -= dt;
+      if (boss.bombRainCd <= 0 && (!boss.hasLeap || boss.leaping <= 0)) {
+        boss.bombRainCd = rand(7.0, 11.0);
+        floatText(boss.x, boss.y - boss.r - 14, "¡LLUVIA DE FUEGO!", "#ff9d4d");
+        const bombCount = 5 + Math.floor(state.wave / 10);
+        for (let i = 0; i < bombCount; i++) {
+          const a = (i / bombCount) * Math.PI * 2 + rand(-0.25, 0.25);
+          const dist = rand(55, 210);
+          const bx = clamp(p.x + Math.cos(a) * dist, WALL + 50, WORLD.w - WALL - 50);
+          const by = clamp(p.y + Math.sin(a) * dist, WALL + 50, WORLD.h - WALL - 50);
+          state.aoes.push({ x: bx, y: by, r: 72, warn: 1.0 + i * 0.14, active: 0, dmg: boss.dmg * 1.2, hit: false });
+        }
+        Sound.boss();
+      }
     }
   }
 

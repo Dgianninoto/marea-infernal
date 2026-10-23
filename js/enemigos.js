@@ -142,17 +142,35 @@ function spawnBoss() {
   const ang = rand(0, Math.PI * 2);
   let x = clamp(p.x + Math.cos(ang) * 600, 80, WORLD.w - 80);
   let y = clamp(p.y + Math.sin(ang) * 600, 80, WORLD.h - 80);
-  const scale = 1 + (state.wave - 1) * 0.12;
+  const w = state.wave;
+  const scale = 1 + (w - 1) * 0.12;
+
+  const hasLeap  = w >= 20; // Oleada 20+: salto aplastante
+  const hasBombs = w >= 30; // Oleada 30+: lluvia de AoEs multiples
+
+  let title = "\u00a1El Se\u00f1or de la Marea<br>ha despertado!";
+  if (hasLeap && hasBombs) title = "\u00a1El Se\u00f1or de la Marea<br><span style='color:#ff3a1a;font-size:18px'>\u2014 Forma Devastadora \u2014</span>";
+  else if (hasBombs)       title = "\u00a1El Se\u00f1or de la Marea<br><span style='color:#ff9d4d;font-size:18px'>\u2014 Forma Flam\u00edgera \u2014</span>";
+  else if (hasLeap)        title = "\u00a1El Se\u00f1or de la Marea<br><span style='color:#6affa0;font-size:18px'>\u2014 Forma Aplastante \u2014</span>";
+
   state.boss = {
-    x, y, r: 48, type: "boss",
-    speed: 85 + Math.min(40, state.wave),
+    x, y,
+    r: 48 + (hasLeap ? 4 : 0) + (hasBombs ? 4 : 0),
+    type: "boss",
+    speed: 85 + Math.min(40, w),
     hp: 2600 * scale, maxHp: 2600 * scale,
-    dmg: 26 * (1 + (state.wave - 1) * 0.05) * ENEMY_DMG_MULT, xp: 600 + state.wave * 20, flash: 0,
-    color: "#8a0f2a",
+    dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT,
+    xp: 600 + w * 20, flash: 0,
+    color: (hasLeap && hasBombs) ? "#6a0a3a" : (hasBombs ? "#7a1a08" : "#8a0f2a"),
     shootCd: 2, phase: 0,
+    hasLeap,
+    leapCd: hasLeap ? rand(4.5, 6.5) : Infinity,
+    leaping: 0, lvx: 0, lvy: 0,
+    hasBombs,
+    bombRainCd: hasBombs ? rand(6.0, 9.0) : Infinity,
   };
   bossWrap.style.display = "block";
-  showWarning("¡El Señor de la Marea<br>ha despertado!");
+  showWarning(title);
   state.shake = 18;
   Sound.boss();
 }
@@ -268,7 +286,7 @@ function drawAoe(z) {
   ctx.save();
   if (z.warn > 0) {
     const t = performance.now() / 120;
-    const prog = 1 - z.warn / 1.1; // fills up as it's about to go off
+    const prog = clamp(1 - z.warn / 1.1, 0, 1); // fills up as it's about to go off
     ctx.fillStyle = "rgba(255,120,30,0.12)";
     ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "rgba(255,150,40," + (0.5 + Math.sin(t) * 0.3) + ")";
@@ -289,28 +307,92 @@ function drawAoe(z) {
 function drawBoss(b) {
   const t = performance.now() / 300;
   ctx.save();
-  // aura
-  ctx.shadowBlur = 40; ctx.shadowColor = "#ff2a1a";
+
+  // Indicador de salto: sombra verde bajo el jefe cuando salta
+  if (b.hasLeap && b.leaping > 0) {
+    ctx.save();
+    const leapPulse = 0.5 + Math.sin(t * 8) * 0.4;
+    ctx.strokeStyle = "rgba(106,255,160," + leapPulse + ")";
+    ctx.lineWidth = 4;
+    ctx.shadowBlur = 18; ctx.shadowColor = "#6affa0";
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Anillo de lluvia de fuego pulsante cuando hasBombs y en cooldown bajo
+  if (b.hasBombs && b.bombRainCd < 3.5 && b.leaping <= 0) {
+    ctx.save();
+    const firePulse = 0.3 + Math.sin(t * 5) * 0.3;
+    ctx.strokeStyle = "rgba(255,157,77," + (firePulse + 0.4) + ")";
+    ctx.lineWidth = 3.5;
+    ctx.shadowBlur = 22; ctx.shadowColor = "#ff9d4d";
+    ctx.setLineDash([8, 5]);
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 16, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // Aura externa giratoria (mas grande en formas avanzadas)
+  const auraSize = b.r + (b.hasLeap && b.hasBombs ? 14 : b.hasLeap || b.hasBombs ? 8 : 2);
+  ctx.shadowBlur = 40 + (b.hasBombs ? 18 : 0); ctx.shadowColor = b.hasBombs ? "#ff6a00" : "#ff2a1a";
   ctx.fillStyle = b.flash > 0 ? "#fff" : b.color;
   ctx.beginPath();
-  const spikes = 10;
+  const spikes = b.hasLeap && b.hasBombs ? 14 : (b.hasLeap || b.hasBombs ? 12 : 10);
   for (let i = 0; i < spikes * 2; i++) {
-    const ang = (i / (spikes * 2)) * Math.PI * 2 + t * 0.2;
-    const rr = (i % 2 === 0) ? b.r : b.r * 0.66;
+    const ang = (i / (spikes * 2)) * Math.PI * 2 + t * (b.leaping > 0 ? 1.2 : 0.2);
+    const rr = (i % 2 === 0) ? auraSize : auraSize * 0.62;
     const px = b.x + Math.cos(ang) * rr;
     const py = b.y + Math.sin(ang) * rr;
     if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
   }
   ctx.closePath(); ctx.fill();
-  // inner core
+
+  // Inner core (mas brillante en la Forma Devastadora)
   ctx.shadowBlur = 20;
-  ctx.fillStyle = "#ff3a1a";
-  ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4 + Math.sin(t * 2) * 3, 0, Math.PI * 2); ctx.fill();
+  const coreColor = b.hasLeap && b.hasBombs ? "#c0102a" : "#ff3a1a";
+  ctx.fillStyle = coreColor;
+  const coreR = b.r * 0.4 + Math.sin(t * 2) * 3 + (b.leaping > 0 ? 8 : 0);
+  ctx.beginPath(); ctx.arc(b.x, b.y, coreR, 0, Math.PI * 2); ctx.fill();
+
+  // Segundo anillo en Forma Devastadora (wave 40)
+  if (b.hasLeap && b.hasBombs) {
+    ctx.fillStyle = "rgba(106,10,58,0.6)";
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.7 + Math.sin(t * 3 + 1) * 4, 0, Math.PI * 2); ctx.fill();
+  }
+
   ctx.restore();
-  // eyes
-  ctx.fillStyle = "#ffe36a";
-  ctx.beginPath(); ctx.arc(b.x - b.r * 0.28, b.y - b.r * 0.1, b.r * 0.1, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(b.x + b.r * 0.28, b.y - b.r * 0.1, b.r * 0.1, 0, Math.PI * 2); ctx.fill();
+
+  // Eyes (más grandes en formas avanzadas)
+  const eyeScale = b.hasLeap && b.hasBombs ? 1.3 : (b.hasLeap || b.hasBombs ? 1.15 : 1);
+  ctx.fillStyle = b.hasLeap ? "#6affa0" : "#ffe36a";
+  ctx.beginPath(); ctx.arc(b.x - b.r * 0.28, b.y - b.r * 0.1, b.r * 0.1 * eyeScale, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = b.hasBombs ? "#ff9d4d" : "#ffe36a";
+  ctx.beginPath(); ctx.arc(b.x + b.r * 0.28, b.y - b.r * 0.1, b.r * 0.1 * eyeScale, 0, Math.PI * 2); ctx.fill();
+
+  // Indicador textual de habilidades activas
+  if (b.hasLeap || b.hasBombs) {
+    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    const tagX = b.x - 38, tagY = b.y + b.r + 6, tagW = 76, tagH = 15, tagR = 4;
+    ctx.beginPath();
+    ctx.moveTo(tagX + tagR, tagY);
+    ctx.lineTo(tagX + tagW - tagR, tagY);
+    ctx.quadraticCurveTo(tagX + tagW, tagY, tagX + tagW, tagY + tagR);
+    ctx.lineTo(tagX + tagW, tagY + tagH - tagR);
+    ctx.quadraticCurveTo(tagX + tagW, tagY + tagH, tagX + tagW - tagR, tagY + tagH);
+    ctx.lineTo(tagX + tagR, tagY + tagH);
+    ctx.quadraticCurveTo(tagX, tagY + tagH, tagX, tagY + tagH - tagR);
+    ctx.lineTo(tagX, tagY + tagR);
+    ctx.quadraticCurveTo(tagX, tagY, tagX + tagR, tagY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#fff0c2";
+    ctx.font = "bold 9px sans-serif"; ctx.textAlign = "center";
+    const tags = [];
+    if (b.hasLeap)  tags.push("⚡Salto");
+    if (b.hasBombs) tags.push("🔥Lluvia");
+    ctx.fillText(tags.join("  "), b.x, b.y + b.r + 17);
+    ctx.textAlign = "left";
+  }
 }
 
 // ---------------------------------------------------------------- Duende del Tesoro (Goblin de Diablo)
