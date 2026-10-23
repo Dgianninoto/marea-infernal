@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Marea Infernal</title>
 <style>
   :root {
@@ -25,7 +25,6 @@
     font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
     overflow: hidden;
     user-select: none;
-    -webkit-tap-highlight-color: transparent;
   }
 
   #game-wrap {
@@ -41,7 +40,6 @@
     display: block;
     background:
       radial-gradient(circle at 50% 40%, #3a1205 0%, #1a0702 55%, #0d0806 100%);
-    touch-action: none;
     cursor: crosshair;
     box-shadow: inset 0 0 180px rgba(0,0,0,0.9);
   }
@@ -132,7 +130,7 @@
   #controls-hint { color: var(--muted); font-size: 12px; text-align: right; line-height: 1.5; }
 
   /* ---------- Skills bar ---------- */
-  #skills-bar { display: flex; gap: 10px; align-items: flex-end; pointer-events: auto; }
+  #skills-bar { display: flex; gap: 10px; align-items: flex-end; pointer-events: none; }
   .skill {
     position: relative; width: 56px; height: 56px; border-radius: 10px;
     background: var(--panel); border: 1px solid var(--border);
@@ -277,8 +275,43 @@
   .btn-danger:active { box-shadow: 0 1px 0 #3a0606; }
   .btn-small { font-size: 14px; padding: 10px 18px; margin-top: 0; }
 
-  .menu-card { max-width: 640px; }
+  /* build/version tag (bottom-right corner, always on top) */
+  #build-tag {
+    position: absolute; left: 10px; bottom: 3px; z-index: 90;
+    font-size: 11px; line-height: 1; letter-spacing: 1px; color: var(--muted); opacity: 0.75;
+    text-shadow: 0 1px 2px #000; pointer-events: none; font-variant-numeric: tabular-nums;
+  }
+
+  /* main menu: widescreen (PC) layout */
+  .menu-card {
+    max-width: min(1180px, 94vw); width: 100%;
+    min-height: min(72vh, 660px);
+    padding: 48px 64px; text-align: left; border-radius: 20px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .menu-card > h1 { font-size: clamp(44px, 6.2vw, 88px); line-height: 1; margin-bottom: 4px; }
+  .menu-card h2 { font-size: 30px; margin-bottom: 18px; }
+  .home-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; margin-top: 18px; }
+  .home-main .big { font-size: 22px; line-height: 1.5; }
+  .home-main .menu-buttons { align-items: stretch; margin-top: 26px; }
+  .home-main .menu-buttons .btn { width: 100%; max-width: 360px; margin-top: 0; text-align: left; padding-left: 28px; }
+  .home-side { display: flex; flex-direction: column; gap: 16px; }
+  .best-box {
+    background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 22px; text-align: center;
+  }
+  .best-box .best-label { color: var(--muted); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; }
+  .best-box .best-val { color: var(--ember-glow); font-size: 40px; font-weight: bold; font-variant-numeric: tabular-nums; text-shadow: 0 0 16px rgba(255,100,20,0.5); }
+  @media (max-width: 860px) {
+    .menu-card { padding: 28px 22px; text-align: center; min-height: 0; }
+    .home-grid { grid-template-columns: 1fr; gap: 22px; }
+    .home-main .menu-buttons { align-items: center; }
+    .home-main .menu-buttons .btn { text-align: center; padding-left: 34px; }
+    .howto-body { grid-template-columns: 1fr !important; }
+    .home-side .ctrl-col { display: none; } /* keep the home screen inside small screens */
+  }
   .menu-view { animation: fadeIn 0.25s ease; }
+  .menu-view.hidden { display: none; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } }
   .menu-buttons { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 18px; }
   .menu-buttons .btn { width: 260px; max-width: 100%; }
@@ -286,10 +319,11 @@
   .menu-foot { margin-top: 16px; font-size: 13px; }
   .menu-back { margin-top: 18px; }
 
-  .howto-body { text-align: left; max-height: 58vh; overflow-y: auto; padding-right: 6px; }
+  .howto-body { text-align: left; max-height: 58vh; overflow-y: auto; padding-right: 6px;
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 36px; align-items: start; }
   .howto-body p { margin-bottom: 12px; font-size: 14px; }
 
-  .controls-table { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+  .controls-table { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 10px; }
   .ctrl-col { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
   .ctrl-title { color: var(--ember-glow); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
   .ctrl-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; color: var(--muted); }
@@ -301,7 +335,7 @@
   }
 
   /* scores table */
-  #scores-table { margin-top: 8px; max-height: 50vh; overflow-y: auto; }
+  #scores-table { margin-top: 8px; max-height: 50vh; overflow-y: auto; max-width: 860px; }
   .score-row {
     display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center;
     background: rgba(0,0,0,0.3); border: 1px solid #3a1f14; border-radius: 6px;
@@ -342,11 +376,21 @@
   /* inventory panel */
   .inv-card { max-width: 820px; }
   #inv-power { color: #ffd84d; font-size: 16px; margin-bottom: 14px; }
-  .inv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: left; }
+  .inv-cols { display: grid; grid-template-columns: 1fr; gap: 20px; text-align: left; }
   .inv-sub {
     font-size: 13px; text-transform: uppercase; letter-spacing: 2px;
     color: var(--ember-glow); margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
   }
+  @media (min-width: 760px) { .inv-cols { grid-template-columns: 5fr 6fr; align-items: start; } }
+  .stat-row { margin-bottom: 9px; font-size: 12px; }
+  .stat-row .sr-head { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 3px; }
+  .stat-row .sr-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(0,0,0,0.5); border: 1px solid #3a1f14; }
+  .stat-row .sr-lvl { background: #5aa0ff; }
+  .stat-row .sr-eq { background: #ff7a2a; }
+  .stat-row .sr-detail { display: flex; justify-content: space-between; color: var(--muted); margin-top: 2px; font-size: 11px; }
+  .stat-row .sr-detail b.l { color: #5aa0ff; }
+  .stat-row .sr-detail b.e { color: #ff9d4d; }
+  .stat-legend { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
   #equip-list, #bag-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; padding-right: 4px; }
   .item {
     background: rgba(0,0,0,0.35); border: 1px solid #3a1f14; border-left-width: 4px;
@@ -357,6 +401,7 @@
   .item .item-head .pw { margin-left: auto; color: #ffd84d; font-size: 12px; }
   .item .item-affixes { color: var(--muted); font-size: 12px; line-height: 1.4; }
   .item .item-affixes span { margin-right: 10px; }
+  .item .item-stat { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .item .item-actions { display: flex; gap: 6px; margin-top: 4px; }
   .item .mini {
     pointer-events: auto; font-size: 11px; border: 1px solid var(--border); border-radius: 5px;
@@ -365,48 +410,16 @@
   .item .mini.equip { color: #6affa0; }
   .item .mini.salvage { color: #ff8a5a; }
   .item .mini:hover { background: #3a1a0e; }
+  .item .mini:disabled { opacity: 0.4; cursor: not-allowed; }
   .item.empty { color: var(--muted); font-style: italic; opacity: 0.7; }
   .bag-empty { color: var(--muted); font-style: italic; padding: 8px; }
 
-  @media (max-width: 760px) {
-    .inv-cols { grid-template-columns: 1fr; }
-    #equip-list, #bag-list { max-height: 28vh; }
-  }
-
-  /* mobile joystick */
-  #touch-ctrls { position: absolute; inset: 0; pointer-events: none; z-index: 20; display: none; }
-  #joy-base {
-    position: absolute; width: 120px; height: 120px; border-radius: 50%;
-    border: 2px solid rgba(255,120,40,0.4); background: rgba(0,0,0,0.3);
-  }
-  #joy-stick {
-    position: absolute; width: 54px; height: 54px; border-radius: 50%;
-    background: rgba(255,120,40,0.6); border: 2px solid rgba(255,180,100,0.8);
-    transform: translate(-50%, -50%);
-  }
-  #dash-btn {
-    position: absolute; bottom: 36px; right: 36px;
-    width: 74px; height: 74px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 30px;
-    background: rgba(27,108,168,0.4); border: 2px solid rgba(106,209,255,0.8);
-    color: #cdeeff; pointer-events: auto;
-  }
-  #dash-btn:active { background: rgba(27,108,168,0.7); }
-  #dash-btn.cooling { opacity: 0.35; }
-
-  @media (max-width: 760px) {
-    #controls-hint { display: none; }
-    .bar { width: 130px; }
-    .card h1 { font-size: 30px; }
-    .skill { width: 46px; height: 46px; }
-    .skill .skill-icon { font-size: 20px; }
-  }
 </style>
 </head>
 <body>
 <div id="game-wrap">
   <canvas id="game"></canvas>
+  <div id="build-tag">Build 11 · 22/10/2026</div>
 
   <div id="float-layer"></div>
 
@@ -459,7 +472,7 @@
       <div class="panel" style="text-align:right">
         <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Oleada</span><b id="wave-txt" style="color:var(--ember-glow)">1</b></div>
         <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Bajas</span><b id="kills-txt">0</b></div>
-        <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Loot</span><b id="loot-txt">0</b></div>
+        <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Mejoras</span><b id="loot-txt">0</b></div>
         <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Poder</span><b id="power-txt" style="color:#ffd84d">0</b></div>
         <button id="inv-btn">🎒 Inventario (I)</button>
       </div>
@@ -468,23 +481,17 @@
     <div class="hud-bottom">
       <div id="loot-feed"></div>
       <div id="skills-bar">
-        <div class="skill" id="skill-0"><div class="skill-key">1</div><div class="skill-icon">🏹</div><div class="skill-cd"></div><div class="skill-name">Abanico</div></div>
-        <div class="skill" id="skill-1"><div class="skill-key">2</div><div class="skill-icon">🛡️</div><div class="skill-cd"></div><div class="skill-name">Escudo</div></div>
-        <div class="skill" id="skill-2"><div class="skill-key">3</div><div class="skill-icon">💥</div><div class="skill-cd"></div><div class="skill-name">Ulti</div></div>
+        <div class="skill" id="skill-0"><div class="skill-icon">🏹</div><div class="skill-cd"></div><div class="skill-name">Abanico</div></div>
+        <div class="skill" id="skill-1" style="display:none"><div class="skill-icon">🛡️</div><div class="skill-cd"></div><div class="skill-name">Escudo</div></div>
+        <div class="skill" id="skill-2"><div class="skill-icon">💥</div><div class="skill-cd"></div><div class="skill-name">Ulti</div></div>
       </div>
       <div id="controls-hint">
         <kbd>W A S D</kbd> / flechas — mover<br/>
-        <kbd>ratón</kbd> apunta — disparo <b>automático</b><br/>
+        <kbd>ratón</kbd> apunta — disparo automático continuo<br/>
         <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br/>
-        <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> habilidades — <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
+        habilidades automáticas — <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
       </div>
     </div>
-  </div>
-
-  <!-- touch controls -->
-  <div id="touch-ctrls">
-    <div id="joy-base"><div id="joy-stick"></div></div>
-    <div id="dash-btn">⚡</div>
   </div>
 
   <!-- Main menu overlay -->
@@ -494,41 +501,55 @@
 
       <!-- HOME view -->
       <div class="menu-view" id="menu-home">
-        <p class="big">Sobrevive a la marea. Masacra demonios. Saquea el infierno.</p>
-        <div class="menu-buttons">
-          <button class="btn" id="btn-play">▶ Jugar</button>
-          <button class="btn btn-sec" id="btn-how">📖 Cómo jugar</button>
-          <button class="btn btn-sec" id="btn-scores">🏆 Puntuaciones</button>
+        <div class="home-grid">
+          <div class="home-main">
+            <p class="big">Sobrevive a la marea. Masacra demonios. Saquea el infierno.</p>
+            <div class="menu-buttons">
+              <button class="btn" id="btn-play">▶ Jugar</button>
+              <button class="btn btn-sec" id="btn-how">📖 Cómo jugar</button>
+              <button class="btn btn-sec" id="btn-scores">🏆 Puntuaciones</button>
+            </div>
+          </div>
+          <aside class="home-side">
+            <div class="best-box">
+              <div class="best-label">Mejor puntuación</div>
+              <div class="best-val" id="menu-best">0</div>
+            </div>
+            <div class="ctrl-col">
+              <div class="ctrl-title">Controles</div>
+              <div class="ctrl-row"><kbd>W A S D</kbd><span>moverse</span></div>
+              <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar (dispara solo)</span></div>
+              <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
+              <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
+              <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
+              <div class="ctrl-row"><kbd>Esc</kbd><span>pausar / volver al menú</span></div>
+            </div>
+          </aside>
         </div>
-        <p class="menu-foot">Mejor puntuación: <b id="menu-best" style="color:var(--ember-glow)">0</b></p>
       </div>
 
       <!-- HOW TO PLAY view -->
       <div class="menu-view hidden" id="menu-howto">
         <h2>Cómo jugar</h2>
         <div class="howto-body">
+          <div class="howto-text">
           <p><b style="color:var(--ember-glow)">Objetivo.</b> Sobrevive el mayor número de oleadas posible: no hay límite de tiempo y la única forma de perder es quedarte sin vida. Cada oleada sube la dificultad. Gana <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para hacerte más poderoso.</p>
           <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Cada demonio puede soltar ítems de rareza aleatoria (Común → Único). Los ítems se equipan en 6 ranuras y suben tus stats de verdad. Abre tu mochila con <kbd>I</kbd> para equipar, comparar o fundir piezas por cenizas.</p>
           <p><b style="color:var(--ember-glow)">Cofres.</b> Repartidos por el mapa. Acércate y pulsa <kbd>E</kbd> para gastar cenizas y obtener botín garantizado con bonus de suerte.</p>
           <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. No superas la oleada hasta derrotarlo. Suelta un Legendario y un Único garantizados, cenizas y un gran bonus. Cada 5 oleadas hay un <b>intermedio</b> para revisar tu equipo, y cada 10 cambia el <b>escenario</b>.</p>
+          </div>
 
           <div class="controls-table">
             <div class="ctrl-col">
               <div class="ctrl-title">Teclado y ratón</div>
               <div class="ctrl-row"><kbd>W A S D</kbd><span>/ flechas — moverse</span></div>
               <div class="ctrl-row"><kbd>ratón</kbd><span>apuntar</span></div>
-              <div class="ctrl-row"><kbd>auto</kbd><span>disparo automático</span></div>
+              <div class="ctrl-row"><kbd>auto</kbd><span>dispara siempre hacia el ratón sin pulsar nada</span></div>
               <div class="ctrl-row"><kbd>Espacio</kbd><span>esquive (dash)</span></div>
               <div class="ctrl-row"><kbd>E</kbd><span>abrir cofre cercano</span></div>
+              <div class="ctrl-row"><kbd>auto</kbd><span>las habilidades se lanzan solas al estar listas</span></div>
               <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
               <div class="ctrl-row"><kbd>Esc</kbd><span>pausar / volver al menú</span></div>
-            </div>
-            <div class="ctrl-col">
-              <div class="ctrl-title">Móvil / táctil</div>
-              <div class="ctrl-row"><span class="ctrl-pad">joystick</span><span>mitad izq. para moverse</span></div>
-              <div class="ctrl-row"><span class="ctrl-pad">toca</span><span>mitad der. para apuntar (dispara solo)</span></div>
-              <div class="ctrl-row"><span class="ctrl-pad">⚡</span><span>botón de esquive</span></div>
-              <div class="ctrl-row"><span class="ctrl-pad">🎒</span><span>botón de inventario</span></div>
             </div>
           </div>
         </div>
@@ -563,16 +584,17 @@
   <!-- Inventory overlay -->
   <div class="overlay hidden" id="inv-screen">
     <div class="card inv-card">
-      <h2>Equipo e Inventario</h2>
-      <p id="inv-power">Poder total: 0</p>
+      <h2>Inventario</h2>
+      <p id="inv-power">Brasas</p>
       <div class="inv-cols">
         <div>
-          <div class="inv-sub">Equipado</div>
-          <div id="equip-list"></div>
+          <div class="inv-sub">Estadísticas</div>
+          <div class="stat-legend"><b style="color:#5aa0ff">■</b> Nivel (base) &nbsp; <b style="color:#ff9d4d">■</b> Equipo</div>
+          <div id="stats-panel"></div>
         </div>
         <div>
-          <div class="inv-sub">Mochila <span id="inv-count" style="color:var(--muted);font-weight:normal"></span></div>
-          <div id="bag-list"></div>
+          <div class="inv-sub">Equipo · mejóralo con brasas</div>
+          <div id="equip-list"></div>
         </div>
       </div>
       <button class="btn" id="inv-close">Cerrar (I)</button>
@@ -588,7 +610,7 @@
         <div>Nivel alcanzado <b id="final-level">1</b></div>
         <div>Oleada <b id="final-wave">1</b></div>
         <div>Demonios abatidos <b id="final-kills">0</b></div>
-        <div>Loot recogido <b id="final-loot">0</b></div>
+        <div>Mejoras realizadas <b id="final-loot">0</b></div>
         <div>Cenizas candentes <b id="final-ash">0</b></div>
         <div>Puntuación <b id="final-score">0</b></div>
       </div>
@@ -667,16 +689,24 @@
     };
   })();
 
+  const WORLD = { w: 2600, h: 2600 };
+
   // ---------------------------------------------------------------- Canvas
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
   const wrap = document.getElementById("game-wrap");
 
   let W = 0, H = 0, DPR = 1;
+  // zoom: everything is drawn scaled so the whole arena width always fits the screen.
+  // VW/VH = size of the visible area in world units.
+  let zoom = 1, VW = WORLD.w, VH = WORLD.h;
   function resize() {
     DPR = Math.min(window.devicePixelRatio || 1, 2);
     W = wrap.clientWidth;
     H = wrap.clientHeight;
+    zoom = Math.max(0.05, W / WORLD.w);
+    VW = W / zoom;
+    VH = H / zoom;
     canvas.width = Math.floor(W * DPR);
     canvas.height = Math.floor(H * DPR);
     canvas.style.width = W + "px";
@@ -694,7 +724,6 @@
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
   // ---------------------------------------------------------------- World
-  const WORLD = { w: 2600, h: 2600 };
   const WALL = 34; // impassable border thickness (matches the drawn stone wall)
   const cam = { x: 0, y: 0 };
 
@@ -810,79 +839,73 @@
   function buildAllTextures() { for (const t of THEMES) groundPatterns.push(buildTile(t)); }
   buildAllTextures();
 
-  // ---------------------------------------------------------------- Loot tables
-  const RARITY = [
-    { name: "Común",      color: "#d9d2c6", weight: 55, mult: 1,  score: 5 },
-    { name: "Mágico",     color: "#5aa0ff", weight: 26, mult: 2,  score: 15 },
-    { name: "Raro",       color: "#ffd84d", weight: 13, mult: 4,  score: 40 },
-    { name: "Legendario", color: "#ff7a2a", weight: 5,  mult: 9,  score: 120 },
-    { name: "Único",      color: "#c9622b", weight: 1,  mult: 20, score: 400 },
-  ];
-  const TOTAL_WEIGHT = RARITY.reduce((s, r) => s + r.weight, 0);
-  function rollRarity(luckBonus = 0) {
-    // luckBonus (0..1) nudges rolls toward rarer tiers
-    let r = Math.random() * TOTAL_WEIGHT;
-    r *= (1 - luckBonus * 0.55);
-    for (const tier of RARITY) { r -= tier.weight; if (r <= 0) return tier; }
-    return RARITY[0];
-  }
-  function rarityIndex(tier) { return RARITY.indexOf(tier); }
-
   // ---------------------------------------------------------------- Equipment system
-  // Each slot defines which affixes can roll and the item names used for flavor.
-  const SLOTS = [
-    { key: "arma",    label: "Arma",    icon: "⚔️", names: ["Hoja", "Hacha", "Mandoble", "Guadaña", "Cetro"],       affixes: ["dmg", "fireRate", "luck"] },
-    { key: "casco",   label: "Casco",   icon: "⛑️", names: ["Yelmo", "Capucha", "Corona", "Casco"],                 affixes: ["maxHp", "regen", "luck"] },
-    { key: "pecho",   label: "Pecho",   icon: "🛡️", names: ["Coraza", "Peto", "Armadura", "Loriga"],               affixes: ["maxHp", "regen", "dmg"] },
-    { key: "guantes", label: "Guantes", icon: "🧤", names: ["Guantes", "Manoplas", "Guanteletes"],                  affixes: ["fireRate", "dmg"] },
-    { key: "botas",   label: "Botas",   icon: "🥾", names: ["Grebas", "Botas", "Sandalias infernales"],             affixes: ["speed", "regen"] },
-    { key: "anillo",  label: "Anillo",  icon: "💍", names: ["Anillo", "Sello", "Amuleto", "Reliquia"],              affixes: ["luck", "dmg", "maxHp", "fireRate"] },
+  // The hero starts with 6 base pieces (one per slot, one stat each). Pieces never drop:
+  // they are upgraded with brasas (ash) in two independent ways:
+  //  - Stat points: +1 point at a time, each adds `step` to the piece's stat (flat cost).
+  //  - Rarity (level 0..4): multiplies the whole stat by (1 + RARITY_BONUS * level). Cost grows x1.5 per level.
+  const RARITY = [
+    { name: "Común",      color: "#d9d2c6" },
+    { name: "Mágico",     color: "#5aa0ff" },
+    { name: "Raro",       color: "#ffd84d" },
+    { name: "Legendario", color: "#ff7a2a" },
+    { name: "Único",      color: "#c9622b" },
   ];
-  // Affix metadata: how each stat rolls and how it reads in the UI.
-  const AFFIX = {
-    dmg:      { label: "Daño",      color: "#ff8a5a", fmt: v => "+" + v,            roll: (t) => randInt(2, 4) * (t + 1) },
-    maxHp:    { label: "Vida máx",  color: "#ff5a5a", fmt: v => "+" + v,            roll: (t) => randInt(8, 16) * (t + 1) },
-    fireRate: { label: "Cadencia",  color: "#6ad1ff", fmt: v => "+" + v + "%",      roll: (t) => randInt(3, 6) * (t + 1) },
-    speed:    { label: "Velocidad", color: "#aaffaa", fmt: v => "+" + v,            roll: (t) => randInt(4, 9) * (t + 1) },
-    regen:    { label: "Regen",     color: "#9affd0", fmt: v => "+" + v + "/s",     roll: (t) => +(randInt(2, 5) * (t + 1) / 10).toFixed(1) },
-    luck:     { label: "Suerte",    color: "#ffd84d", fmt: v => "+" + v + "%",      roll: (t) => randInt(2, 4) * (t + 1) },
-  };
+  const MAX_LEVEL = RARITY.length - 1;
+  const POINT_COST = 25;          // brasas per +1 stat point
+  const RARITY_BASE_COST = 250;   // brasas for the first rarity level
+  const RARITY_GROWTH = 1.5;      // each rarity level costs 150% of the previous one
+  const RARITY_BONUS = 0.25;      // +25% of the stat per rarity level
+  const roundTo25 = v => Math.round(v / 25) * 25;
+  // brasas to go from rarity level n to n+1: 250, 375, 575, 850...
+  function rarityCost(level) { return roundTo25(RARITY_BASE_COST * Math.pow(RARITY_GROWTH, level)); }
 
-  let itemIdCounter = 1;
-  function generateItem(tier, luckBoost = 0) {
-    const slot = pick(SLOTS);
-    const tIdx = rarityIndex(tier);
-    // number of affixes grows with rarity: common 1 .. unique up to 4
-    const nAffix = clamp(1 + tIdx, 1, 4);
-    const pool = slot.affixes.slice();
-    const chosen = [];
-    for (let i = 0; i < nAffix && pool.length; i++) {
-      const idx = Math.floor(Math.random() * pool.length);
-      chosen.push(pool.splice(idx, 1)[0]);
-    }
-    const affixes = chosen.map(key => ({ key, val: AFFIX[key].roll(tIdx) }));
-    const name = pick(slot.names);
-    // power = weighted sum used to compare items
-    let power = 0;
-    for (const a of affixes) {
-      if (a.key === "dmg") power += a.val * 3;
-      else if (a.key === "maxHp") power += a.val * 1;
-      else if (a.key === "fireRate") power += a.val * 4;
-      else if (a.key === "speed") power += a.val * 1.5;
-      else if (a.key === "regen") power += a.val * 10;
-      else if (a.key === "luck") power += a.val * 2;
-    }
-    power = Math.round(power + tIdx * 10);
-    return { id: itemIdCounter++, slot: slot.key, slotLabel: slot.label, icon: slot.icon, name, tier, affixes, power };
+  const AFFIX = {
+    dmg:      { label: "Daño",      color: "#ff8a5a", fmt: v => "+" + v },
+    maxHp:    { label: "Vida máx",  color: "#ff5a5a", fmt: v => "+" + v },
+    fireRate: { label: "Cadencia",  color: "#6ad1ff", fmt: v => "+" + v + "%" },
+    speed:    { label: "Velocidad", color: "#aaffaa", fmt: v => "+" + v },
+    regen:    { label: "Regen",     color: "#9affd0", fmt: v => "+" + v + "/s" },
+    ashBonus: { label: "Brasas",    color: "#ffb347", fmt: v => "+" + v + "%" },
+    crit:     { label: "Crítico",   color: "#ffd84d", fmt: v => "+" + v + "%" },
+    cdr:      { label: "Recarga",   color: "#c58aff", fmt: v => "+" + v + "%" },
+  };
+  const CDR_CAP = 60; // max % cooldown reduction on skills
+  // each piece has one or more stats; every stat has its own base value and its own stat points
+  const SLOTS = [
+    { key: "arma",    label: "Arma",    icon: "🏹", name: "Arco",    stats: [
+        { key: "dmg",  base: 4, step: 1 },
+        { key: "crit", base: 5, step: 2 } ] },
+    { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [
+        { key: "ashBonus", base: 10, step: 2 },
+        { key: "cdr",      base: 5,  step: 2 } ] },
+    { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 20,  step: 5 }] },
+    { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [{ key: "fireRate", base: 6,   step: 1 }] },
+    { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 8,   step: 2 }] },
+    { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0.5, step: 0.1 }] },
+  ];
+
+  // value of one stat of a piece: (base + points * step) * (1 + RARITY_BONUS * rarity level)
+  function statValue(item, st, points, level) {
+    return +((st.base + points * st.step) * (1 + level * RARITY_BONUS)).toFixed(2);
+  }
+  function statCur(item, st) { return statValue(item, st, st.points, item.level); }
+
+  function makeBaseEquipment() {
+    const eq = {};
+    SLOTS.forEach((sl, i) => {
+      eq[sl.key] = { id: i + 1, slot: sl.key, slotLabel: sl.label, icon: sl.icon, name: sl.name, level: 0, stats: sl.stats.map(st => ({ key: st.key, base: st.base, step: st.step, points: 0 })) };
+    });
+    return eq;
   }
 
-  // Sum one affix key across all equipped items.
+  // Sum one stat across all equipped pieces.
   function equipSum(p, key) {
     let sum = 0;
     for (const sk in p.equipped) {
       const it = p.equipped[sk];
       if (!it) continue;
-      for (const a of it.affixes) if (a.key === key) sum += a.val;
+      for (const st of it.stats) if (st.key === key) sum += statCur(it, st);
     }
     return sum;
   }
@@ -894,15 +917,53 @@
     p.speed = p.base.speed + equipSum(p, "speed");
     p.maxHp = Math.round(p.base.maxHp + equipSum(p, "maxHp"));
     p.dmg = p.base.dmg + equipSum(p, "dmg");
-    // fireRate affix is a % reduction of the base interval
+    // fireRate is a % reduction of the base interval
     const frPct = equipSum(p, "fireRate");
     p.fireRate = Math.max(0.08, p.base.fireRate * (1 - frPct / 100));
-    p.luck = clamp(p.base.luck + equipSum(p, "luck") / 100, 0, 0.75);
     p.regen = p.base.regen + equipSum(p, "regen");
+    p.ashBonus = equipSum(p, "ashBonus") / 100;
+    p.crit = clamp(equipSum(p, "crit") / 100, 0, 1);                 // crit chance 0..1 (crit = x2 damage)
+    p.cdr = Math.min(CDR_CAP, equipSum(p, "cdr")) / 100;             // skill cooldown reduction 0..0.6
     p.hp = Math.min(p.maxHp, Math.max(1, Math.round(hpRatio * p.maxHp)));
     let power = 0;
-    for (const sk in p.equipped) if (p.equipped[sk]) power += p.equipped[sk].power;
+    for (const sk in p.equipped) {
+      const it = p.equipped[sk];
+      if (!it) continue;
+      power += (it.level + 1) * 10;
+      for (const st of it.stats) power += st.points * 2;
+    }
     p.power = power;
+  }
+
+  // Spend brasas to add one stat point to a piece.
+  function upgradePoint(slotKey, statKey) {
+    const p = state.player;
+    const it = p.equipped[slotKey];
+    const st = it && it.stats.find(x => x.key === statKey);
+    if (!st || state.ash < POINT_COST) return;
+    state.ash -= POINT_COST;
+    st.points++;
+    state.lootCount++;
+    recalcStats(p);
+    Sound.chest();
+    floatText(p.x, p.y - 30, AFFIX[st.key].label + " +1", AFFIX[st.key].color);
+    renderInventory();
+  }
+
+  // Spend brasas to raise a piece one rarity level.
+  function upgradeItem(slotKey) {
+    const p = state.player;
+    const it = p.equipped[slotKey];
+    if (!it || it.level >= MAX_LEVEL) return;
+    const cost = rarityCost(it.level);
+    if (state.ash < cost) return;
+    state.ash -= cost;
+    it.level++;
+    state.lootCount++; // counts upgrades done
+    recalcStats(p);
+    Sound.chest();
+    floatText(p.x, p.y - 30, it.name + " → " + RARITY[it.level].name, RARITY[it.level].color);
+    renderInventory();
   }
 
   // ---------------------------------------------------------------- Game state
@@ -917,10 +978,6 @@
       spawnTimer: 0,
       spawnInterval: 1.4,
       toSpawn: 0,         // enemies still to spawn this wave
-      burstSize: 8,       // enemies per internal burst
-      burstLeft: 0,       // enemies left in the current burst
-      burstGap: 0,        // countdown between bursts
-      burstGapMax: 2.5,   // pause length between bursts
       alive: 0,           // enemies currently on the field this wave
       waveQuota: 0,       // total enemies to clear this wave
       interTimer: 0,      // intermission countdown
@@ -937,17 +994,16 @@
         x: WORLD.w / 2, y: WORLD.h / 2,
         r: 20,             // bigger hero so it reads clearly against loot/ash
         hp: 100,
-        level: 1, xp: 0, xpNext: 30,
+        level: 1, xp: 0, xpNext: 1000,
         fireCd: 0,
         aimX: 1, aimY: 0,
         inv: 0,            // invulnerability frames after hit
         // base stats (raised by level-ups); effective stats are derived in recalcStats()
-        base: { speed: 240, maxHp: 100, dmg: 12, fireRate: 0.28, luck: 0, regen: 1.5 },
+        base: { speed: 150, maxHp: 100, dmg: 12, fireRate: 0.28, regen: 1.5 },
         // effective stats after equipment (filled by recalcStats)
-        speed: 240, maxHp: 100, dmg: 12, fireRate: 0.28, luck: 0, regen: 1.5,
+        speed: 150, maxHp: 100, dmg: 12, fireRate: 0.28, regen: 1.5, ashBonus: 0, crit: 0, cdr: 0,
         // equipment: slotKey -> item (or null)
-        equipped: { arma: null, casco: null, pecho: null, guantes: null, botas: null, anillo: null },
-        inventory: [],     // unequipped items picked up
+        equipped: makeBaseEquipment(), // start with the 6 base pieces
         power: 0,          // total gear score
         dashCd: 0,         // current cooldown remaining
         dashMax: 2.2,      // cooldown length
@@ -957,7 +1013,7 @@
         dashVX: 0, dashVY: 0,
         // abilities (keys 1/2/3): current cooldown and max cooldown each
         skillCd: [0, 0, 0],
-        skillMax: [6, 12, 18],   // fan, shield, ultimate
+        skillMax: [6, 12, 13],   // fan, shield, ultimate
         shieldTime: 0,           // active energy-shield seconds remaining
         shieldDur: 4,            // how long the shield lasts
       },
@@ -978,108 +1034,27 @@
   const mouse = { x: W / 2, y: H / 2, down: false };
 
   window.addEventListener("keydown", e => {
-    // Bug 2: when a text field is focused (e.g. the name input on the game-over
-    // screen) let the keystroke go to it — don't hijack game shortcuts.
-    const t = e.target;
-    const typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
-    if (typing) return;
-
     keys[e.key.toLowerCase()] = true;
-
-    // Esc works regardless of run state (pause / close menus)
+    if (e.key === " " || e.code === "Space") { e.preventDefault(); tryDash(); }
+    if (e.key.toLowerCase() === "e") { e.preventDefault(); tryOpenChest(); }
+    if (e.key.toLowerCase() === "i") { e.preventDefault(); toggleInventory(); }
     if (e.key === "Escape") {
       e.preventDefault();
       if (invOpen) closeInventory();
       else if (paused) resumeGame();
       else if (state && state.running && !state.over) pauseGame();
-      return;
     }
-
-    // the rest are gameplay actions: only while a run is actually in progress
-    const active = state && state.running && !state.over;
-    if (!active) return;
-
-    if (e.key === " " || e.code === "Space") { e.preventDefault(); tryDash(); }
-    if (e.key.toLowerCase() === "e") { e.preventDefault(); tryOpenChest(); }
-    if (e.key === "1") { e.preventDefault(); useSkill(0); }
-    if (e.key === "2") { e.preventDefault(); useSkill(1); }
-    if (e.key === "3") { e.preventDefault(); useSkill(2); }
-    if (e.key.toLowerCase() === "i") { e.preventDefault(); toggleInventory(); }
   });
   window.addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
-  // Bug 2 safety: if focus leaves the window, clear held keys so none get "stuck".
-  window.addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
 
   canvas.addEventListener("mousemove", e => {
     const r = canvas.getBoundingClientRect();
     mouse.x = e.clientX - r.left;
     mouse.y = e.clientY - r.top;
   });
-  canvas.addEventListener("mousedown", e => { if (e.button === 0) { e.preventDefault(); mouse.down = true; } });
-  window.addEventListener("mouseup", e => { if (!e || e.button === 0) mouse.down = false; });
-  // Bug 1: right-click opened the browser context menu over the canvas and froze input.
-  // Suppress it so right-click is a no-op in-game.
-  canvas.addEventListener("contextmenu", e => { e.preventDefault(); });
+  canvas.addEventListener("mousedown", e => { if (e.button === 0) mouse.down = true; });
+  window.addEventListener("mouseup", () => { mouse.down = false; });
 
-  // Touch: left half = joystick, right half = shoot toward touch
-  const touch = { moveId: null, mx: 0, my: 0, jx: 0, jy: 0, shootId: null, sx: 0, sy: 0 };
-  const joyBase = document.getElementById("joy-base");
-  const joyStick = document.getElementById("joy-stick");
-  const touchCtrls = document.getElementById("touch-ctrls");
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-  if (isTouch) touchCtrls.style.display = "block";
-
-  function handleTouchStart(e) {
-    for (const t of e.changedTouches) {
-      if (t.clientX < window.innerWidth / 2 && touch.moveId === null) {
-        touch.moveId = t.identifier;
-        touch.ox = t.clientX; touch.oy = t.clientY;
-        joyBase.style.display = "block";
-        joyBase.style.left = (t.clientX - 60) + "px";
-        joyBase.style.top = (t.clientY - 60) + "px";
-        joyStick.style.left = "60px"; joyStick.style.top = "60px";
-      } else if (touch.shootId === null) {
-        touch.shootId = t.identifier;
-        const r = canvas.getBoundingClientRect();
-        touch.sx = t.clientX - r.left; touch.sy = t.clientY - r.top;
-        mouse.down = true;
-      }
-    }
-  }
-  function handleTouchMove(e) {
-    e.preventDefault();
-    for (const t of e.changedTouches) {
-      if (t.identifier === touch.moveId) {
-        let dx = t.clientX - touch.ox, dy = t.clientY - touch.oy;
-        const len = Math.hypot(dx, dy);
-        const max = 48;
-        if (len > max) { dx = dx / len * max; dy = dy / len * max; }
-        touch.jx = dx / max; touch.jy = dy / max;
-        joyStick.style.left = (60 + dx) + "px";
-        joyStick.style.top = (60 + dy) + "px";
-      } else if (t.identifier === touch.shootId) {
-        const r = canvas.getBoundingClientRect();
-        touch.sx = t.clientX - r.left; touch.sy = t.clientY - r.top;
-      }
-    }
-  }
-  function handleTouchEnd(e) {
-    for (const t of e.changedTouches) {
-      if (t.identifier === touch.moveId) {
-        touch.moveId = null; touch.jx = 0; touch.jy = 0;
-        joyBase.style.display = "none";
-      } else if (t.identifier === touch.shootId) {
-        touch.shootId = null; mouse.down = false;
-      }
-    }
-  }
-  canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
-  canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
-  canvas.addEventListener("touchend", handleTouchEnd);
-  canvas.addEventListener("touchcancel", handleTouchEnd);
-
-  const dashBtn = document.getElementById("dash-btn");
-  dashBtn.addEventListener("touchstart", e => { e.preventDefault(); e.stopPropagation(); tryDash(); }, { passive: false });
 
   // ---------------------------------------------------------------- Spawning
   // Symmetric cover: columns and walls mirrored about the arena center so the
@@ -1154,11 +1129,78 @@
     }
   }
 
+  // Enemy-vs-enemy collisions: soft push-apart so bodies never stack on top of each other.
+  // Uses a spatial grid (cell 64px > any two radii) so it stays cheap with hundreds of enemies.
+  // The heavier body (bigger radius) moves less; the boss is immovable. A leaper mid-air is ignored.
+  let enemySeq = 0;
+  function separateEnemies() {
+    const list = state.enemies;
+    const n = list.length;
+    if (n < 2 && !state.boss) return;
+    const CELL = 64;
+    for (let iter = 0; iter < 4; iter++) {
+      const grid = new Map();
+      for (let i = 0; i < n; i++) {
+        const e = list[i];
+        if (e.hp <= 0 || e.leaping > 0) continue;
+        const key = Math.floor(e.x / CELL) * 4096 + Math.floor(e.y / CELL);
+        const cell = grid.get(key);
+        if (cell) cell.push(e); else grid.set(key, [e]);
+      }
+      for (const e of list) {
+        if (e.hp <= 0 || e.leaping > 0) continue;
+        const cx = Math.floor(e.x / CELL), cy = Math.floor(e.y / CELL);
+        for (let gx = cx - 1; gx <= cx + 1; gx++) {
+          for (let gy = cy - 1; gy <= cy + 1; gy++) {
+            const cell = grid.get(gx * 4096 + gy);
+            if (!cell) continue;
+            for (const o of cell) {
+              if (o === e || o.id_ >= e.id_) continue; // handle each pair once
+              let dx = o.x - e.x, dy = o.y - e.y;
+              const min = e.r + o.r;
+              let d2 = dx * dx + dy * dy;
+              if (d2 >= min * min) continue;
+              let d = Math.sqrt(d2);
+              if (d < 0.001) { const a = Math.random() * Math.PI * 2; dx = Math.cos(a); dy = Math.sin(a); d = 1; }
+              const overlap = min - d;
+              const nx = dx / d, ny = dy / d;
+              const me = e.r * e.r, mo = o.r * o.r;       // "mass" ~ area
+              const pe = overlap * mo / (me + mo);         // e moves away from o
+              const po = overlap * me / (me + mo);         // o moves away from e
+              e.x -= nx * pe; e.y -= ny * pe;
+              o.x += nx * po; o.y += ny * po;
+            }
+          }
+        }
+      }
+    }
+    // the boss does not move: enemies get pushed out of it
+    const boss = state.boss;
+    if (boss) {
+      for (const e of list) {
+        if (e.hp <= 0 || e.leaping > 0) continue;
+        let dx = e.x - boss.x, dy = e.y - boss.y;
+        const min = e.r + boss.r;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= min * min) continue;
+        let d = Math.sqrt(d2);
+        if (d < 0.001) { dx = 1; dy = 0; d = 1; }
+        const push = min - d;
+        e.x += (dx / d) * push; e.y += (dy / d) * push;
+      }
+    }
+    // keep everyone inside the arena
+    for (const e of list) {
+      e.x = clamp(e.x, WALL + e.r, WORLD.w - WALL - e.r);
+      e.y = clamp(e.y, WALL + e.r, WORLD.h - WALL - e.r);
+    }
+  }
+
   function spawnEnemy() {
     const p = state.player;
     // spawn off-screen around the player
     const ang = rand(0, Math.PI * 2);
-    const dsp = rand(520, 760);
+    const dsp = rand(650, 1000);
     let x = p.x + Math.cos(ang) * dsp;
     let y = p.y + Math.sin(ang) * dsp;
     x = clamp(x, WALL + 20, WORLD.w - WALL - 20);
@@ -1170,7 +1212,7 @@
     const dmgScale = 1 + (w - 1) * 0.10;
     const spdScale = 1 + Math.min(1.1, (w - 1) * 0.03);
 
-    // Weighted type pool. New 0.5 types unlock progressively so early waves stay simple:
+    // Weighted type pool. New types unlock progressively so early waves stay simple:
     //  leaper (jumps at you), caster (shoots dodgeable projectiles), bomber (telegraphed AoE).
     const pool = [];
     pool.push(["imp", 50]);
@@ -1183,15 +1225,13 @@
     let r = Math.random() * total, type = "imp";
     for (const t of pool) { r -= t[1]; if (r <= 0) { type = t[0]; break; } }
 
-    // steerBias: remembered turn side (+1/-1) so the enemy commits to going around
-    // an obstacle instead of dithering; randomized per enemy so clusters split up.
-    let e = { x, y, type, flash: 0, steerBias: Math.random() < 0.5 ? 1 : -1, stuckT: 0 };
+    let e = { x, y, type, flash: 0, id_: ++enemySeq };
     if (type === "imp") {
       e.r = 15; e.speed = rand(70, 95) * spdScale;
       e.hp = e.maxHp = 24 * hpScale; e.dmg = 9 * dmgScale; e.xp = 10 + w; e.ashChance = 0.35; e.color = "#c0392b";
     } else if (type === "hound") {
       e.r = 13; e.speed = rand(120, 150) * spdScale;
-      e.hp = e.maxHp = 16 * hpScale; e.dmg = 7 * dmgScale; e.xp = 8 + w; e.ashChance = 0.3; e.color = "#e67e22";
+      e.hp = e.maxHp = 16 * hpScale; e.dmg = 7 * dmgScale; e.xp = 8 + w; e.ashChance = 0.3; e.color = "#8e44ad";
     } else if (type === "brute") {
       e.r = 26; e.speed = rand(45, 60) * (1 + Math.min(0.5, (w - 1) * 0.02));
       e.hp = e.maxHp = 90 * hpScale; e.dmg = 20 * dmgScale; e.xp = 35 + w * 2; e.ashChance = 0.8; e.color = "#7a1d1d";
@@ -1203,7 +1243,7 @@
     } else if (type === "caster") {
       // keeps its distance and fires dodgeable bolts (big so it reads clearly)
       e.r = 23; e.speed = rand(55, 75) * spdScale;
-      e.hp = e.maxHp = 34 * hpScale; e.dmg = 6 * dmgScale; e.xp = 18 + w; e.ashChance = 0.45; e.color = "#7b4fc9";
+      e.hp = e.maxHp = 34 * hpScale; e.dmg = 6 * dmgScale; e.xp = 18 + w; e.ashChance = 0.45; e.color = "#2f6fd1";
       e.shootCd = rand(1.4, 2.4); e.projDmg = 12 * dmgScale;
     } else { // bomber
       // plants a telegraphed ground AoE you must step out of
@@ -1211,6 +1251,7 @@
       e.hp = e.maxHp = 40 * hpScale; e.dmg = 8 * dmgScale; e.xp = 22 + w; e.ashChance = 0.55; e.color = "#b8860b";
       e.bombCd = rand(2.0, 3.2); e.aoeDmg = 22 * dmgScale;
     }
+    e.speed *= 0.75 * 1.1; // -25% from the original, then +10% (net x0.825)
     state.enemies.push(e);
   }
 
@@ -1241,10 +1282,11 @@
     p.fireCd = p.fireRate;
     Sound.shoot();
     const spd = 620;
+    const crit = Math.random() < p.crit; // critical hit: damage x2
     state.bullets.push({
       x: p.x + p.aimX * p.r, y: p.y + p.aimY * p.r,
       vx: p.aimX * spd, vy: p.aimY * spd,
-      r: 5, dmg: p.dmg, life: 1.1,
+      r: 5, dmg: p.dmg * (crit ? 2 : 1), life: 0.55, crit,
     });
     // muzzle sparks
     for (let i = 0; i < 4; i++) {
@@ -1262,10 +1304,11 @@
     const p = state.player;
     const o = opts || {};
     const spd = o.spd || 620;
+    const crit = Math.random() < p.crit; // each skill arrow rolls its own crit: damage x2
     state.bullets.push({
       x: p.x + Math.cos(ang) * p.r, y: p.y + Math.sin(ang) * p.r,
       vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-      r: o.r || 5, dmg: o.dmg || p.dmg, life: o.life || 1.1,
+      r: o.r || 5, dmg: (o.dmg || p.dmg) * (crit ? 2 : 1), life: o.life || 0.55, crit,
       pierce: o.pierce || 0, big: !!o.big, color: o.color || null,
     });
   }
@@ -1275,6 +1318,7 @@
     if (!state || !state.running || state.over || paused || invOpen) return;
     const p = state.player;
     if (p.skillCd[i] > 0) return;
+    if (i === 1) return; // shield skill temporarily disabled (remove this line to re-enable it)
     const base = Math.atan2(p.aimY, p.aimX);
 
     if (i === 0) {
@@ -1300,7 +1344,7 @@
       }
     } else {
       // 3 — Ultimate: flecha enorme, mucho daño, atraviesa enemigos
-      spawnArrow(base, { dmg: p.dmg * 6 + 60, r: 16, spd: 760, pierce: 999, big: true, life: 1.6, color: "#ff7a2a" });
+      spawnArrow(base, { dmg: p.dmg * 6 + 60, r: 16, spd: 760, pierce: 999, big: true, life: 0.8, color: "#ff7a2a" });
       p.skillCd[2] = p.skillMax[2];
       state.shake = Math.max(state.shake, 12);
       floatText(p.x, p.y - 34, "¡DEVASTACIÓN!", "#ff7a2a");
@@ -1325,9 +1369,6 @@
       const amt = e.type === "brute" ? randInt(3, 6) : randInt(1, 2);
       state.orbs.push({ x: e.x + rand(-10, 10), y: e.y + rand(-10, 10), r: 8, kind: "ash", val: amt, vx: rand(-40, 40), vy: rand(-40, 40) });
     }
-    // loot drop chance
-    const lootChance = e.type === "brute" ? 0.9 : 0.22;
-    if (Math.random() < lootChance) dropLoot(e.x, e.y);
   }
 
   function killBoss(boss) {
@@ -1342,90 +1383,18 @@
     state.shake = 22;
     Sound.bossdie();
     gainXp(boss.xp);
-    // guaranteed legendary + unique rolls, plus a pile of loot
-    for (let i = 0; i < 6; i++) dropLoot(boss.x + rand(-40, 40), boss.y + rand(-40, 40), 0.5);
-    // force 2 top-tier drops
-    dropLoot(boss.x, boss.y, 0.5, RARITY[3]); // legendary
-    dropLoot(boss.x, boss.y, 0.5, RARITY[4]); // único
+    // no item drops anymore: the boss showers brasas instead
+    for (let i = 0; i < 10; i++) {
+      state.orbs.push({ x: boss.x + rand(-40, 40), y: boss.y + rand(-40, 40), r: 9, kind: "ash", val: 15, vx: rand(-80, 80), vy: rand(-80, 80) });
+    }
     state.orbs.push({ x: boss.x, y: boss.y, r: 10, kind: "ash", val: 20, vx: rand(-60, 60), vy: rand(-60, 60) });
+    // every object on the ground (including the boss drops) flies to the player
+    for (const o of state.orbs) o.pull = true;
     // explosion
     for (let i = 0; i < 60; i++) {
       const a = rand(0, Math.PI * 2), s = rand(80, 420);
       state.particles.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.5, 1.1), r: rand(2, 6), color: pick(["#ffd84d", "#ff7a2a", "#c0392b"]) });
     }
-  }
-
-  function dropLoot(x, y, luckBoost = 0, forcedTier = null) {
-    const tier = forcedTier || rollRarity(state.player.luck + luckBoost);
-    const item = generateItem(tier, luckBoost);
-    state.orbs.push({
-      x: x + rand(-8, 8), y: y + rand(-8, 8), r: 9, kind: "loot",
-      tier, item, vx: rand(-50, 50), vy: rand(-50, 50),
-    });
-  }
-
-  function collectLoot(item) {
-    const p = state.player;
-    const tier = item.tier;
-    state.lootCount++;
-    state.score += tier.score;
-    Sound.loot(tier.mult);
-    addLootLine(item);
-    floatText(p.x, p.y - 20, `${item.name} ${tier.name}`, tier.color);
-
-    const current = p.equipped[item.slot];
-    if (!current) {
-      // empty slot: auto-equip
-      p.equipped[item.slot] = item;
-      recalcStats(p);
-      floatText(p.x, p.y - 44, "¡Equipado! " + item.icon, "#6affa0");
-    } else if (item.power > current.power) {
-      // upgrade: equip new, keep old in inventory
-      p.inventory.push(current);
-      p.equipped[item.slot] = item;
-      recalcStats(p);
-      floatText(p.x, p.y - 44, "¡Mejora! +" + (item.power - current.power) + " poder", "#6affa0");
-    } else {
-      // not an upgrade: goes to inventory
-      p.inventory.push(item);
-      floatText(p.x, p.y - 44, "Al inventario", "#b08a72");
-    }
-    trimInventory(p);
-    if (invOpen) renderInventory();
-  }
-
-  // keep inventory from growing unbounded; drop the weakest when full
-  function trimInventory(p) {
-    const MAX = 20;
-    if (p.inventory.length > MAX) {
-      p.inventory.sort((a, b) => b.power - a.power);
-      p.inventory.length = MAX;
-    }
-  }
-
-  function equipFromInventory(itemId) {
-    const p = state.player;
-    const idx = p.inventory.findIndex(it => it.id === itemId);
-    if (idx < 0) return;
-    const item = p.inventory[idx];
-    p.inventory.splice(idx, 1);
-    const current = p.equipped[item.slot];
-    if (current) p.inventory.push(current);
-    p.equipped[item.slot] = item;
-    recalcStats(p);
-    Sound.chest();
-    renderInventory();
-  }
-
-  function discardFromInventory(itemId) {
-    const p = state.player;
-    const idx = p.inventory.findIndex(it => it.id === itemId);
-    if (idx < 0) return;
-    const item = p.inventory[idx];
-    p.inventory.splice(idx, 1);
-    state.ash += 2 + rarityIndex(item.tier) * 2; // salvage into ash
-    Sound.loot(1);
-    renderInventory();
   }
 
   function gainXp(amount) {
@@ -1462,7 +1431,6 @@
     if (keys["s"] || keys["arrowdown"]) my += 1;
     if (keys["a"] || keys["arrowleft"]) mx -= 1;
     if (keys["d"] || keys["arrowright"]) mx += 1;
-    if (touch.jx || touch.jy) { mx += touch.jx; my += touch.jy; }
     let dx = mx, dy = my;
     const l = Math.hypot(dx, dy);
     if (l < 0.1) { dx = p.aimX; dy = p.aimY; }
@@ -1488,10 +1456,12 @@
           c.opened = true;
           state.shake = Math.max(state.shake, 8);
           Sound.chest();
-          // chest = guaranteed multiple loot with luck boost
-          const n = randInt(2, 4);
-          for (let i = 0; i < n; i++) dropLoot(c.x, c.y, 0.25);
-          state.orbs.push({ x: c.x, y: c.y, r: 8, kind: "ash", val: randInt(2, 5), vx: rand(-60, 60), vy: rand(-60, 60) });
+          // chest = brasas jackpot (1.6x to 2.4x its cost), spread over a few orbs
+          const reward = Math.round(c.cost * rand(1.6, 2.4));
+          const pieces = 4;
+          for (let i = 0; i < pieces; i++) {
+            state.orbs.push({ x: c.x, y: c.y, r: 9, kind: "ash", val: Math.max(1, Math.round(reward / pieces)), vx: rand(-90, 90), vy: rand(-90, 90) });
+          }
           floatText(c.x, c.y - 30, "¡COFRE ABIERTO!", "#ffd84d");
           for (let i = 0; i < 30; i++) {
             const a = rand(0, Math.PI * 2), s = rand(80, 300);
@@ -1511,23 +1481,13 @@
     state.floaters.push({ wx, wy, text, color, el: null, life: 0.9 });
   }
   const lootFeed = document.getElementById("loot-feed");
-  function addLootLine(item) {
-    const el = document.createElement("div");
-    el.className = "loot-line";
-    el.style.color = item.tier.color;
-    el.textContent = item.icon + " " + item.name + " " + item.tier.name;
-    lootFeed.appendChild(el);
-    setTimeout(() => el.remove(), 4200);
-    while (lootFeed.children.length > 8) lootFeed.removeChild(lootFeed.firstChild);
-  }
-
   // ---------------------------------------------------------------- Wave director
   // Begins the next wave. Every 10th wave spawns a boss (Stage 5) and, from Stage 6,
   // rotates the scenario. Difficulty ramps forever (handled in spawnEnemy / startWave).
   function startWave() {
     state.wave++;
     state.phase = "fighting";
-    state.alive = 0;
+    // state.alive is NOT reset: leftover enemies from the previous wave stay counted
     const w = state.wave;
 
     // scenario rotation every 10 waves (Stage 6 reads state.theme when drawing)
@@ -1538,18 +1498,14 @@
       state.shake = Math.max(state.shake, 10);
     }
 
-    // enemy quota grows every wave; spawn cadence tightens (never-ending ramp).
-    // 0.4: TRIPLED total enemies, released in staged bursts (not all at once) so
-    // the player can't simply dodge the whole wave and take a free offensive spot.
-    state.waveQuota = (6 + Math.floor(w * 2.2)) * 3;
-    state.toSpawn = state.waveQuota;
-    state.spawnInterval = Math.max(0.12, 0.6 - (w - 1) * 0.02); // gap between enemies inside a burst
+    // enemy quota grows every wave; spawn cadence tightens (never-ending ramp)
+    state.waveQuota = (6 + Math.floor(w * 2.2)) * 4; // enemy count doubled twice (x4 vs original)
+    state.toSpawn = state.waveQuota + Math.max(0, state.toSpawn); // carry over anything not yet spawned
+    state.waveTotal = state.toSpawn;                  // total enemies this wave will spawn
+    state.batchSize = Math.ceil(state.waveTotal / 5); // 5 batches = 20% of the wave each
+    state.batchesSpawned = 0;
+    state.spawnInterval = Math.max(0.28, 1.4 - (w - 1) * 0.04);
     state.spawnTimer = 0;
-    // burst (oleada interna) setup: ~6-10 enemies per burst, a pause between bursts
-    state.burstSize = 6 + Math.floor(w / 3);
-    state.burstLeft = state.burstSize;          // enemies remaining in the current burst
-    state.burstGapMax = Math.max(1.6, 3.2 - w * 0.05); // seconds of pause between bursts
-    state.burstGap = 0;                          // countdown while waiting for next burst
 
     const p = state.player;
     if (w % 10 === 0) {
@@ -1598,7 +1554,6 @@
       if (keys["s"] || keys["arrowdown"]) my += 1;
       if (keys["a"] || keys["arrowleft"]) mx -= 1;
       if (keys["d"] || keys["arrowright"]) mx += 1;
-      if (touch.jx || touch.jy) { mx += touch.jx; my += touch.jy; }
       const ml = Math.hypot(mx, my);
       if (ml > 1) { mx /= ml; my /= ml; }
       p.x = clamp(p.x + mx * p.speed * dt, WALL + p.r, WORLD.w - WALL - p.r);
@@ -1607,17 +1562,13 @@
     }
 
     // aim
-    let aimScreenX, aimScreenY;
-    if (touch.shootId !== null) { aimScreenX = touch.sx; aimScreenY = touch.sy; }
-    else { aimScreenX = mouse.x; aimScreenY = mouse.y; }
-    const aimWorldX = aimScreenX + cam.x;
-    const aimWorldY = aimScreenY + cam.y;
+    const aimWorldX = mouse.x / zoom + cam.x;
+    const aimWorldY = mouse.y / zoom + cam.y;
     let ax = aimWorldX - p.x, ay = aimWorldY - p.y;
     const al = Math.hypot(ax, ay) || 1;
     p.aimX = ax / al; p.aimY = ay / al;
 
-    // fire — arrows now loose automatically at the fireRate cadence toward the aim.
-    // fire() already respects p.fireCd, so calling it every frame just shoots on cooldown.
+    // auto-fire: always shooting toward the mouse, as if the button were held down
     p.fireCd -= dt;
     fire();
 
@@ -1626,8 +1577,18 @@
     if (p.inv > 0) p.inv -= dt;
 
     // ability cooldowns + active shield
-    for (let i = 0; i < 3; i++) if (p.skillCd[i] > 0) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt);
+    for (let i = 0; i < 3; i++) if (p.skillCd[i] > 0) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt / (1 - p.cdr)); // Recarga = faster cooldown tick
     if (p.shieldTime > 0) { p.shieldTime -= dt; p.inv = Math.max(p.inv, 0.05); }
+
+    // auto-cast: every skill fires by itself as soon as it is ready
+    // (only while some enemy is close, so they are not wasted on an empty arena)
+    {
+      let threat = false;
+      const R2 = 450 * 450;
+      if (state.boss && dist2(p.x, p.y, state.boss.x, state.boss.y) < R2) threat = true;
+      if (!threat) for (const e of state.enemies) { if (dist2(p.x, p.y, e.x, e.y) < R2) { threat = true; break; } }
+      if (threat) for (let i = 0; i < 3; i++) if (p.skillCd[i] <= 0) useSkill(i);
+    }
 
     // dash cooldown / active dash
     if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
@@ -1646,31 +1607,18 @@
       state.interTimer -= dt;
       if (state.interTimer <= 0) endIntermission();
     } else {
-      // fighting: release enemies in staged BURSTS (oleadas internas).
-      // Within a burst, spawn fast; when the burst empties, wait burstGap seconds
-      // before the next burst arrives — forcing repeated engagements per wave.
-      if (state.toSpawn > 0) {
-        if (state.burstGap > 0) {
-          // waiting between bursts
-          state.burstGap -= dt;
-          if (state.burstGap <= 0) {
-            state.burstLeft = Math.min(state.toSpawn, state.burstSize);
-            state.spawnTimer = 0;
-            floatText(p.x, p.y - 44, "¡Más demonios!", "#ff7a2a");
-          }
-        } else {
-          state.spawnTimer -= dt;
-          if (state.spawnTimer <= 0) {
-            state.spawnTimer = state.boss ? state.spawnInterval * 2.2 : state.spawnInterval;
-            const batch = state.boss ? 1 : Math.min(state.toSpawn, state.burstLeft, 1 + Math.floor(state.wave / 5));
-            for (let i = 0; i < batch; i++) { spawnEnemy(); state.toSpawn--; state.burstLeft--; state.alive++; }
-            // burst finished? start the pause before the next one (if any left)
-            if (state.burstLeft <= 0 && state.toSpawn > 0) state.burstGap = state.burstGapMax;
-          }
-        }
+      // fighting: drip-feed this wave's enemy quota
+      // the first batch comes out as the wave starts; each next batch (20% of the wave)
+      // comes out when 75% or less of a batch's size is left alive (= 15% of the whole wave)
+      if (state.toSpawn > 0 && (state.batchesSpawned === 0 || state.alive <= state.batchSize * 0.75)) {
+        const batch = Math.min(state.toSpawn, state.batchSize);
+        for (let i = 0; i < batch; i++) { spawnEnemy(); state.toSpawn--; state.alive++; }
+        state.batchesSpawned++;
       }
       // wave cleared once every enemy is spawned and dead (and the boss, if any, is down)
-      if (state.toSpawn <= 0 && state.alive <= 0 && !state.boss) onWaveCleared();
+      // next wave starts when 15% or less of this wave's enemies remain (alive + not yet spawned)
+      const remaining = state.toSpawn + state.alive;
+      if (remaining <= state.waveTotal * 0.15 && !state.boss) onWaveCleared();
     }
 
     // bullets (arrows). Walls stop normal arrows; the big ultimate smashes through.
@@ -1684,57 +1632,52 @@
       if (e.flash > 0) e.flash -= dt;
       const dx = p.x - e.x, dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
-      const baseAng = Math.atan2(dy, dx);
-      const ox = e.x, oy = e.y; // remember position to measure real progress this frame
+      // enemies ignore obstacles: they walk straight through them
+      // far from the player (>600px): +300% speed (x4) to catch up
+      const sp = d > 600 ? e.speed * 4 : e.speed;
 
-      // ---- 0.5 special-enemy behavior ----
-      // Returns true if this type handled its own movement and the normal chase
-      // should be skipped this frame.
+      // ---- special-enemy behavior ----
+      // handledMove = true when the type moved on its own and the plain chase is skipped.
       let handledMove = false;
-
       if (e.type === "leaper") {
         if (e.leaping > 0) {
-          // mid-leap: fly along the locked velocity (ignores walls briefly for feel,
-          // but still clamped to arena and resolved out of columns)
+          // mid-leap: fly along the locked velocity (clamped to the arena)
           e.leaping -= dt;
           e.x = clamp(e.x + e.lvx * dt, WALL + e.r, WORLD.w - WALL - e.r);
           e.y = clamp(e.y + e.lvy * dt, WALL + e.r, WORLD.h - WALL - e.r);
-          const rr = resolveObstacles(e.x, e.y, e.r); e.x = rr.x; e.y = rr.y;
           state.particles.push({ x: e.x, y: e.y, vx: rand(-20, 20), vy: rand(-20, 20), life: 0.2, r: rand(2, 4), color: "#6affa0" });
           handledMove = true;
         } else {
           e.leapCd -= dt;
-          // leap when at mid range; telegraph with a crouch flash then launch
+          // leap when at mid range, then wait for the next one
           if (e.leapCd <= 0 && d > 70 && d < 360) {
             e.leaping = 0.34;
-            const spd = 520;
-            e.lvx = (dx / d) * spd; e.lvy = (dy / d) * spd;
+            const lspd = 520;
+            e.lvx = (dx / d) * lspd; e.lvy = (dy / d) * lspd;
             e.leapCd = rand(1.6, 2.6);
             state.shake = Math.max(state.shake, 3);
           }
         }
       } else if (e.type === "caster") {
-        // hold at a shooting distance: back off if too close, approach if too far
+        // hold at a shooting distance: back off if too close, approach if too far, strafe in between
         const want = 300;
-        let mvx = 0, mvy = 0;
-        if (d < want - 40) { mvx = -dx / d; mvy = -dy / d; }       // retreat
-        else if (d > want + 40) { mvx = dx / d; mvy = dy / d; }    // approach
-        else { mvx = -dy / d; mvy = dx / d; }                      // strafe sideways
-        const stp = e.speed * dt;
-        e.x = clamp(e.x + mvx * stp, WALL + e.r, WORLD.w - WALL - e.r);
-        e.y = clamp(e.y + mvy * stp, WALL + e.r, WORLD.h - WALL - e.r);
-        const rc = resolveObstacles(e.x, e.y, e.r); e.x = rc.x; e.y = rc.y;
+        let mvx, mvy;
+        if (d < want - 40) { mvx = -dx / d; mvy = -dy / d; }
+        else if (d > want + 40) { mvx = dx / d; mvy = dy / d; }
+        else { mvx = -dy / d; mvy = dx / d; }
+        e.x = clamp(e.x + mvx * sp * dt, WALL + e.r, WORLD.w - WALL - e.r);
+        e.y = clamp(e.y + mvy * sp * dt, WALL + e.r, WORLD.h - WALL - e.r);
         handledMove = true;
         // fire a dodgeable bolt
         e.shootCd -= dt;
         if (e.shootCd <= 0 && d < 520) {
           e.shootCd = rand(1.6, 2.6);
           const bs = 260;
-          state.bossBullets.push({ x: e.x, y: e.y, vx: (dx / d) * bs, vy: (dy / d) * bs, r: 11, dmg: e.projDmg, life: 3, col: "#b98bff" });
+          state.bossBullets.push({ x: e.x, y: e.y, vx: (dx / d) * bs, vy: (dy / d) * bs, r: 11, dmg: e.projDmg, life: 3, col: "#7fb3ff" });
           Sound.boss();
         }
       } else if (e.type === "bomber") {
-        // plant a telegraphed AoE under/near the player, then keep a loose distance
+        // plant a telegraphed AoE on the player's position (keeps chasing normally)
         e.bombCd -= dt;
         if (e.bombCd <= 0 && d < 460) {
           e.bombCd = rand(2.6, 3.8);
@@ -1742,48 +1685,9 @@
         }
       }
 
-      const step = e.speed * dt;
-
-      // candidate step for a given heading; returns where the enemy would end up
-      // and whether a wall shoved it back (blocked).
-      const tryAngle = (ang) => {
-        const nx = clamp(e.x + Math.cos(ang) * step, WALL + e.r, WORLD.w - WALL - e.r);
-        const ny = clamp(e.y + Math.sin(ang) * step, WALL + e.r, WORLD.h - WALL - e.r);
-        const r = resolveObstacles(nx, ny, e.r);
-        const blocked = dist2(r.x, r.y, nx, ny) > 1;
-        return { x: r.x, y: r.y, blocked };
-      };
-
-      // Bug 3 (wall-following). Try straight; if blocked, sweep by increasing turn
-      // on the committed side until a clear heading is found — the enemy hugs the
-      // wall and rounds the corner instead of grinding head-on into its flat face.
       if (!handledMove) {
-        let mv = tryAngle(baseAng);
-        if (mv.blocked) {
-          const bias = e.steerBias;
-          let found = null;
-          // rising turn angles up to ~160 deg; alternate committed side first, then the other
-          for (const mag of [0.35, 0.7, 1.05, 1.4, 1.75, 2.1, 2.45, 2.8]) {
-            const a = tryAngle(baseAng + mag * bias);
-            if (!a.blocked) { found = a; break; }
-            const b = tryAngle(baseAng - mag * bias);
-            if (!b.blocked) { found = b; e.steerBias = -bias; break; }
-          }
-          if (found) { e.x = found.x; e.y = found.y; }
-          else { const r = resolveObstacles(e.x, e.y, e.r); e.x = r.x; e.y = r.y; }
-        } else {
-          e.x = mv.x; e.y = mv.y;
-        }
-
-        // Stuck detection: if the enemy has barely advanced for a short while while
-        // not already touching the player, flip the go-around side to break the loop.
-        const moved = dist2(ox, oy, e.x, e.y);
-        if (moved < (step * 0.25) ** 2 && d > e.r + p.r + 6) {
-          e.stuckT += dt;
-          if (e.stuckT > 0.35) { e.steerBias = -e.steerBias; e.stuckT = 0; }
-        } else {
-          e.stuckT = 0;
-        }
+        e.x += (dx / d) * sp * dt;
+        e.y += (dy / d) * sp * dt;
       }
       // contact damage
       if (d < e.r + p.r && p.inv <= 0) {
@@ -1795,6 +1699,9 @@
         if (p.hp <= 0) { endGame(); return; }
       }
     }
+
+    // enemies cannot overlap each other (or the boss)
+    separateEnemies();
 
     // boss
     const boss = state.boss;
@@ -1830,7 +1737,6 @@
     // boss projectiles
     for (const bb of state.bossBullets) {
       bb.x += bb.vx * dt; bb.y += bb.vy * dt; bb.life -= dt;
-      if (bb.life > 0 && pointInObstacle(bb.x, bb.y)) bb.life = 0; // walls block bolts too
       if (bb.life > 0 && p.inv <= 0 && dist2(bb.x, bb.y, p.x, p.y) < (bb.r + p.r) ** 2) {
         bb.life = 0; p.hp -= bb.dmg; p.inv = 0.5; state.shake = Math.max(state.shake, 8); Sound.hurt();
         floatText(p.x, p.y - 26, "-" + Math.round(bb.dmg), "#ff5050");
@@ -1840,7 +1746,7 @@
     state.bossBullets = state.bossBullets.filter(bb => bb.life > 0);
 
     // ground AoE zones (bomber): warn-up telegraph, then a brief damaging burst.
-    // Standing in the zone when it detonates hurts — step out to avoid it.
+    // Standing in the zone when it detonates hurts: step out to avoid it.
     for (const z of state.aoes) {
       if (z.warn > 0) {
         z.warn -= dt;
@@ -1848,8 +1754,8 @@
           z.active = 0.35; // burst duration
           state.shake = Math.max(state.shake, 6);
           for (let i = 0; i < 18; i++) {
-            const a = rand(0, Math.PI * 2), s = rand(60, 240);
-            state.particles.push({ x: z.x, y: z.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.3, 0.6), r: rand(2, 5), color: "#ffb347" });
+            const a = rand(0, Math.PI * 2), sp2 = rand(60, 240);
+            state.particles.push({ x: z.x, y: z.y, vx: Math.cos(a) * sp2, vy: Math.sin(a) * sp2, life: rand(0.3, 0.6), r: rand(2, 5), color: "#ffb347" });
           }
         }
       } else if (z.active > 0) {
@@ -1872,7 +1778,7 @@
         if (dist2(b.x, b.y, e.x, e.y) < (b.r + e.r) ** 2) {
           e.hp -= b.dmg; e.flash = 0.08;
           Sound.hit();
-          floatText(e.x, e.y - e.r - 4, "-" + Math.round(b.dmg), "#ffe08a");
+          floatText(e.x, e.y - e.r - 4, "-" + Math.round(b.dmg) + (b.crit ? "!" : ""), b.crit ? "#ff9d2e" : "#ffe08a");
           for (let i = 0; i < 3; i++) {
             const a = Math.atan2(b.vy, b.vx) + rand(-0.8, 0.8), s = rand(40, 140);
             state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
@@ -1886,7 +1792,7 @@
       if (b.life > 0 && boss && dist2(b.x, b.y, boss.x, boss.y) < (b.r + boss.r) ** 2) {
         if (!(b.hitSet && b.hitSet.has(boss))) {
           boss.hp -= b.dmg; boss.flash = 0.06;
-          floatText(boss.x + rand(-20, 20), boss.y - boss.r - 4, "-" + Math.round(b.dmg), "#ffe08a");
+          floatText(boss.x + rand(-20, 20), boss.y - boss.r - 4, "-" + Math.round(b.dmg) + (b.crit ? "!" : ""), b.crit ? "#ff9d2e" : "#ffe08a");
           for (let i = 0; i < 3; i++) {
             const a = Math.atan2(b.vy, b.vx) + rand(-0.8, 0.8), s = rand(40, 140);
             state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
@@ -1900,6 +1806,20 @@
 
     // orbs: magnet + collect
     for (const o of state.orbs) {
+      if (o.pull) {
+        // boss-kill vacuum: accelerate straight to the player from anywhere on the map
+        o.pullSpeed = Math.min(1600, (o.pullSpeed || 250) + 2200 * dt);
+        const pd = Math.sqrt(dist2(o.x, o.y, p.x, p.y)) || 1;
+        const step = Math.min(o.pullSpeed * dt, pd);
+        o.x += ((p.x - o.x) / pd) * step;
+        o.y += ((p.y - o.y) / pd) * step;
+        if (dist2(o.x, o.y, p.x, p.y) < (p.r + o.r) ** 2) {
+          o.dead = true;
+          if (o.kind === "xp") gainXp(o.val);
+          else if (o.kind === "ash") { const g = Math.round(o.val * (1 + p.ashBonus)); state.ash += g; floatText(p.x, p.y - 14, "+" + g + "🔥", "#ff9d4d"); }
+        }
+        continue;
+      }
       o.vx *= 0.9; o.vy *= 0.9;
       o.x += o.vx * dt; o.y += o.vy * dt;
       const d2 = dist2(o.x, o.y, p.x, p.y);
@@ -1913,13 +1833,12 @@
       if (d2 < (p.r + o.r) ** 2) {
         o.dead = true;
         if (o.kind === "xp") gainXp(o.val);
-        else if (o.kind === "ash") { state.ash += o.val; floatText(p.x, p.y - 14, "+" + o.val + "🔥", "#ff9d4d"); }
-        else if (o.kind === "loot") collectLoot(o.item);
+        else if (o.kind === "ash") { const g = Math.round(o.val * (1 + p.ashBonus)); state.ash += g; floatText(p.x, p.y - 14, "+" + g + "🔥", "#ff9d4d"); }
       }
     }
 
     // cleanup
-    state.bullets = state.bullets.filter(b => b.life > 0 && b.x > cam.x - 60 && b.x < cam.x + W + 60 && b.y > cam.y - 60 && b.y < cam.y + H + 60);
+    state.bullets = state.bullets.filter(b => b.life > 0 && b.x > cam.x - 60 && b.x < cam.x + VW + 60 && b.y > cam.y - 60 && b.y < cam.y + VH + 60);
     state.enemies = state.enemies.filter(e => e.hp > 0);
     state.orbs = state.orbs.filter(o => !o.dead);
 
@@ -1942,10 +1861,10 @@
     state.floaters = state.floaters.filter(f => f.life > 0);
 
     // camera follow
-    cam.x = clamp(p.x - W / 2, 0, Math.max(0, WORLD.w - W));
-    cam.y = clamp(p.y - H / 2, 0, Math.max(0, WORLD.h - H));
-    if (WORLD.w < W) cam.x = (WORLD.w - W) / 2;
-    if (WORLD.h < H) cam.y = (WORLD.h - H) / 2;
+    cam.x = clamp(p.x - VW / 2, 0, Math.max(0, WORLD.w - VW));
+    cam.y = clamp(p.y - VH / 2, 0, Math.max(0, WORLD.h - VH));
+    if (WORLD.w < VW) cam.x = (WORLD.w - VW) / 2;
+    if (WORLD.h < VH) cam.y = (WORLD.h - VH) / 2;
 
     if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 40);
 
@@ -1959,6 +1878,7 @@
     let sx = 0, sy = 0;
     if (state.shake > 0) { sx = rand(-state.shake, state.shake); sy = rand(-state.shake, state.shake); }
     ctx.save();
+    ctx.scale(zoom, zoom);
     ctx.translate(-cam.x + sx, -cam.y + sy);
 
     drawGround();
@@ -1993,7 +1913,7 @@
     for (const bb of state.bossBullets) {
       ctx.save();
       const col = bb.col || "#ff6a4a";
-      ctx.shadowBlur = 14; ctx.shadowColor = col;
+      ctx.shadowBlur = 14; ctx.shadowColor = bb.col || "#ff2a1a";
       ctx.fillStyle = col;
       ctx.beginPath(); ctx.arc(bb.x, bb.y, bb.r, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
@@ -2012,7 +1932,7 @@
     for (const f of state.floaters) {
       ctx.globalAlpha = clamp(f.life / 0.9, 0, 1);
       ctx.fillStyle = f.color;
-      ctx.font = "bold 15px 'Trebuchet MS', sans-serif";
+      ctx.font = "bold " + Math.round(15 / zoom) + "px 'Trebuchet MS', sans-serif";
       ctx.textAlign = "center";
       ctx.shadowBlur = 4; ctx.shadowColor = "#000";
       const rise = (0.9 - f.life) * 46;
@@ -2099,29 +2019,6 @@
       ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 3; ctx.stroke();
       ctx.fillStyle = theme.edge;
       ctx.beginPath(); ctx.arc(cx, cy, tower * 0.55, 0, Math.PI * 2); ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  // ground AoE: a pulsing warning ring during warn-up, a bright burst on detonation
-  function drawAoe(z) {
-    ctx.save();
-    if (z.warn > 0) {
-      const t = performance.now() / 120;
-      const prog = 1 - z.warn / 1.1; // fills up as it's about to go off
-      ctx.fillStyle = "rgba(255,120,30,0.12)";
-      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "rgba(255,150,40," + (0.5 + Math.sin(t) * 0.3) + ")";
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.stroke();
-      // inner fill ring showing countdown
-      ctx.fillStyle = "rgba(255,90,20,0.18)";
-      ctx.beginPath(); ctx.arc(z.x, z.y, z.r * prog, 0, Math.PI * 2); ctx.fill();
-    } else {
-      ctx.globalAlpha = clamp(z.active / 0.35, 0, 1);
-      ctx.shadowBlur = 24; ctx.shadowColor = "#ff7a2a";
-      ctx.fillStyle = "#ff8a3a";
-      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }
@@ -2267,15 +2164,15 @@
     const ex = e.x, ey = e.y;
     ctx.beginPath(); ctx.arc(ex - e.r * 0.3, ey - e.r * 0.1, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(ex + e.r * 0.3, ey - e.r * 0.1, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
-    // per-type cue so the three new enemies read at a glance
+    // per-type cue so the special enemies read at a glance
     if (e.type === "leaper") {
-      // trailing ring; brighter while charging a leap
+      // ring around the body; brighter while mid-leap
       ctx.strokeStyle = e.leaping > 0 ? "rgba(140,255,180,0.9)" : "rgba(110,255,160,0.35)";
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 5, 0, Math.PI * 2); ctx.stroke();
     } else if (e.type === "caster") {
       // arcane core
-      ctx.fillStyle = "rgba(185,139,255,0.9)";
+      ctx.fillStyle = "rgba(127,179,255,0.9)";
       ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.3, 0, Math.PI * 2); ctx.fill();
     } else if (e.type === "bomber") {
       // pulsing warning dot on top
@@ -2291,6 +2188,28 @@
       ctx.fillStyle = "#e0241c";
       ctx.fillRect(e.x - w / 2, e.y - e.r - 10, w * clamp(e.hp / e.maxHp, 0, 1), 4);
     }
+  }
+
+  function drawAoe(z) {
+    ctx.save();
+    if (z.warn > 0) {
+      const t = performance.now() / 120;
+      const prog = 1 - z.warn / 1.1; // fills up as it's about to go off
+      ctx.fillStyle = "rgba(255,120,30,0.12)";
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(255,150,40," + (0.5 + Math.sin(t) * 0.3) + ")";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.stroke();
+      // inner fill ring showing countdown
+      ctx.fillStyle = "rgba(255,90,20,0.18)";
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r * prog, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.globalAlpha = clamp(z.active / 0.35, 0, 1);
+      ctx.shadowBlur = 24; ctx.shadowColor = "#ff7a2a";
+      ctx.fillStyle = "#ff8a3a";
+      ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
   }
 
   function drawBoss(b) {
@@ -2327,7 +2246,7 @@
       ctx.strokeStyle = "#3a2010"; ctx.lineWidth = 3;
       roundRect(c.x - c.r, c.y - c.r * 0.6, c.r * 2, c.r * 1.4, 5);
       ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#6a4a30"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
+      ctx.fillStyle = "#6a4a30"; ctx.font = "bold " + Math.round(12 / zoom) + "px sans-serif"; ctx.textAlign = "center";
       ctx.fillText("vacío", c.x, c.y + 4); ctx.textAlign = "left";
       return;
     }
@@ -2350,12 +2269,12 @@
     ctx.restore();
     // cost tag
     ctx.fillStyle = state.ash >= c.cost ? "#ffd84d" : "#b08a72";
-    ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("🔥 " + c.cost, c.x, c.y + c.r + 18);
+    ctx.font = "bold " + Math.round(13 / zoom) + "px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("🔥 " + c.cost, c.x, c.y + c.r + 18 / zoom);
     if (c.glow > 0.3) {
       ctx.fillStyle = "#fff0c2";
-      ctx.font = "bold 12px sans-serif";
-      ctx.fillText("[E]", c.x, c.y + c.r + 34);
+      ctx.font = "bold " + Math.round(12 / zoom) + "px sans-serif";
+      ctx.fillText("[E]", c.x, c.y + c.r + 34 / zoom);
     }
     ctx.textAlign = "left";
   }
@@ -2365,7 +2284,7 @@
     let color = "#5aa0ff";
     if (o.kind === "xp") color = "#6fe06f";
     else if (o.kind === "ash") color = "#ff9d4d";
-    else if (o.kind === "loot") color = o.tier.color;
+    else if (o.kind === "loot") color = "#3d9bff"; // ground loot is always blue
     const t = performance.now() / 300;
     const pulse = 1 + Math.sin(t + o.x) * 0.12;
     ctx.shadowBlur = o.kind === "loot" ? 16 : 8;
@@ -2407,7 +2326,6 @@
   const bossWrap = el("boss-wrap"), bossFill = el("boss-fill");
   const warningEl = el("warning");
   const interPanel = el("inter-panel");
-  const dashBtnEl = el("dash-btn");
 
   let warnTimer = null;
   function showWarning(html) {
@@ -2428,13 +2346,6 @@
     if (state && state.phase === "intermission") endIntermission();
   });
 
-  // skills clickable/tappable (for mobile)
-  [0, 1, 2].forEach(i => {
-    const node = el("skill-" + i);
-    node.addEventListener("click", () => useSkill(i));
-    node.addEventListener("touchstart", e => { e.preventDefault(); e.stopPropagation(); useSkill(i); }, { passive: false });
-  });
-
   // ---------------------------------------------------------------- Inventory UI
   const invScreen = el("inv-screen");
   const powerTxt = el("power-txt");
@@ -2453,69 +2364,95 @@
   }
   function toggleInventory() { invOpen ? closeInventory() : openInventory(); }
 
-  function itemCard(item, context) {
+  function itemCard(item) {
     const div = document.createElement("div");
+    const tier = RARITY[item.level];
     div.className = "item";
-    div.style.borderLeftColor = item.tier.color;
-    const affixHtml = item.affixes.map(a => {
-      const meta = AFFIX[a.key];
-      return `<span style="color:${meta.color}">${meta.fmt(a.val)} ${meta.label}</span>`;
-    }).join("");
+    div.style.borderLeftColor = tier.color;
+    const totalPts = item.stats.reduce((n, st) => n + st.points, 0);
     div.innerHTML =
-      `<div class="item-head" style="color:${item.tier.color}">${item.icon} ${item.name}
-        <span style="color:var(--muted);font-weight:normal;font-size:11px">(${item.slotLabel} · ${item.tier.name})</span>
-        <span class="pw">⚡${item.power}</span>
-      </div>
-      <div class="item-affixes">${affixHtml || "Sin atributos"}</div>`;
-    if (context === "bag") {
-      const actions = document.createElement("div");
-      actions.className = "item-actions";
-      const eq = document.createElement("button");
-      eq.className = "mini equip"; eq.textContent = "Equipar";
-      eq.addEventListener("click", () => equipFromInventory(item.id));
-      const sv = document.createElement("button");
-      sv.className = "mini salvage"; sv.textContent = "Fundir 🔥";
-      sv.addEventListener("click", () => discardFromInventory(item.id));
-      actions.appendChild(eq); actions.appendChild(sv);
-      div.appendChild(actions);
+      `<div class="item-head" style="color:${tier.color}">${item.icon} ${item.name}
+        <span style="color:var(--muted);font-weight:normal;font-size:11px">(${item.slotLabel} · ${tier.name} · ${totalPts} pts · rareza +${Math.round(item.level * RARITY_BONUS * 100)}%)</span>
+      </div>`;
+
+    // one row per stat: current value -> value with +1 point, and its own "+1" button
+    for (const st of item.stats) {
+      const meta = AFFIX[st.key];
+      const row = document.createElement("div");
+      row.className = "item-stat";
+      row.innerHTML = `<span class="item-affixes"><span style="color:${meta.color}">${meta.fmt(statCur(item, st))} ${meta.label}</span>`
+        + ` <span style="color:#6affa0">→ ${meta.fmt(statValue(item, st, st.points + 1, item.level))}</span> <span style="color:var(--muted)">(${st.points} pts)</span></span>`;
+      const ptBtn = document.createElement("button");
+      ptBtn.className = "mini equip";
+      ptBtn.textContent = "+1 · " + POINT_COST + " 🔥";
+      ptBtn.disabled = state.ash < POINT_COST;
+      ptBtn.addEventListener("click", () => upgradePoint(item.slot, st.key));
+      row.appendChild(ptBtn);
+      div.appendChild(row);
     }
+
+    const actions = document.createElement("div");
+    actions.className = "item-actions";
+    const btn = document.createElement("button");
+    btn.className = "mini equip";
+    if (item.level >= MAX_LEVEL) { btn.textContent = "Rareza máxima"; btn.disabled = true; }
+    else {
+      const cost = rarityCost(item.level);
+      btn.textContent = "Rareza → " + RARITY[item.level + 1].name + " · " + cost + " 🔥";
+      btn.disabled = state.ash < cost;
+      btn.addEventListener("click", () => upgradeItem(item.slot));
+    }
+    actions.appendChild(btn);
+    div.appendChild(actions);
     return div;
+  }
+
+  // Stats panel: splits each stat into what comes from level (base) and from equipment.
+  function renderStatsPanel(p) {
+    const f1 = v => (Math.round(v * 10) / 10).toString();
+    const shots = 1 / p.base.fireRate;           // shots/s from level only
+    const shotsTotal = 1 / p.fireRate;           // shots/s with equipment
+    const rows = [
+      { label: "Daño",      color: AFFIX.dmg.color,      lvl: p.base.dmg,   eq: equipSum(p, "dmg"),      fmt: v => f1(v) },
+      { label: "Vida máx",  color: AFFIX.maxHp.color,    lvl: p.base.maxHp, eq: equipSum(p, "maxHp"),    fmt: v => f1(v) },
+      { label: "Velocidad", color: AFFIX.speed.color,    lvl: p.base.speed, eq: equipSum(p, "speed"),    fmt: v => f1(v) },
+      { label: "Cadencia",  color: AFFIX.fireRate.color, lvl: shots,        eq: shotsTotal - shots,      fmt: v => f1(v * 100) / 100 + "/s" , dec: 2 },
+      { label: "Regen",     color: AFFIX.regen.color,    lvl: p.base.regen, eq: equipSum(p, "regen"),    fmt: v => f1(v) + "/s" },
+      { label: "Brasas",    color: AFFIX.ashBonus.color, lvl: 0,            eq: equipSum(p, "ashBonus"), fmt: v => f1(v) + "%" },
+      { label: "Crítico",   color: AFFIX.crit.color,     lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%", cap: 100 },
+      { label: "Recarga",   color: AFFIX.cdr.color,      lvl: 0,            eq: equipSum(p, "cdr"),      fmt: v => f1(v) + "%", cap: CDR_CAP },
+    ];
+    const fmtV = (r, v) => r.dec ? (Math.round(v * 100) / 100) + "/s" : r.fmt(v);
+    el("stats-panel").innerHTML = rows.map(r => {
+      const raw = r.lvl + r.eq;
+      const total = r.cap ? Math.min(raw, r.cap) : raw;
+      const capped = r.cap && raw > r.cap;
+      const lp = total > 0 ? Math.round(r.lvl / total * 100) : 0;
+      const ep = total > 0 ? 100 - lp : 0;
+      return `<div class="stat-row">
+        <div class="sr-head"><span style="color:${r.color}">${r.label}</span><span>${fmtV(r, total)}${capped ? " (tope)" : ""}</span></div>
+        <div class="sr-bar"><div class="sr-lvl" style="width:${lp}%"></div><div class="sr-eq" style="width:${ep}%"></div></div>
+        <div class="sr-detail"><span><b class="l">Nivel ${fmtV(r, r.lvl)}</b> (${lp}%)</span><span><b class="e">Equipo +${fmtV(r, r.eq)}</b> (${ep}%)</span></div>
+      </div>`;
+    }).join("");
   }
 
   function renderInventory() {
     if (!state) return;
     const p = state.player;
-    el("inv-power").textContent = "Poder total: " + p.power
+    renderStatsPanel(p);
+    el("inv-power").textContent = "Brasas 🔥 " + state.ash
       + "  ·  Daño " + Math.round(p.dmg)
       + "  ·  Vida " + Math.round(p.maxHp)
       + "  ·  Vel " + Math.round(p.speed)
-      + "  ·  Suerte " + Math.round(p.luck * 100) + "%";
-
+      + "  ·  Brasas +" + Math.round(p.ashBonus * 100) + "%"
+      + "  ·  Crit " + Math.round(p.crit * 100) + "%"
+      + "  ·  Recarga " + Math.round(p.cdr * 100) + "%";
     const equipList = el("equip-list");
     equipList.innerHTML = "";
     for (const slot of SLOTS) {
       const it = p.equipped[slot.key];
-      if (it) {
-        equipList.appendChild(itemCard(it, "equip"));
-      } else {
-        const empty = document.createElement("div");
-        empty.className = "item empty";
-        empty.textContent = slot.icon + " " + slot.label + " — vacío";
-        equipList.appendChild(empty);
-      }
-    }
-
-    const bag = el("bag-list");
-    bag.innerHTML = "";
-    el("inv-count").textContent = "(" + p.inventory.length + "/20)";
-    if (p.inventory.length === 0) {
-      const e = document.createElement("div");
-      e.className = "bag-empty";
-      e.textContent = "Vacía. Recoge botín para llenarla.";
-      bag.appendChild(e);
-    } else {
-      const sorted = p.inventory.slice().sort((a, b) => b.power - a.power);
-      for (const it of sorted) bag.appendChild(itemCard(it, "bag"));
+      if (it) equipList.appendChild(itemCard(it));
     }
   }
 
@@ -2533,7 +2470,6 @@
     dashFill.style.width = (dashReady ? 100 : (1 - p.dashCd / p.dashMax) * 100) + "%";
     dashFill.classList.toggle("ready", dashReady);
     dashTxt.textContent = dashReady ? "LISTO" : p.dashCd.toFixed(1) + "s";
-    if (dashBtnEl) dashBtnEl.classList.toggle("cooling", !dashReady);
 
     // ability cooldown overlays (curtain shrinks to 0% when ready)
     for (let i = 0; i < 3; i++) {
@@ -2561,8 +2497,7 @@
       tideTimer.textContent = "OLEADA " + state.wave;
       tideTimer.classList.remove("low");
       const cleared = state.waveQuota - state.toSpawn - state.alive;
-      const waiting = state.burstGap > 0 ? "  ⏳ oleada entrante" : "";
-      waveProgress.textContent = clamp(cleared, 0, state.waveQuota) + " / " + state.waveQuota + (state.boss ? "  👹" : "") + waiting;
+      waveProgress.textContent = clamp(cleared, 0, state.waveQuota) + " / " + state.waveQuota + (state.boss ? "  👹" : "");
     }
   }
 
@@ -2670,8 +2605,10 @@
     resumeGame();
     spawnObstacles();
     spawnChests();
-    cam.x = clamp(state.player.x - W / 2, 0, Math.max(0, WORLD.w - W));
-    cam.y = clamp(state.player.y - H / 2, 0, Math.max(0, WORLD.h - H));
+    cam.x = clamp(state.player.x - VW / 2, 0, Math.max(0, WORLD.w - VW));
+    cam.y = clamp(state.player.y - VH / 2, 0, Math.max(0, WORLD.h - VH));
+    if (WORLD.w < VW) cam.x = (WORLD.w - VW) / 2;
+    if (WORLD.h < VH) cam.y = (WORLD.h - VH) / 2;
     state.running = true;
     state.over = false;
     menuScreen.classList.add("hidden");
