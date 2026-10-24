@@ -14,10 +14,10 @@
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 175 -> la proxima entrega 176,
-         luego 177, 178, etc. (se muestra como 0.175, 0.176, 0.177...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 181 -> la proxima entrega 182,
+         luego 183, 184, etc. (se muestra como 0.181, 0.182, 0.183...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.180</div>
+    <div id="build-tag">Build 0.181</div>
 
     <div id="float-layer"></div>
 
@@ -69,6 +69,7 @@
           </div>
           <div class="ash"><span>🔥</span><span id="ash-txt">0</span><span
               style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">cenizas</span></div>
+          <button id="inv-btn">🎒 Inventario (I)</button>
         </div>
 
         <div class="panel" style="text-align:right">
@@ -80,7 +81,6 @@
               id="loot-txt">0</b></div>
           <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Poder</span><b id="power-txt"
               style="color:#ffd84d">0</b></div>
-          <button id="inv-btn">🎒 Inventario (I)</button>
         </div>
       </div>
 
@@ -219,8 +219,8 @@
               <p><b style="color:var(--ember-glow)">Esquiva.</b> Pulsa <kbd>Espacio</kbd> para hacer un dash con una
                 breve invulnerabilidad. Tiene tiempo de recarga.</p>
               <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu
-                mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza).
-                Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats
+                mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 40 + 5 × rareza).
+                Al llegar a +5 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats
                 ya comprados) para repetir el ciclo en el rango superior.</p>
               <p><b style="color:var(--ember-glow)">Rareza.</b> La rareza de una pieza multiplica <b>todos sus
                 stats</b>:

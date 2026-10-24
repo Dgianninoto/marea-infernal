@@ -285,11 +285,11 @@ var RARITY = [
   { name: "Único",      color: "#c9622b" },
 ];
 var MAX_LEVEL = RARITY.length - 1;
-var MAX_PLUS = 10;            // an item holds at most +10 (each stat point = +1); rarity can only be raised at +10
-var ASH_SCORE_MULT = 2;        // puntos de puntaje final por cada ceniza que sobra sin gastar
-var POINT_BASE_COST = 25;     // brasas per +1: 25 + 5 * rarity index of the item
+var MAX_PLUS = 5;             // an item holds at most +5 (each stat point = +1); rarity can only be raised at +5
+var ASH_SCORE_MULT = 2;        // puntos de puntaje final por cada ceniza (en mano + gastada)
+var POINT_BASE_COST = 40;     // brasas per +1: 40 + 5 * rarity index of the item
 var POINT_RARITY_COST = 5;
-var itemPlus = it => it.plus; // upgrade indicator 0..10 (stat points themselves are permanent)
+var itemPlus = it => it.plus; // upgrade indicator 0..5 (stat points themselves are permanent)
 function pointCost(it) { return POINT_BASE_COST + it.level * POINT_RARITY_COST; }
 var RARITY_BASE_COST = 250;   // brasas for the first rarity level
 var RARITY_GROWTH = 1.5;      // each rarity level costs 150% of the previous one
@@ -327,12 +327,12 @@ var WEAPONS = {
     // Esquiva especial (parpadeo arcano): recarga 75 % mas rapida (cooldown / 1.75) y 25 % mas larga
     // (distancia x1.25), con efecto violeta similar al teletransporte de los enemigos.
     dashRecharge: 1.75, dashLength: 1.25, dashFx: "blink",
-    statSteps: { cdr: 8, fireRate: 0.3, speed: 0.5 }, // per stat point bought with this weapon: Recarga % (default 5), Cadencia A/s (default 0.2) and Velocidad (boots, default 1)
-    // weapon piece stats: Poder (base 0%, +0.5% per point) replaces Crítico for the mage. Poder agranda el
+    statSteps: { cdr: 16, fireRate: 0.6, speed: 1 }, // per stat point bought with this weapon: Recarga % (default 10), Cadencia A/s (default 0.4) and Velocidad (boots, default 2)
+    // weapon piece stats: Poder (base 0%, +1% per point) replaces Crítico for the mage. Poder agranda el
     // Meteorito (+% de radio) y añade orbes a la Salva arcana (1 orbe extra cada 10 % hasta cerrar el circulo).
     weaponStats: [
-      { key: "dmg",   base: 8, step: 0.5 },
-      { key: "poder", base: 0, step: 0.5 } ],
+      { key: "dmg",   base: 8, step: 1 },
+      { key: "poder", base: 0, step: 1 } ],
     skills: [
       { name: "Orbe arcano", icon: "🔮", cooldown: 0.58 },
       { name: "Salva arcana", icon: "✨", cooldown: 5.5 },
@@ -346,12 +346,12 @@ var WEAPONS = {
     baseSpeed: 125,      // base Velocidad at level 1 (others use 150); level-ups still add +4
     baseHp: 200,         // base Vida at level 1 (others use 100); level-ups still add +12
     baseRegen: 1,        // base Regen at level 1 (others use 0.5) in HP/s
-    fireRateStep: 0.1,   // gloves: A/s per Cadencia point with this weapon (default 0.2)
-    // weapon piece stats: Bloqueo (base 10%, +0.5% per point) replaces Crítico for the axe.
-    // Max with all 50 points in Bloqueo at Único: (10 + 50 * 0.5) * 5 = 175%
+    fireRateStep: 0.2,   // gloves: A/s per Cadencia point with this weapon (default 0.4)
+    // weapon piece stats: Bloqueo (base 10%, +1% per point) replaces Crítico for the axe.
+    // Max with all 25 points in Bloqueo at Único: (10 + 25 * 1) * 5 = 175%
     weaponStats: [
-      { key: "dmg",   base: 8,  step: 1 },
-      { key: "block", base: 10, step: 0.5 } ],
+      { key: "dmg",   base: 8,  step: 2 },
+      { key: "block", base: 10, step: 1 } ],
     skills: [
       { name: "Tajo", icon: "🪓", cooldown: 0.625 },
       { name: "Hacha arrojadiza", icon: "⚔️", cooldown: 5.5 },
@@ -365,15 +365,15 @@ function getWeapon(id) { return WEAPONS[id] || WEAPONS.bow; }
 // each piece has one or more stats; every stat has its own base value and its own stat points
 var SLOTS = [
   { key: "arma",    label: "Arma",    icon: "🏹", name: "Arco",    stats: [
-      { key: "dmg",  base: 8, step: 1 },
-      { key: "crit", base: 10, step: 2 } ] },
-  { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [{ key: "ashBonus", base: 0, step: 2 }] },
-  { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 5 }] },
+      { key: "dmg",  base: 8, step: 2 },
+      { key: "crit", base: 10, step: 4 } ] },
+  { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [{ key: "ashBonus", base: 0, step: 4 }] },
+  { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 10 }] },
   { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [
-      { key: "fireRate", base: 0, step: 0.2 },
-      { key: "cdr",      base: 0, step: 5 } ] },
-  { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 1 }] },
-  { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0, step: 0.1 }] },
+      { key: "fireRate", base: 0, step: 0.4 },
+      { key: "cdr",      base: 0, step: 10 } ] },
+  { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 2 }] },
+  { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0, step: 0.2 }] },
 ];
 
 // value of one stat of a piece: (base + points * step) * RARITY_MULT[rarity level]
@@ -470,10 +470,13 @@ function recalcStats(p) {
     const it = p.equipped[sk];
     if (!it) continue;
     power += (it.level + 1) * 10;
-    for (const st of it.stats) power += st.points * 2;
+    for (const st of it.stats) power += st.points * 4; // x4 (antes x2): cada punto vale el doble desde que el tope es +5
   }
   p.power = power;
 }
+
+// Total de brasas de la partida: las que quedan en mano + las gastadas en mejoras.
+function ashTotal() { return state.ash + state.ashSpent; }
 
 // How many points "Max" can buy for a piece: up to +MAX_PLUS (the rarity threshold) or as many as the brasas allow.
 function maxAffordablePoints(it) {
@@ -488,7 +491,9 @@ function upgradeMax(slotKey, statKey) {
   if (!st) return;
   const n = maxAffordablePoints(it);
   if (n < 1) return;
-  state.ash -= pointCost(it) * n;
+  const cost = pointCost(it) * n;
+  state.ash -= cost;
+  state.ashSpent += cost;
   st.points += n;
   it.plus += n;
   state.lootCount += n;
@@ -507,6 +512,7 @@ function upgradePoint(slotKey, statKey) {
   const cost = pointCost(it);
   if (state.ash < cost) return;
   state.ash -= cost;
+  state.ashSpent += cost;
   st.points++;
   it.plus++;
   state.lootCount++;
@@ -520,10 +526,11 @@ function upgradePoint(slotKey, statKey) {
 function upgradeItem(slotKey) {
   const p = state.player;
   const it = p.equipped[slotKey];
-  if (!it || it.level >= MAX_LEVEL || itemPlus(it) < MAX_PLUS) return; // needs +10 first
+  if (!it || it.level >= MAX_LEVEL || itemPlus(it) < MAX_PLUS) return; // needs +5 first
   const cost = rarityCost(it.level);
   if (state.ash < cost) return;
   state.ash -= cost;
+  state.ashSpent += cost;
   it.level++;
   it.plus = 0; // indicator back to +0; the stat points already bought are kept
   state.lootCount++; // counts upgrades done
@@ -553,6 +560,7 @@ function newState(weaponId) {
     kills: 0,
     lootCount: 0,
     ash: 0,
+    ashSpent: 0,        // brasas gastadas en mejoras (para el total de la partida)
     score: 0,
     shake: 0,
     boss: null,         // alias del primer jefe vivo (null si no hay)
@@ -1533,6 +1541,7 @@ function drawOrb(o) {
   else if (o.kind === "loot") color = "#3d9bff"; // ground loot is always blue
   const t = performance.now() / 300;
   const pulse = 1 + Math.sin(t + o.x) * 0.12;
+  if (o.kind === "xp" || o.kind === "ash") ctx.globalAlpha = 0.55; // brasas y experiencia en el suelo mas translucidas
   ctx.shadowBlur = o.kind === "loot" ? 16 : 8;
   ctx.shadowColor = color;
   ctx.fillStyle = color;
@@ -1681,7 +1690,7 @@ function itemCard(item) {
     const ptBtn = document.createElement("button");
     ptBtn.className = "mini equip";
     const pc = pointCost(item);
-    ptBtn.textContent = plusFull ? "+10 máx" : "+1 · " + pc + " 🔥";
+    ptBtn.textContent = plusFull ? "+" + MAX_PLUS + " máx" : "+1 · " + pc + " 🔥";
     ptBtn.disabled = plusFull || state.ash < pc;
     ptBtn.addEventListener("click", () => upgradePoint(item.slot, st.key));
     const btns = document.createElement("span");
@@ -1901,13 +1910,14 @@ async function fetchGlobalScores() {
 }
 
 // Add a run to the board. Returns the saved entry (so we can highlight it).
-function addScore(entry) {
+// localOnly = true: solo ranking local del dispositivo, NO se envia al ranking global.
+function addScore(entry, localOnly) {
   const list = loadScores();
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
   if (list.length > MAX_SCORES) list.length = MAX_SCORES;
   saveScores(list);
-  sbInsertScore(entry);
+  if (!localOnly) sbInsertScore(entry);
   return entry;
 }
 // Que ranking se muestra: "global" (Supabase) o "local" (este dispositivo). Se recuerda mientras dure la sesion.
@@ -2037,8 +2047,8 @@ function endGame(victory) {
   paused = false;
   pauseScreen.classList.add("hidden");
   const p = state.player;
-  // score rewards waves reached, levels, bosses felled and ash hoarded
-  const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * ASH_SCORE_MULT + state.bossesDown * 1500 + (victory ? 10000 : 0);
+  // score rewards waves reached, levels, bosses felled and ash collected (held + spent)
+  const finalScore = state.score + state.wave * 150 + p.level * 100 + ashTotal() * ASH_SCORE_MULT + state.bossesDown * 1500 + (victory ? 10000 : 0);
   bossWrap.style.display = "none";
   interPanel.style.display = "none";
   el("over-title").textContent = victory ? "🏆 ¡Victoria!" : "Has caído";
@@ -2049,13 +2059,13 @@ function endGame(victory) {
   el("final-wave").textContent = state.wave;
   el("final-kills").textContent = state.kills;
   el("final-loot").textContent = state.lootCount;
-  el("final-ash").textContent = state.ash.toLocaleString() + " (+" + (state.ash * ASH_SCORE_MULT).toLocaleString() + " pts)";
+  el("final-ash").textContent = ashTotal().toLocaleString() + " (+" + (ashTotal() * ASH_SCORE_MULT).toLocaleString() + " pts)";
   el("final-score").textContent = finalScore.toLocaleString();
 
   // stash this run so the player can name & save it
   pendingRun = {
     score: finalScore, level: p.level, wave: state.wave,
-    kills: state.kills, loot: state.lootCount, ash: state.ash,
+    kills: state.kills, loot: state.lootCount, ash: ashTotal(),
     boss: state.bossesDown > 0, victory, date: Date.now(),
   };
   if (state.debugUsed) pendingRun = null; // partida con debug: no se guarda ni en local ni en global
@@ -2121,14 +2131,14 @@ function endGameToMenu() {
     state.running = false;
     state.over = true;
     const p = state.player;
-    const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * ASH_SCORE_MULT + state.bossesDown * 1500;
+    const finalScore = state.score + state.wave * 150 + p.level * 100 + ashTotal() * ASH_SCORE_MULT + state.bossesDown * 1500;
     if (!state.debugUsed) { // con debug no se guarda el abandono ni en local ni en global
       addScore({
         id: "r" + Date.now() + Math.random().toString(36).slice(2, 6),
         name: "Abandono", score: finalScore, level: p.level, wave: state.wave,
-        kills: state.kills, loot: state.lootCount, ash: state.ash,
+        kills: state.kills, loot: state.lootCount, ash: ashTotal(),
         boss: state.bossesDown > 0, date: Date.now(),
-      });
+      }, true); // abandono: solo ranking local, nunca se envia al global
     }
     pendingRun = null;
   }

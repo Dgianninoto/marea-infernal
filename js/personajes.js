@@ -311,6 +311,27 @@ function damageWeaponRings(x, y, radius, rings, baseDamage) {
   }
 }
 
+// Dano por anillos concentricos: cada enemigo recibe un solo golpe, el del anillo mas interior que
+// toque su cuerpo (distancia al centro - radio del enemigo <= radio del anillo).
+function damageWeaponRings(x, y, radius, rings, baseDamage) {
+  const ringFor = t => {
+    const d = Math.sqrt(dist2(x, y, t.x, t.y));
+    if (d > radius + t.r) return null;
+    for (const ring of rings) if (d - t.r <= radius * ring.r) return ring;
+    return null;
+  };
+  for (const enemy of state.enemies.slice()) {
+    if (enemy.hp <= 0) continue;
+    const ring = ringFor(enemy);
+    if (ring) damageWeaponEnemy(enemy, baseDamage * ring.mult);
+  }
+  for (const boss of state.bosses.slice()) {
+    if (boss.hp <= 0) continue;
+    const ring = ringFor(boss);
+    if (ring) damageWeaponBoss(boss, baseDamage * ring.mult);
+  }
+}
+
 function damageWeaponCone(angle, range, halfAngle, damage) {
   const fx = Math.cos(angle), fy = Math.sin(angle);
   const tangent = Math.tan(halfAngle);
