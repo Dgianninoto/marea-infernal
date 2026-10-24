@@ -350,7 +350,7 @@ var WEAPONS = {
     // weapon piece stats: Bloqueo (base 10%, +1% per point) replaces Crítico for the axe.
     // Max with all 25 points in Bloqueo at Único: (10 + 25 * 1) * 5 = 175%
     weaponStats: [
-      { key: "dmg",   base: 8,  step: 2 },
+      { key: "dmg",   base: 8,  step: 2.5 }, // Daño por punto de cenizas del Barbaro: 2.5
       { key: "block", base: 10, step: 1 } ],
     skills: [
       { name: "Tajo", icon: "🪓", cooldown: 0.625 },
@@ -1691,7 +1691,7 @@ function itemCard(item) {
     const ptBtn = document.createElement("button");
     ptBtn.className = "mini equip";
     const pc = pointCost(item);
-    ptBtn.textContent = plusFull ? "+" + MAX_PLUS + " máx" : "+1 · " + pc + " 🔥";
+    ptBtn.textContent = plusFull ? "+" + MAX_PLUS : "+1 · " + pc + " 🔥";
     ptBtn.disabled = plusFull || state.ash < pc;
     ptBtn.addEventListener("click", () => upgradePoint(item.slot, st.key));
     const btns = document.createElement("span");
@@ -1701,7 +1701,7 @@ function itemCard(item) {
       const n = maxAffordablePoints(item);
       const maxBtn = document.createElement("button");
       maxBtn.className = "mini equip";
-      maxBtn.textContent = n >= 1 ? "Máx +" + n + " · " + (n * pc) + " 🔥" : "Máx";
+      maxBtn.textContent = n >= 1 ? "+" + n + " · " + (n * pc) + " 🔥" : "+0";
       maxBtn.title = "Sube este stat hasta +" + MAX_PLUS + " (listo para subir de rareza) o hasta donde alcancen las cenizas";
       maxBtn.disabled = n < 1;
       maxBtn.addEventListener("click", () => upgradeMax(item.slot, st.key));

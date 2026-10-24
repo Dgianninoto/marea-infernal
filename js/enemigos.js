@@ -187,7 +187,6 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
   let x = clamp(p.x + Math.cos(ang) * 600, 80, WORLD.w - 80);
   let y = clamp(p.y + Math.sin(ang) * 600, 80, WORLD.h - 80);
   const w = state.wave;
-  const scale = 1 + (w - 1) * 0.12;
 
   const hasLeap  = w >= 20; // Oleada 20+: salto aplastante
   const hasBombs = w >= 30; // Oleada 30+: lluvia de AoEs multiples
@@ -206,7 +205,7 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
     type: "boss", def, isFinal, finalIdx, finalTotal,
     name: def.name,
     speed: 85 + Math.min(40, w),
-    hp: 2600 * scale * hpMult, maxHp: 2600 * scale * hpMult,
+    hp: def.hp * hpMult, maxHp: def.hp * hpMult, // vida propia de cada jefe (ver BOSS_ROSTER en jefes.js)
     dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT,
     xp: 600 + w * 20, flash: 0,
     color: (hasLeap && hasBombs) ? "#6a0a3a" : (hasBombs ? "#7a1a08" : "#8a0f2a"),
