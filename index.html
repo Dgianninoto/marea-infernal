@@ -14,10 +14,10 @@
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 177 -> la proxima entrega 178,
-         luego 179, 180, etc. (se muestra como 0.177, 0.178, 0.179...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 175 -> la proxima entrega 176,
+         luego 177, 178, etc. (se muestra como 0.175, 0.176, 0.177...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.177</div>
+    <div id="build-tag">Build 0.180</div>
 
     <div id="float-layer"></div>
 
@@ -69,7 +69,6 @@
           </div>
           <div class="ash"><span>🔥</span><span id="ash-txt">0</span><span
               style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">cenizas</span></div>
-          <button id="inv-btn">🎒 Inventario (I)</button>
         </div>
 
         <div class="panel" style="text-align:right">
@@ -81,6 +80,7 @@
               id="loot-txt">0</b></div>
           <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Poder</span><b id="power-txt"
               style="color:#ffd84d">0</b></div>
+          <button id="inv-btn">🎒 Inventario (I)</button>
         </div>
       </div>
 
@@ -219,8 +219,8 @@
               <p><b style="color:var(--ember-glow)">Esquiva.</b> Pulsa <kbd>Espacio</kbd> para hacer un dash con una
                 breve invulnerabilidad. Tiene tiempo de recarga.</p>
               <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu
-                mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 40 + 5 × rareza).
-                Al llegar a +5 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats
+                mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza).
+                Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats
                 ya comprados) para repetir el ciclo en el rango superior.</p>
               <p><b style="color:var(--ember-glow)">Rareza.</b> La rareza de una pieza multiplica <b>todos sus
                 stats</b>:
@@ -237,8 +237,12 @@
               <p><b style="color:#ffd84d">Duende del Tesoro.</b> Con poca probabilidad aparece un duende que huye de
                 ti dejando cenizas. No hace daño, pero acaba escapando por un portal dorado: si lo golpeas mientras lo
                 abre, lo interrumpes; tras unos 25 s ya no se puede detener. Derrótalo para ganar 200 cenizas.</p>
-              <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. Desde la oleada 20 salta
-                para aplastar; desde la 30 invoca lluvia de fuego. Al derrotarlo deja un cofre. Cada 5 oleadas
+              <p><b style="color:#ff5050">Los jefes.</b> Aparece uno distinto cada 10 oleadas: Kraken Abisal (10),
+                Cangrejo Acorazado (20), Medusa de Magma (30), Ídolo Rúnico (40) y el Señor de la Marea (50). Desde la
+                oleada 20 saltan para aplastar; desde la 30 invocan lluvia de fuego. Al derrotarlos dejan un cofre.
+                Tras la oleada 50 hay una última <b>pausa</b> (“Prepárate para el Desafío final”) y, al continuar,
+                llega el <b>Desafío final</b>: tres jefes al azar <b>a la vez</b>, con el <b>doble de vida</b> y sin
+                enemigos normales. Al caer los tres ganas la partida y puedes registrar tu nombre. Cada 5 oleadas
                 hay una <b>pausa</b> (sin nuevos enemigos hasta pulsar Continuar) para revisar tu equipo, y cada 10
                 cambia el <b>escenario</b>.</p>
             </div>
@@ -312,15 +316,16 @@
 
     <!-- Game over overlay -->
     <div class="overlay hidden" id="over-screen">
-      <div class="card">
+      <canvas id="fireworks"></canvas>
+      <div class="card" style="position:relative;z-index:1">
         <h2 id="over-title">Has caído</h2>
-        <p>La marea te ha consumido. Esto es lo que lograste:</p>
+        <p id="over-sub">La marea te ha consumido. Esto es lo que lograste:</p>
         <div class="stats-grid">
           <div>Nivel alcanzado <b id="final-level">1</b></div>
           <div>Oleada <b id="final-wave">1</b></div>
           <div>Demonios abatidos <b id="final-kills">0</b></div>
           <div>Mejoras realizadas <b id="final-loot">0</b></div>
-          <div>Cenizas candentes <b id="final-ash">0</b></div>
+          <div>Cenizas sin usar <b id="final-ash">0</b></div>
           <div>Puntuación <b id="final-score">0</b></div>
         </div>
         <p id="best-score" style="color:var(--ember-glow)"></p>
@@ -343,6 +348,7 @@
      personajes.js y enemigos.js los usan. enemigos.js arranca el juego al final. -->
   <script src="js/mecanica.js"></script>
   <script src="js/personajes.js"></script>
+  <script src="js/jefes.js"></script>
   <script src="js/enemigos.js"></script>
 </body>
 

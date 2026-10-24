@@ -65,7 +65,7 @@ function findHomingTarget(b, range) {
     if (c < bestClaims || (c === bestClaims && d < bestD)) { best = t; bestClaims = c; bestD = d; }
   };
   for (const e of state.enemies) consider(e);
-  consider(state.boss);
+  for (const bs of state.bosses) consider(bs);
   return best;
 }
 
@@ -282,10 +282,11 @@ function damageWeaponArea(x, y, radius, damage, excludedTarget) {
       damageWeaponEnemy(enemy, damage);
     }
   }
-  const boss = state.boss;
-  if (boss && boss !== excludedTarget && boss.hp > 0 &&
-      dist2(x, y, boss.x, boss.y) <= (radius + boss.r) ** 2) {
-    damageWeaponBoss(boss, damage);
+  for (const boss of state.bosses.slice()) {
+    if (boss !== excludedTarget && boss.hp > 0 &&
+        dist2(x, y, boss.x, boss.y) <= (radius + boss.r) ** 2) {
+      damageWeaponBoss(boss, damage);
+    }
   }
 }
 
@@ -303,8 +304,8 @@ function damageWeaponRings(x, y, radius, rings, baseDamage) {
     const ring = ringFor(enemy);
     if (ring) damageWeaponEnemy(enemy, baseDamage * ring.mult);
   }
-  const boss = state.boss;
-  if (boss && boss.hp > 0) {
+  for (const boss of state.bosses.slice()) {
+    if (boss.hp <= 0) continue;
     const ring = ringFor(boss);
     if (ring) damageWeaponBoss(boss, baseDamage * ring.mult);
   }
@@ -321,7 +322,7 @@ function damageWeaponCone(angle, range, halfAngle, damage) {
       side <= Math.max(0, forward) * tangent + target.r;
   };
   for (const enemy of state.enemies) if (enemy.hp > 0 && hits(enemy)) damageWeaponEnemy(enemy, damage);
-  if (state.boss && state.boss.hp > 0 && hits(state.boss)) damageWeaponBoss(state.boss, damage);
+  for (const bs of state.bosses.slice()) if (bs.hp > 0 && hits(bs)) damageWeaponBoss(bs, damage);
 }
 
 // Automatic weapon kit: basic, intermediate and ultimate attacks share cooldown UI.
@@ -762,7 +763,7 @@ function updateBleeding(dt) {
     if (b.ticks <= 0 || t.hp <= 0) t.bleed = null;
   };
   for (const e of state.enemies.slice()) tick(e, false);
-  if (state.boss) tick(state.boss, true);
+  for (const bs of state.bosses.slice()) tick(bs, true);
 }
 
 // Latido rojo discreto sobre quien sangra: doble pulso ("lub-dub") sincronizado con cada tick.

@@ -1,7 +1,7 @@
 # Marea Infernal
 
 Juego de acción y supervivencia en arenas, visto desde arriba y hecho con HTML,
-CSS y JavaScript. Elige un arma, sobrevive a oleadas interminables de demonios,
+CSS y JavaScript. Elige un arma, sobrevive a 50 oleadas de demonios,
 mejora tu equipo con cenizas y derrota al Señor de la Marea.
 
 ## Jugar
@@ -11,12 +11,12 @@ dependencias ni servidor web.
 
 ## Cómo se juega
 
-- **Sobrevive:** no hay temporizador ni límite de oleadas. La partida termina
-  cuando la vida del personaje llega a cero.
+- **Sobrevive:** no hay temporizador. La partida termina cuando la vida del personaje
+  llega a cero o cuando superas el Desafío final que sigue a la **oleada 50** (victoria).
 - **Elige tu clase antes de jugar:** el Arquero combate a distancia con flechas; el
   Mago lanza orbes y un meteorito de área; el Bárbaro golpea de cerca con tajos,
   lanza hachas giratorias y usa ataques de área visibles. La clase queda fija durante esa partida.
-  El Mago no tiene crítico: su stat de arma es **Poder** (+1 % por punto), que agranda el
+  El Mago no tiene crítico: su stat de arma es **Poder** (+0,5 % por punto), que agranda el
   radio del Meteorito y suma un orbe a la Salva arcana cada 10 % (hasta formar un círculo completo).
 - **Lee las zonas de impacto:** el meteorito marca el área antes de caer y la
   muestra al impactar. El hacha dibuja el arco frontal del tajo y el radio de
@@ -29,19 +29,24 @@ dependencias ni servidor web.
   tiempo de recarga e incluye un breve periodo de invulnerabilidad.
 - **Sube de nivel:** recoge la experiencia que dejan los enemigos. Cada nivel
   aumenta tus atributos y restaura toda tu vida.
+- **Puntaje final:** suma, entre otras cosas, las cenizas que te queden sin gastar (2 puntos por ceniza), así que a veces conviene ahorrar.
 - **Reúne cenizas:** los enemigos pueden dejar cenizas. También recibes una
   recompensa al superar oleadas y al derrotar jefes.
 - **Mejora el equipo:** abre el inventario durante la partida para gastar
   cenizas en las seis piezas iniciales —arma, casco, pecho, guantes, botas y
-  anillo—. Cada pieza tiene atributos mejorables; al llegar a +5 puedes subir
+  anillo—. Cada pieza tiene atributos mejorables; al llegar a +10 puedes subir
   su rareza y continuar mejorándola.
 - **Abre cofres:** acércate y pulsa `E` antes de que desaparezcan. Pueden
   aparecer durante las tandas de enemigos y siempre aparecen al derrotar al
   jefe. En los intermedios hay un cofre de bonificación: ábrelo con `E` o
   continúa para recibir la recompensa automáticamente.
-- **Prepárate para los jefes:** el Señor de la Marea aparece cada 10 oleadas.
-  A partir de las oleadas avanzadas suma nuevos ataques: salto desde la oleada
-  20 y lluvia de fuego desde la 30.
+- **Prepárate para los jefes:** aparece un jefe distinto cada 10 oleadas:
+  Kraken Abisal (10), Cangrejo Acorazado (20), Medusa de Magma (30) e Ídolo Rúnico (40).
+  Desde la oleada 20 saltan para aplastar y desde la 30 invocan lluvia de fuego.
+- **Desafío final:** tras vencer al Señor de la Marea (oleada 50) hay una última pausa
+  ("Prepárate para el Desafío final"). Al continuar aparecen **tres jefes al azar de los cinco, a la
+  vez**, con el doble de vida y sin enemigos normales. Al derrotar a los tres ganas: hay fuegos
+  artificiales y puedes escribir tu nombre para el registro de puntuaciones.
 - **Descansa entre ciclos:** cada cinco oleadas, elimina a todos los enemigos
   para entrar en un intermedio. No aparecerán nuevos enemigos hasta que pulses
   **Continuar**; puedes revisar el inventario y reclamar el cofre de

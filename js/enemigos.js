@@ -31,7 +31,7 @@ function tpChance(e) {
     if (dx * dx + dy * dy <= reach * reach) near++;
   };
   for (const o of state.enemies) count(o);
-  count(state.boss);
+  for (const bs of state.bosses) count(bs);
   return Math.min(1, (state.alive / b) * TP_CHANCE + near * TP_CROWD_BONUS);
 }
 var TP_CHARGE_TIME = 0.45; // segundos que brilla en blanco antes de desaparecer
@@ -41,7 +41,7 @@ var TP_MIN_DIST = 100;    // si esta mas cerca que esto no se teletransporta (se
 function separateEnemies() {
   const list = state.enemies;
   const n = list.length;
-  if (n < 2 && !state.boss) return;
+  if (n < 2 && state.bosses.length === 0) return;
   const CELL = 64;
   for (let iter = 0; iter < 4; iter++) {
     const grid = new Map();
@@ -80,8 +80,7 @@ function separateEnemies() {
     }
   }
   // the boss does not move: enemies get pushed out of it
-  const boss = state.boss;
-  if (boss) {
+  for (const boss of state.bosses) {
     for (const e of list) {
       if (e.hp <= 0 || e.leaping > 0) continue;
       let dx = e.x - boss.x, dy = e.y - boss.y;
@@ -165,9 +164,26 @@ function spawnEnemy() {
   state.enemies.push(e);
 }
 
-function spawnBoss() {
+// Desafio final: tras la pausa de la oleada BOSS_FINAL_WAVE aparecen BOSS_FINAL_COUNT jefes al azar,
+// todos a la vez y sin enemigos normales. Se gana al derrotarlos a todos.
+function startFinalChallenge() {
+  const defs = pickFinalBosses();
+  state.finalChallenge = true;
+  state.phase = "fighting";
+  state.enemies = []; state.bossBullets = []; state.aoes = [];
+  state.toSpawn = 0; state.alive = 0; state.waveQuota = 0; state.waveTotal = 0; state.batchSize = 1; state.batchesSpawned = 1;
+  state.finalBossList = [];
+  const a0 = rand(0, Math.PI * 2);
+  defs.forEach((d, i) => spawnBoss(d, i + 1, defs.length, a0 + i * (Math.PI * 2 / defs.length)));
+  showWarning("\u00a1DESAF\u00cdO FINAL!<br><span style='color:#ff3a1a;font-size:20px'>" + defs.map(d => d.name).join(" \u00b7 ") + "</span><br><span style='font-size:16px'>doble de vida</span>");
+  floatText(state.player.x, state.player.y - 56, "DESAF\u00cdO FINAL", "#ff5050");
+  state.shake = 24;
+  updateHud();
+}
+
+function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
   const p = state.player;
-  const ang = rand(0, Math.PI * 2);
+  const ang = angle !== undefined ? angle : rand(0, Math.PI * 2);
   let x = clamp(p.x + Math.cos(ang) * 600, 80, WORLD.w - 80);
   let y = clamp(p.y + Math.sin(ang) * 600, 80, WORLD.h - 80);
   const w = state.wave;
@@ -176,17 +192,21 @@ function spawnBoss() {
   const hasLeap  = w >= 20; // Oleada 20+: salto aplastante
   const hasBombs = w >= 30; // Oleada 30+: lluvia de AoEs multiples
 
-  let title = "\u00a1El Se\u00f1or de la Marea<br>ha despertado!";
-  if (hasLeap && hasBombs) title = "\u00a1El Se\u00f1or de la Marea<br><span style='color:#ff3a1a;font-size:18px'>\u2014 Forma Devastadora \u2014</span>";
-  else if (hasBombs)       title = "\u00a1El Se\u00f1or de la Marea<br><span style='color:#ff9d4d;font-size:18px'>\u2014 Forma Flam\u00edgera \u2014</span>";
-  else if (hasLeap)        title = "\u00a1El Se\u00f1or de la Marea<br><span style='color:#6affa0;font-size:18px'>\u2014 Forma Aplastante \u2014</span>";
+  const isFinal = !!forcedDef;
+  const def = forcedDef || bossForWave(w);
+  const hpMult = isFinal ? BOSS_FINAL_HP_MULT : 1;
+  let title = "\u00a1" + def.name + "<br>ha despertado!";
+  if (isFinal) title = "\u00a1DESAFÍO FINAL " + finalIdx + "/" + finalTotal + "!<br><span style='color:#ff3a1a;font-size:20px'>" + def.name + " \u2014 doble de vida</span>";
+  else if (hasLeap && hasBombs) title = "\u00a1" + def.name + "<br><span style='color:#ff9d4d;font-size:18px'>\u2014 Salto y lluvia de fuego \u2014</span>";
+  else if (hasLeap)             title = "\u00a1" + def.name + "<br><span style='color:#6affa0;font-size:18px'>\u2014 Salto aplastante \u2014</span>";
 
-  state.boss = {
+  const boss = {
     x, y,
     r: 48 + (hasLeap ? 4 : 0) + (hasBombs ? 4 : 0),
-    type: "boss",
+    type: "boss", def, isFinal, finalIdx, finalTotal,
+    name: def.name,
     speed: 85 + Math.min(40, w),
-    hp: 2600 * scale, maxHp: 2600 * scale,
+    hp: 2600 * scale * hpMult, maxHp: 2600 * scale * hpMult,
     dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT,
     xp: 600 + w * 20, flash: 0,
     color: (hasLeap && hasBombs) ? "#6a0a3a" : (hasBombs ? "#7a1a08" : "#8a0f2a"),
@@ -197,9 +217,12 @@ function spawnBoss() {
     hasBombs,
     bombRainCd: hasBombs ? rand(6.0, 9.0) : Infinity,
   };
+  state.bosses.push(boss);
+  if (isFinal) state.finalBossList.push(boss);
+  state.boss = state.bosses[0] || null;
+  bossNameEl.textContent = boss.name;
   bossWrap.style.display = "block";
-  showWarning(title);
-  state.shake = 18;
+  if (!isFinal) { showWarning(title); state.shake = 18; }
   Sound.boss();
 }
 
@@ -227,16 +250,19 @@ function killEnemy(e) {
 }
 
 function killBoss(boss) {
-  state.boss = null;
+  if (boss.dead) return;
+  boss.dead = true;
+  state.bosses = state.bosses.filter(b => b !== boss);
+  state.boss = state.bosses[0] || null;
   state.bossDefeated = true;
   state.bossesDown++;
   state.kills++;
   state.score += 1500;
   state.ash += 40;
-  bossWrap.style.display = "none";
+  if (state.bosses.length === 0) bossWrap.style.display = "none";
   spawnChest(boss.x, boss.y);
   floatText(boss.x, boss.y - 60, "¡Cofre del jefe!", "#ffd84d");
-  showWarning("¡Señor de la Marea<br>derrotado!");
+  showWarning(boss.isFinal && state.bosses.length > 0 ? "¡" + boss.def.name + "<br>derrotado!<br><span style='font-size:16px'>Quedan " + state.bosses.length + "</span>" : "¡" + boss.def.name + "<br>derrotado!");
   state.shake = 22;
   Sound.bossdie();
   gainXp(boss.xp);
@@ -250,6 +276,12 @@ function killBoss(boss) {
   for (let i = 0; i < 60; i++) {
     const a = rand(0, Math.PI * 2), s = rand(80, 420);
     state.particles.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.5, 1.1), r: rand(2, 6), color: pick(["#ffd84d", "#ff7a2a", "#c0392b"]) });
+  }
+  // Desafio final: al caer el ultimo jefe, victoria tras una breve pausa para ver la explosion
+  if (boss.isFinal && state.bosses.length === 0) {
+    state.victory = true;
+    state.victoryDelay = 3;
+    state.enemies = []; state.bossBullets = []; state.aoes = []; state.toSpawn = 0; state.alive = 0;
   }
 }
 
@@ -373,42 +405,19 @@ function drawBoss(b) {
     ctx.restore();
   }
 
-  // Aura externa giratoria (mas grande en formas avanzadas)
-  const auraSize = b.r + (b.hasLeap && b.hasBombs ? 14 : b.hasLeap || b.hasBombs ? 8 : 2);
-  ctx.shadowBlur = 40 + (b.hasBombs ? 18 : 0); ctx.shadowColor = b.hasBombs ? "#ff6a00" : "#ff2a1a";
-  ctx.fillStyle = b.flash > 0 ? "#fff" : b.color;
-  ctx.beginPath();
-  const spikes = b.hasLeap && b.hasBombs ? 14 : (b.hasLeap || b.hasBombs ? 12 : 10);
-  for (let i = 0; i < spikes * 2; i++) {
-    const ang = (i / (spikes * 2)) * Math.PI * 2 + t * (b.leaping > 0 ? 1.2 : 0.2);
-    const rr = (i % 2 === 0) ? auraSize : auraSize * 0.62;
-    const px = b.x + Math.cos(ang) * rr;
-    const py = b.y + Math.sin(ang) * rr;
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  // Sprite SVG del jefe (rasterizado en jefes.js). Escala: el cuerpo del SVG coincide con b.r.
+  const def = b.def, spr = def && (b.flash > 0 ? def.flashSprite : def.sprite);
+  const size = BOSS_SPRITE_UNITS * (b.r / BOSS_BODY_UNITS);
+  const pulse = 1 + Math.sin(t * 2) * 0.025 + (b.leaping > 0 ? 0.08 : 0);
+  ctx.shadowBlur = 36 + (b.hasBombs ? 14 : 0);
+  ctx.shadowColor = b.hasBombs ? "#ff6a00" : (b.hasLeap ? "#6affa0" : "#ff2a1a");
+  if (spr) {
+    ctx.drawImage(spr, b.x - size * pulse / 2, b.y - size * pulse / 2, size * pulse, size * pulse);
+  } else { // el sprite aun no cargo: circulo de respaldo
+    ctx.fillStyle = b.flash > 0 ? "#fff" : b.color;
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
   }
-  ctx.closePath(); ctx.fill();
-
-  // Inner core (mas brillante en la Forma Devastadora)
-  ctx.shadowBlur = 20;
-  const coreColor = b.hasLeap && b.hasBombs ? "#c0102a" : "#ff3a1a";
-  ctx.fillStyle = coreColor;
-  const coreR = b.r * 0.4 + Math.sin(t * 2) * 3 + (b.leaping > 0 ? 8 : 0);
-  ctx.beginPath(); ctx.arc(b.x, b.y, coreR, 0, Math.PI * 2); ctx.fill();
-
-  // Segundo anillo en Forma Devastadora (wave 40)
-  if (b.hasLeap && b.hasBombs) {
-    ctx.fillStyle = "rgba(106,10,58,0.6)";
-    ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.7 + Math.sin(t * 3 + 1) * 4, 0, Math.PI * 2); ctx.fill();
-  }
-
   ctx.restore();
-
-  // Eyes (más grandes en formas avanzadas)
-  const eyeScale = b.hasLeap && b.hasBombs ? 1.3 : (b.hasLeap || b.hasBombs ? 1.15 : 1);
-  ctx.fillStyle = b.hasLeap ? "#6affa0" : "#ffe36a";
-  ctx.beginPath(); ctx.arc(b.x - b.r * 0.28, b.y - b.r * 0.1, b.r * 0.1 * eyeScale, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = b.hasBombs ? "#ff9d4d" : "#ffe36a";
-  ctx.beginPath(); ctx.arc(b.x + b.r * 0.28, b.y - b.r * 0.1, b.r * 0.1 * eyeScale, 0, Math.PI * 2); ctx.fill();
 
   // Indicador textual de habilidades activas
   if (b.hasLeap || b.hasBombs) {

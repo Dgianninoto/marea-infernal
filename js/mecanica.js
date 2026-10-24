@@ -285,10 +285,11 @@ var RARITY = [
   { name: "Único",      color: "#c9622b" },
 ];
 var MAX_LEVEL = RARITY.length - 1;
-var MAX_PLUS = 5;             // an item holds at most +5 (each stat point = +1); rarity can only be raised at +5
-var POINT_BASE_COST = 40;     // brasas per +1: 40 + 5 * rarity index of the item
+var MAX_PLUS = 10;            // an item holds at most +10 (each stat point = +1); rarity can only be raised at +10
+var ASH_SCORE_MULT = 2;        // puntos de puntaje final por cada ceniza que sobra sin gastar
+var POINT_BASE_COST = 25;     // brasas per +1: 25 + 5 * rarity index of the item
 var POINT_RARITY_COST = 5;
-var itemPlus = it => it.plus; // upgrade indicator 0..5 (stat points themselves are permanent)
+var itemPlus = it => it.plus; // upgrade indicator 0..10 (stat points themselves are permanent)
 function pointCost(it) { return POINT_BASE_COST + it.level * POINT_RARITY_COST; }
 var RARITY_BASE_COST = 250;   // brasas for the first rarity level
 var RARITY_GROWTH = 1.5;      // each rarity level costs 150% of the previous one
@@ -326,12 +327,12 @@ var WEAPONS = {
     // Esquiva especial (parpadeo arcano): recarga 75 % mas rapida (cooldown / 1.75) y 25 % mas larga
     // (distancia x1.25), con efecto violeta similar al teletransporte de los enemigos.
     dashRecharge: 1.75, dashLength: 1.25, dashFx: "blink",
-    statSteps: { cdr: 16, fireRate: 0.6, speed: 1 }, // per stat point bought with this weapon: Recarga % (default 10), Cadencia A/s (default 0.4) and Velocidad (boots, default 2)
-    // weapon piece stats: Poder (base 0%, +1% per point) replaces Crítico for the mage. Poder agranda el
+    statSteps: { cdr: 8, fireRate: 0.3, speed: 0.5 }, // per stat point bought with this weapon: Recarga % (default 5), Cadencia A/s (default 0.2) and Velocidad (boots, default 1)
+    // weapon piece stats: Poder (base 0%, +0.5% per point) replaces Crítico for the mage. Poder agranda el
     // Meteorito (+% de radio) y añade orbes a la Salva arcana (1 orbe extra cada 10 % hasta cerrar el circulo).
     weaponStats: [
-      { key: "dmg",   base: 8, step: 1 },
-      { key: "poder", base: 0, step: 1 } ],
+      { key: "dmg",   base: 8, step: 0.5 },
+      { key: "poder", base: 0, step: 0.5 } ],
     skills: [
       { name: "Orbe arcano", icon: "🔮", cooldown: 0.58 },
       { name: "Salva arcana", icon: "✨", cooldown: 5.5 },
@@ -345,12 +346,12 @@ var WEAPONS = {
     baseSpeed: 125,      // base Velocidad at level 1 (others use 150); level-ups still add +4
     baseHp: 200,         // base Vida at level 1 (others use 100); level-ups still add +12
     baseRegen: 1,        // base Regen at level 1 (others use 0.5) in HP/s
-    fireRateStep: 0.2,   // gloves: A/s per Cadencia point with this weapon (default 0.4)
-    // weapon piece stats: Bloqueo (base 10%, +1% per point) replaces Crítico for the axe.
-    // Max with all 25 points in Bloqueo at Único: (10 + 25 * 1) * 5 = 175%
+    fireRateStep: 0.1,   // gloves: A/s per Cadencia point with this weapon (default 0.2)
+    // weapon piece stats: Bloqueo (base 10%, +0.5% per point) replaces Crítico for the axe.
+    // Max with all 50 points in Bloqueo at Único: (10 + 50 * 0.5) * 5 = 175%
     weaponStats: [
-      { key: "dmg",   base: 8,  step: 2 },
-      { key: "block", base: 10, step: 1 } ],
+      { key: "dmg",   base: 8,  step: 1 },
+      { key: "block", base: 10, step: 0.5 } ],
     skills: [
       { name: "Tajo", icon: "🪓", cooldown: 0.625 },
       { name: "Hacha arrojadiza", icon: "⚔️", cooldown: 5.5 },
@@ -364,15 +365,15 @@ function getWeapon(id) { return WEAPONS[id] || WEAPONS.bow; }
 // each piece has one or more stats; every stat has its own base value and its own stat points
 var SLOTS = [
   { key: "arma",    label: "Arma",    icon: "🏹", name: "Arco",    stats: [
-      { key: "dmg",  base: 8, step: 2 },
-      { key: "crit", base: 10, step: 4 } ] },
-  { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [{ key: "ashBonus", base: 0, step: 4 }] },
-  { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 10 }] },
+      { key: "dmg",  base: 8, step: 1 },
+      { key: "crit", base: 10, step: 2 } ] },
+  { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [{ key: "ashBonus", base: 0, step: 2 }] },
+  { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 5 }] },
   { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [
-      { key: "fireRate", base: 0, step: 0.4 },
-      { key: "cdr",      base: 0, step: 10 } ] },
-  { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 2 }] },
-  { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0, step: 0.2 }] },
+      { key: "fireRate", base: 0, step: 0.2 },
+      { key: "cdr",      base: 0, step: 5 } ] },
+  { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 1 }] },
+  { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0, step: 0.1 }] },
 ];
 
 // value of one stat of a piece: (base + points * step) * RARITY_MULT[rarity level]
@@ -469,13 +470,33 @@ function recalcStats(p) {
     const it = p.equipped[sk];
     if (!it) continue;
     power += (it.level + 1) * 10;
-    for (const st of it.stats) power += st.points * 4; // x4 (antes x2): cada punto vale el doble desde que el tope es +5
+    for (const st of it.stats) power += st.points * 2;
   }
   p.power = power;
 }
 
-// Total de brasas de la partida: las que quedan en mano + las gastadas en mejoras.
-function ashTotal() { return state.ash + state.ashSpent; }
+// How many points "Max" can buy for a piece: up to +MAX_PLUS (the rarity threshold) or as many as the brasas allow.
+function maxAffordablePoints(it) {
+  return Math.max(0, Math.min(MAX_PLUS - itemPlus(it), Math.floor(state.ash / pointCost(it))));
+}
+
+// "Max": spend brasas on the chosen stat until the piece reaches +MAX_PLUS (ready for the next rarity) or the brasas run out.
+function upgradeMax(slotKey, statKey) {
+  const p = state.player;
+  const it = p.equipped[slotKey];
+  const st = it && it.stats.find(x => x.key === statKey);
+  if (!st) return;
+  const n = maxAffordablePoints(it);
+  if (n < 1) return;
+  state.ash -= pointCost(it) * n;
+  st.points += n;
+  it.plus += n;
+  state.lootCount += n;
+  recalcStats(p);
+  Sound.chest();
+  floatText(p.x, p.y - 30, AFFIX[st.key].label + " +" + n, AFFIX[st.key].color);
+  renderInventory();
+}
 
 // Spend brasas to add one stat point to a piece.
 function upgradePoint(slotKey, statKey) {
@@ -486,7 +507,6 @@ function upgradePoint(slotKey, statKey) {
   const cost = pointCost(it);
   if (state.ash < cost) return;
   state.ash -= cost;
-  state.ashSpent += cost;
   st.points++;
   it.plus++;
   state.lootCount++;
@@ -500,11 +520,10 @@ function upgradePoint(slotKey, statKey) {
 function upgradeItem(slotKey) {
   const p = state.player;
   const it = p.equipped[slotKey];
-  if (!it || it.level >= MAX_LEVEL || itemPlus(it) < MAX_PLUS) return; // needs +5 first
+  if (!it || it.level >= MAX_LEVEL || itemPlus(it) < MAX_PLUS) return; // needs +10 first
   const cost = rarityCost(it.level);
   if (state.ash < cost) return;
   state.ash -= cost;
-  state.ashSpent += cost;
   it.level++;
   it.plus = 0; // indicator back to +0; the stat points already bought are kept
   state.lootCount++; // counts upgrades done
@@ -534,12 +553,15 @@ function newState(weaponId) {
     kills: 0,
     lootCount: 0,
     ash: 0,
-    ashSpent: 0,        // brasas gastadas en mejoras (para el total de la partida)
     score: 0,
     shake: 0,
-    boss: null,
+    boss: null,         // alias del primer jefe vivo (null si no hay)
+    bosses: [],         // todos los jefes vivos (el Desafio final tiene varios a la vez)
+    finalChallenge: false, finalBossList: [],
     bossDefeated: false,
     bossesDown: 0,
+    victory: false,     // el jefe de la oleada BOSS_FINAL_WAVE cayo
+    victoryDelay: 0,    // segundos hasta mostrar la pantalla de victoria
     player: {
       x: WORLD.w / 2, y: WORLD.h / 2,
       r: 20,             // bigger hero so it reads clearly against loot/ash
@@ -769,6 +791,7 @@ function startWave() {
 
 function onWaveCleared() {
   const w = state.wave;
+  if (state.victory) return; // la oleada final termina con la victoria, no con otra oleada
   state.score += 50 + w * 10;
   state.ash += 3 + Math.floor(w / 3);
   floatText(state.player.x, state.player.y - 40, "Oleada " + w + " superada", "#6affa0");
@@ -783,19 +806,34 @@ function startIntermission() {
   // absorb everything left on the floor (xp/ash orbs, boss drops)
   for (const o of state.orbs) o.pull = true;
   // no countdown: the game waits (no new enemies) until the player presses Continue
-  showWarning("Pausa<br><span style='font-size:20px'>Revisa tu equipo (I) y continúa cuando estés listo</span>");
+  const preFinal = state.wave >= BOSS_FINAL_WAVE;
+  if (preFinal) showWarning("¡Prepárate para el Desafío final!<br><span style='font-size:20px'>Revisa tu equipo (I) y continúa cuando estés listo</span>");
+  else showWarning("Pausa<br><span style='font-size:20px'>Revisa tu equipo (I) y continúa cuando estés listo</span>");
+  interPanel.querySelector(".inter-title").textContent = preFinal ? "¡Prepárate para el Desafío final!" : "Intermedio";
+  interPanel.querySelector(".inter-sub").innerHTML = preFinal
+    ? "Has derrotado al Señor de la Marea. Ahora te esperan <b>tres jefes al azar, todos a la vez y con el doble de vida</b>. Revisa tu equipo con <kbd>I</kbd> y empieza cuando estés listo."
+    : "Oleada superada. Revisa tu equipo con <kbd>I</kbd> y continúa cuando estés listo.";
+  el("inter-continue").textContent = preFinal ? "Comenzar desafío ▶" : "Continuar ▶";
   interPanel.style.display = "block";
 }
 
 function endIntermission() {
   interPanel.style.display = "none";
-  startWave();
+  // tras la oleada final: Desafio final (3 jefes a la vez) en lugar de otra oleada
+  if (state.wave >= BOSS_FINAL_WAVE && !state.finalChallenge) startFinalChallenge();
+  else startWave();
 }
 
 // ---------------------------------------------------------------- Update
 function update(dt) {
   const p = state.player;
   state.time += dt;
+
+  // fin del juego: tras derrotar al jefe final se muestra la victoria
+  if (state.victory) {
+    state.victoryDelay -= dt;
+    if (state.victoryDelay <= 0) { endGame(true); return; }
+  }
 
   // movement (skipped while dashing — dash moves the player instead)
   if (p.dashTime <= 0) {
@@ -833,7 +871,7 @@ function update(dt) {
     const weapon = getWeapon(state.weaponId);
     const range = weapon.id === "axe" ? 210 : 450;
     const rangeSq = range * range;
-    let threat = !!(state.boss && dist2(p.x, p.y, state.boss.x, state.boss.y) < rangeSq);
+    let threat = state.bosses.some(bs => dist2(p.x, p.y, bs.x, bs.y) < rangeSq);
     if (!threat) {
       for (const e of state.enemies) {
         if (e.hp > 0 && dist2(p.x, p.y, e.x, e.y) < rangeSq) { threat = true; break; }
@@ -885,7 +923,7 @@ function update(dt) {
     // Other waves start the next one when 15% or less of this wave's enemies remain.
     const remaining = state.toSpawn + state.alive;
     const done = (state.wave % 5 === 0) ? remaining === 0 : remaining <= state.waveTotal * 0.15;
-    if (done && !state.boss) onWaveCleared();
+    if (done && !state.boss && !state.finalChallenge) onWaveCleared();
   }
 
   // bullets (arrows). Walls stop normal arrows; the big ultimate smashes through.
@@ -1000,8 +1038,7 @@ function update(dt) {
   separateEnemies();
 
   // boss
-  const boss = state.boss;
-  if (boss) {
+  for (const boss of state.bosses.slice()) {
     if (boss.flash > 0) boss.flash -= dt;
     const bdx = p.x - boss.x, bdy = p.y - boss.y;
     const bd = Math.hypot(bdx, bdy) || 1;
@@ -1090,6 +1127,17 @@ function update(dt) {
     }
   }
 
+  // los jefes del Desafio final no se amontonan: se empujan entre si
+  for (let i = 0; i < state.bosses.length; i++) for (let j = i + 1; j < state.bosses.length; j++) {
+    const A = state.bosses[i], B = state.bosses[j];
+    let dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy), min = A.r + B.r;
+    if (d >= min) continue;
+    if (d < 0.001) { dx = 1; dy = 0; d = 1; }
+    const push = (min - d) / 2;
+    if (!(A.leaping > 0)) { A.x -= dx / d * push; A.y -= dy / d * push; }
+    if (!(B.leaping > 0)) { B.x += dx / d * push; B.y += dy / d * push; }
+  }
+
   // boss projectiles
   for (const bb of state.bossBullets) {
     bb.x += bb.vx * dt; bb.y += bb.vy * dt; bb.life -= dt;
@@ -1151,7 +1199,8 @@ function update(dt) {
       }
     }
     // bullet vs boss
-    if (b.life > 0 && boss && dist2(b.x, b.y, boss.x, boss.y) < (b.r + boss.r) ** 2) {
+    for (const boss of state.bosses.slice()) {
+    if (b.life > 0 && dist2(b.x, b.y, boss.x, boss.y) < (b.r + boss.r) ** 2) {
       if (!(b.hitSet && b.hitSet.has(boss))) {
         boss.hp -= b.dmg; boss.flash = 0.06;
         floatText(boss.x + rand(-20, 20), boss.y - boss.r - 4, "-" + Math.round(b.dmg) + (b.crit ? "!" : ""), b.crit ? "#ff9d2e" : "#ffe08a");
@@ -1168,6 +1217,7 @@ function update(dt) {
         if (b.pierce > 0) { b.pierce--; (b.hitSet || (b.hitSet = new Set())).add(boss); }
         else b.life = 0;
       }
+    }
     }
   }
 
@@ -1276,7 +1326,7 @@ function draw() {
   for (const e of state.enemies) { drawEnemy(e); if (e.bleed) drawBleedPulse(e); }
 
   // boss
-  if (state.boss) { drawBoss(state.boss); if (state.boss.bleed) drawBleedPulse(state.boss); }
+  for (const bs of state.bosses) { drawBoss(bs); if (bs.bleed) drawBleedPulse(bs); }
   drawWeaponEffects();
 
   // boss + caster projectiles
@@ -1483,7 +1533,6 @@ function drawOrb(o) {
   else if (o.kind === "loot") color = "#3d9bff"; // ground loot is always blue
   const t = performance.now() / 300;
   const pulse = 1 + Math.sin(t + o.x) * 0.12;
-  if (o.kind === "xp" || o.kind === "ash") ctx.globalAlpha = 0.55; // brasas y experiencia en el suelo mas translucidas
   ctx.shadowBlur = o.kind === "loot" ? 16 : 8;
   ctx.shadowColor = color;
   ctx.fillStyle = color;
@@ -1521,7 +1570,7 @@ var levelTxt = el("level-txt"), ashTxt = el("ash-txt");
 var waveTxt = el("wave-txt"), killsTxt = el("kills-txt"), lootTxt = el("loot-txt");
 var tideTimer = el("tide-timer");
 var waveProgress = el("wave-progress");
-var bossWrap = el("boss-wrap"), bossFill = el("boss-fill");
+var bossWrap = el("boss-wrap"), bossFill = el("boss-fill"), bossNameEl = el("boss-name");
 var warningEl = el("warning");
 var interPanel = el("inter-panel");
 
@@ -1566,12 +1615,12 @@ function debugNextWave() {
   state.enemies = [];
   state.bossBullets = [];
   state.aoes = [];
-  state.boss = null;
+  state.boss = null; state.bosses = []; state.finalChallenge = false; state.finalBossList = [];
   bossWrap.style.display = "none";
   state.toSpawn = 0;
   state.alive = 0;
   interPanel.style.display = "none";
-  startWave();
+  if (state.wave >= BOSS_FINAL_WAVE) startFinalChallenge(); else startWave();
 }
 for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
   debugInfAsh = !debugInfAsh;
@@ -1632,10 +1681,23 @@ function itemCard(item) {
     const ptBtn = document.createElement("button");
     ptBtn.className = "mini equip";
     const pc = pointCost(item);
-    ptBtn.textContent = plusFull ? "+" + MAX_PLUS + " máx" : "+1 · " + pc + " 🔥";
+    ptBtn.textContent = plusFull ? "+10 máx" : "+1 · " + pc + " 🔥";
     ptBtn.disabled = plusFull || state.ash < pc;
     ptBtn.addEventListener("click", () => upgradePoint(item.slot, st.key));
-    row.appendChild(ptBtn);
+    const btns = document.createElement("span");
+    btns.className = "item-btns";
+    btns.appendChild(ptBtn);
+    if (!plusFull) {
+      const n = maxAffordablePoints(item);
+      const maxBtn = document.createElement("button");
+      maxBtn.className = "mini equip";
+      maxBtn.textContent = n >= 1 ? "Máx +" + n + " · " + (n * pc) + " 🔥" : "Máx";
+      maxBtn.title = "Sube este stat hasta +" + MAX_PLUS + " (listo para subir de rareza) o hasta donde alcancen las cenizas";
+      maxBtn.disabled = n < 1;
+      maxBtn.addEventListener("click", () => upgradeMax(item.slot, st.key));
+      btns.appendChild(maxBtn);
+    }
+    row.appendChild(btns);
     div.appendChild(row);
   }
 
@@ -1657,6 +1719,36 @@ function itemCard(item) {
 }
 
 // Stats panel: splits each stat into what comes from level (base) and from equipment.
+// Barra(s) de vida de jefe: una sola normalmente; tres apiladas en el Desafio final.
+var bossMultiEl = null;
+function updateBossBars() {
+  const single = el("boss-name"), bar = el("boss-bar");
+  if (!state.finalChallenge) {
+    if (bossMultiEl) bossMultiEl.style.display = "none";
+    single.style.display = bar.style.display = "";
+    if (state.boss) bossFill.style.width = clamp(state.boss.hp / state.boss.maxHp * 100, 0, 100) + "%";
+    return;
+  }
+  single.style.display = bar.style.display = "none";
+  if (!bossMultiEl) { bossMultiEl = document.createElement("div"); bossMultiEl.id = "boss-multi"; bossWrap.appendChild(bossMultiEl); }
+  bossMultiEl.style.display = "block";
+  const list = state.finalBossList;
+  if (bossMultiEl.children.length !== list.length) {
+    bossMultiEl.innerHTML = "";
+    for (const b of list) {
+      const row = document.createElement("div"); row.className = "bm-row";
+      row.innerHTML = '<div class="bm-name"></div><div class="bm-bar"><div class="bm-fill"></div></div>';
+      row.firstChild.textContent = b.name;
+      bossMultiEl.appendChild(row);
+    }
+  }
+  list.forEach((b, i) => {
+    const row = bossMultiEl.children[i];
+    row.classList.toggle("dead", b.hp <= 0);
+    row.querySelector(".bm-fill").style.width = clamp(b.hp / b.maxHp * 100, 0, 100) + "%";
+  });
+}
+
 function renderStatsPanel(p) {
   const f1 = v => (Math.round(v * 10) / 10).toString();
   const shots = weaponLevelRate(p, getWeapon(state.weaponId));
@@ -1729,13 +1821,11 @@ function updateHud() {
     skillEls[i].classList.toggle("ready", ready);
   }
 
-  if (state.boss) {
-    bossFill.style.width = clamp(state.boss.hp / state.boss.maxHp * 100, 0, 100) + "%";
-  }
+  updateBossBars();
 
   levelTxt.textContent = p.level;
   ashTxt.textContent = state.ash;
-  waveTxt.textContent = state.wave;
+  waveTxt.textContent = state.finalChallenge ? "FINAL" : state.wave + " / " + BOSS_FINAL_WAVE;
   killsTxt.textContent = state.kills;
   lootTxt.textContent = state.lootCount;
   powerTxt.textContent = p.power;
@@ -1748,7 +1838,7 @@ function updateHud() {
     tideTimer.textContent = "OLEADA " + state.wave;
     tideTimer.classList.remove("low");
     const cleared = state.waveQuota - state.toSpawn - state.alive;
-    waveProgress.textContent = clamp(cleared, 0, state.waveQuota) + " / " + state.waveQuota + (state.boss ? "  👹" : "");
+    waveProgress.textContent = state.finalChallenge ? "Desafío final" + (state.bosses.length ? "  " + "👹".repeat(state.bosses.length) : "") : clamp(cleared, 0, state.waveQuota) + " / " + state.waveQuota + (state.bosses.length ? "  " + "👹".repeat(state.bosses.length) : "");
   }
 }
 
@@ -1811,14 +1901,13 @@ async function fetchGlobalScores() {
 }
 
 // Add a run to the board. Returns the saved entry (so we can highlight it).
-// localOnly = true: solo ranking local del dispositivo, NO se envia al ranking global.
-function addScore(entry, localOnly) {
+function addScore(entry) {
   const list = loadScores();
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
   if (list.length > MAX_SCORES) list.length = MAX_SCORES;
   saveScores(list);
-  if (!localOnly) sbInsertScore(entry);
+  sbInsertScore(entry);
   return entry;
 }
 // Que ranking se muestra: "global" (Supabase) o "local" (este dispositivo). Se recuerda mientras dure la sesion.
@@ -1856,7 +1945,7 @@ function renderScores(highlightId) {
       `<div class="rank">${rank}</div>
        <div class="nm">${escapeHtml(s.name || "Anónimo")}</div>
        <div class="sc">${(s.score || 0).toLocaleString()}</div>
-       <div class="meta">Nv ${s.level || 1} · ${s.kills || 0} bajas · ${s.loot || 0} loot${s.boss ? " · 👹 jefe" : ""} · ${date}</div>`;
+       <div class="meta">Nv ${s.level || 1} · ${s.kills || 0} bajas · ${s.loot || 0} loot${s.victory ? " · 🏆 victoria" : (s.boss ? " · 👹 jefe" : "")} · ${date}</div>`;
     table.appendChild(row);
   });
 }
@@ -1940,30 +2029,34 @@ function startGame(weaponId) {
   updateHud();
 }
 
-function endGame() {
+function endGame(victory) {
   if (state.over) return;
+  victory = victory === true;
   state.running = false;
   state.over = true;
   paused = false;
   pauseScreen.classList.add("hidden");
   const p = state.player;
-  // score rewards waves reached, levels, bosses felled and ash collected (held + spent)
-  const finalScore = state.score + state.wave * 150 + p.level * 100 + ashTotal() * 2 + state.bossesDown * 1500;
+  // score rewards waves reached, levels, bosses felled and ash hoarded
+  const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * ASH_SCORE_MULT + state.bossesDown * 1500 + (victory ? 10000 : 0);
   bossWrap.style.display = "none";
   interPanel.style.display = "none";
-  el("over-title").textContent = "Has caído";
+  el("over-title").textContent = victory ? "🏆 ¡Victoria!" : "Has caído";
+  el("over-sub").textContent = victory
+    ? "¡Superaste el Desafío final! Los tres jefes han caído y el infierno vuelve a la calma. Escribe tu nombre para entrar en el registro de puntuaciones:"
+    : "La marea te ha consumido. Esto es lo que lograste:";
   el("final-level").textContent = p.level;
   el("final-wave").textContent = state.wave;
   el("final-kills").textContent = state.kills;
   el("final-loot").textContent = state.lootCount;
-  el("final-ash").textContent = ashTotal();
+  el("final-ash").textContent = state.ash.toLocaleString() + " (+" + (state.ash * ASH_SCORE_MULT).toLocaleString() + " pts)";
   el("final-score").textContent = finalScore.toLocaleString();
 
   // stash this run so the player can name & save it
   pendingRun = {
     score: finalScore, level: p.level, wave: state.wave,
-    kills: state.kills, loot: state.lootCount, ash: ashTotal(),
-    boss: state.bossesDown > 0, date: Date.now(),
+    kills: state.kills, loot: state.lootCount, ash: state.ash,
+    boss: state.bossesDown > 0, victory, date: Date.now(),
   };
   if (state.debugUsed) pendingRun = null; // partida con debug: no se guarda ni en local ni en global
 
@@ -1984,6 +2077,7 @@ function endGame() {
   el("save-score-btn").textContent = "Guardar";
 
   overScreen.classList.remove("hidden");
+  if (victory && typeof startFireworks === "function") startFireworks();
   setTimeout(() => { try { input.focus(); } catch (e) {} }, 50);
 }
 
@@ -2027,14 +2121,14 @@ function endGameToMenu() {
     state.running = false;
     state.over = true;
     const p = state.player;
-    const finalScore = state.score + state.wave * 150 + p.level * 100 + ashTotal() * 2 + state.bossesDown * 1500;
+    const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * ASH_SCORE_MULT + state.bossesDown * 1500;
     if (!state.debugUsed) { // con debug no se guarda el abandono ni en local ni en global
       addScore({
         id: "r" + Date.now() + Math.random().toString(36).slice(2, 6),
         name: "Abandono", score: finalScore, level: p.level, wave: state.wave,
-        kills: state.kills, loot: state.lootCount, ash: ashTotal(),
+        kills: state.kills, loot: state.lootCount, ash: state.ash,
         boss: state.bossesDown > 0, date: Date.now(),
-      }, true); // abandono: solo ranking local, nunca se envia al global
+      });
     }
     pendingRun = null;
   }
