@@ -3,9 +3,15 @@
  * Marea Infernal - personajes.js (jugador / personaje)
  * Estado y acciones del heroe: apuntado y proyectiles (spawnArrow),
  * habilidades (useSkill), progresion / subida de nivel (gainXp), esquive/dash
- * (tryDash) y su render (drawPlayer, drawArrow).
+ * (tryDash) y su render (drawPlayer con un cuerpo por clase: drawBodyArcher,
+ * drawBodyMage, drawBodyBarbarian; y drawArrow).
  * Depende de simbolos globales definidos en mecanica.js (var/function).
  */
+
+// Semiangulo del cono del Tajo (rad).
+var AXE_CONE_HALF_ANGLE = 0.58;
+// Angulo de cada hacha de la Hacha arrojadiza respecto a la mira (rad); apertura total = el doble.
+var AXE_THROW_ANGLE = 0.5;
 
 // ---------------------------------------------------------------- Combat / loot
 // Spawn a projectile heading at angle `ang`.
@@ -258,18 +264,23 @@ function useSkill(i) {
     }
   } else {
     if (i === 0) {
-      const range = 112, halfAngle = 0.58;
+      const range = 112, halfAngle = AXE_CONE_HALF_ANGLE;
       damageWeaponCone(base, range, halfAngle, p.dmg * 1.4);
       showWeaponArea(p.x, p.y, 0, "#ff7659", 0.42, "axe-cone", base, range, halfAngle);
       weaponBurst(p.x + p.aimX * 65, p.y + p.aimY * 65, 50, "#ff7659", 12);
       Sound.hit();
     } else if (i === 1) {
-      const radius = 132;
-      damageWeaponArea(p.x, p.y, radius, p.dmg * 1.5);
-      showWeaponArea(p.x, p.y, radius, "#ff7659", 0.52, "axe-ring");
-      weaponBurst(p.x, p.y, radius, "#ff7659", 32);
-      floatText(p.x, p.y - 38, "¡Giro amplio!", "#ff9d4d");
-      Sound.boss();
+      // Hacha arrojadiza: 2 hachas giratorias (circulos de 50 px) lanzadas en abanico a +-0,5 rad
+      // de la mira. Recorren 300 px atravesando enemigos; dano = 75 % del dano base.
+      const diameter = 50, travel = 300, spd = 500;
+      for (const side of [-1, 1]) {
+        spawnArrow(base + side * AXE_THROW_ANGLE, {
+          dmg: p.dmg * 0.75, r: diameter / 2, spd, life: travel / spd,
+          pierce: 999, color: "#ff7659", kind: "axe",
+        });
+      }
+      floatText(p.x, p.y - 38, "¡Hacha arrojadiza!", "#ff9d4d");
+      Sound.shoot();
     } else {
       const radius = 195;
       damageWeaponArea(p.x, p.y, radius, p.dmg * 7 + 45);
@@ -329,41 +340,222 @@ function tryDash() {
   }
 }
 
-function drawPlayer(p) {
-  // invuln blink
-  if (p.inv > 0 && Math.floor(p.inv * 20) % 2 === 0) ctx.globalAlpha = 0.5;
+// ---------------------------------------------------------------- Skins por clase
+// Cada cuerpo se dibuja en coordenadas "de unidad" (jugador con r = 20) y se
+// escala con p.r / 20, centrado en (p.x, p.y). El cuerpo NO rota con el
+// apuntado; solo el arma gira hacia el raton (ver drawPlayer).
 
-  const ang = Math.atan2(p.aimY, p.aimX);
-
-  // ground shadow
-  ctx.save();
+// Arquero: capa con capucha marron, borde de brasa.
+function drawBodyArcher() {
   ctx.fillStyle = "rgba(0,0,0,0.35)";
-  ctx.beginPath(); ctx.ellipse(p.x, p.y + p.r * 0.7, p.r * 0.9, p.r * 0.5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
+  ctx.beginPath(); ctx.ellipse(0, 14, 18, 10, 0, 0, Math.PI * 2); ctx.fill();
 
-  // hooded cloak body with a thick dark outline for contrast
   ctx.save();
   ctx.shadowBlur = 16; ctx.shadowColor = "#ff7a2a";
   ctx.fillStyle = "#2b1a12";
   ctx.beginPath();
-  ctx.moveTo(p.x, p.y - p.r);                       // hood top
-  ctx.quadraticCurveTo(p.x + p.r, p.y - p.r * 0.3, p.x + p.r * 0.8, p.y + p.r);  // right of cloak
-  ctx.lineTo(p.x - p.r * 0.8, p.y + p.r);           // hem
-  ctx.quadraticCurveTo(p.x - p.r, p.y - p.r * 0.3, p.x, p.y - p.r);              // left back to hood
+  ctx.moveTo(0, -20);
+  ctx.quadraticCurveTo(20, -6, 16, 20);
+  ctx.lineTo(-16, 20);
+  ctx.quadraticCurveTo(-20, -6, 0, -20);
   ctx.closePath();
-  // dark outline first (thick), then ember rim
   ctx.lineJoin = "round";
   ctx.lineWidth = 5; ctx.strokeStyle = "#000"; ctx.stroke();
   ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = "#ff9d4d"; ctx.stroke();
   ctx.restore();
 
-  // hood opening (dark face with ember eyes)
   ctx.fillStyle = "#140b07";
-  ctx.beginPath(); ctx.arc(p.x, p.y - p.r * 0.25, p.r * 0.42, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, -5, 8.4, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#ffcf80";
-  ctx.beginPath(); ctx.arc(p.x - p.r * 0.14, p.y - p.r * 0.28, p.r * 0.07, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(p.x + p.r * 0.14, p.y - p.r * 0.28, p.r * 0.07, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-2.8, -5.6, 1.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(2.8, -5.6, 1.4, 0, Math.PI * 2); ctx.fill();
+}
+
+// Maga: figura esbelta (hombros estrechos, cintura marcada, falda abierta), violeta.
+function drawBodyMage() {
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath(); ctx.ellipse(0, 15, 15, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.lineJoin = "round";
+  ctx.save();
+  ctx.shadowBlur = 16; ctx.shadowColor = "#bd8cff";
+
+  // cabello largo detras de la tunica (un lado y su espejo)
+  for (const side of [1, -1]) {
+    ctx.save();
+    ctx.scale(side, 1);
+    ctx.beginPath();
+    ctx.moveTo(-6, -17);
+    ctx.bezierCurveTo(-14, -11, -14, 0, -11, 11);
+    ctx.bezierCurveTo(-8, 5, -6, -3, -4, -12);
+    ctx.closePath();
+    ctx.fillStyle = "#6f3fb0"; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = "#000"; ctx.stroke();
+    ctx.restore();
+  }
+
+  // tunica
+  ctx.beginPath();
+  ctx.moveTo(0, -20);
+  ctx.bezierCurveTo(6, -20, 10, -14, 10, -8);
+  ctx.bezierCurveTo(10, -3, 6, 0, 6, 4);
+  ctx.bezierCurveTo(6, 10, 14, 14, 15, 20);
+  ctx.quadraticCurveTo(0, 24, -15, 20);
+  ctx.bezierCurveTo(-14, 14, -6, 10, -6, 4);
+  ctx.bezierCurveTo(-6, 0, -10, -3, -10, -8);
+  ctx.bezierCurveTo(-10, -14, -6, -20, 0, -20);
+  ctx.closePath();
+  ctx.lineWidth = 5; ctx.strokeStyle = "#000"; ctx.stroke();
+  ctx.fillStyle = "#3d2160"; ctx.fill();
+  ctx.lineWidth = 1.8; ctx.strokeStyle = "#bd8cff"; ctx.stroke();
+  ctx.restore();
+
+  // pliegues de tela
+  ctx.save();
+  ctx.globalAlpha *= 0.6;
+  ctx.strokeStyle = "#bd8cff"; ctx.lineWidth = 0.9;
+  ctx.beginPath(); ctx.moveTo(0, 8); ctx.lineTo(0, 21); ctx.stroke();
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(-3, -2); ctx.quadraticCurveTo(-6, 1, -6, 4);
+  ctx.moveTo(3, -2); ctx.quadraticCurveTo(6, 1, 6, 4);
+  ctx.stroke();
+  ctx.restore();
+
+  // fajin con gema
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#d7a5ff"; ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(-6.4, 3.2); ctx.quadraticCurveTo(0, 5.6, 6.4, 3.2); ctx.stroke();
+  ctx.fillStyle = "#fff0ff"; ctx.strokeStyle = "#bd8cff"; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.arc(0, 4.4, 1.9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // rostro, ojos, pestanas y sonrisa
+  ctx.fillStyle = "#140b07";
+  ctx.beginPath(); ctx.ellipse(0, -11.5, 5.3, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#f4e0ff";
+  ctx.beginPath(); ctx.ellipse(-2.1, -12, 1.25, 0.95, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(2.1, -12, 1.25, 0.95, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "#d7a5ff"; ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(-3.6, -12.6); ctx.lineTo(-4.6, -13.5);
+  ctx.moveTo(3.6, -12.6); ctx.lineTo(4.6, -13.5);
+  ctx.stroke();
+  ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(-1.2, -8.6); ctx.quadraticCurveTo(0, -7.8, 1.2, -8.6); ctx.stroke();
+}
+
+// Barbaro: triangulo invertido (hombros enormes, cintura angosta), rojo, mirada maligna.
+function drawBodyBarbarian() {
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.beginPath(); ctx.ellipse(0, 17, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.lineJoin = "round";
+
+  // torso
+  ctx.save();
+  ctx.shadowBlur = 16; ctx.shadowColor = "#ff2a1a";
+  ctx.beginPath();
+  ctx.moveTo(-25, -11);
+  ctx.quadraticCurveTo(0, -19, 25, -11);
+  ctx.lineTo(8, 20);
+  ctx.lineTo(-8, 20);
+  ctx.closePath();
+  ctx.lineWidth = 5; ctx.strokeStyle = "#000"; ctx.stroke();
+  ctx.fillStyle = "#8c1a14"; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = "#ff5a45"; ctx.stroke();
+  ctx.restore();
+
+  // correas cruzadas y cinturon con hebilla
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#2b0a08"; ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(-19, -10); ctx.lineTo(7, 16);
+  ctx.moveTo(19, -10); ctx.lineTo(-7, 16);
+  ctx.stroke();
+  ctx.lineWidth = 3.4;
+  ctx.beginPath(); ctx.moveTo(-10.5, 14.5); ctx.lineTo(10.5, 14.5); ctx.stroke();
+  ctx.fillStyle = "#b9c0c8"; ctx.strokeStyle = "#69737d"; ctx.lineWidth = 0.8;
+  ctx.fillRect(-2.4, 12.6, 4.8, 3.8); ctx.strokeRect(-2.4, 12.6, 4.8, 3.8);
+
+  // hombreras con puas
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = "#b9c0c8"; ctx.strokeStyle = "#000"; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(side * 29, -15); ctx.lineTo(side * 34, -24); ctx.lineTo(side * 24, -17);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(side * 25, -11, 7, 0, Math.PI * 2);
+    ctx.fillStyle = "#5a0f0c"; ctx.fill();
+    ctx.lineWidth = 2.4; ctx.strokeStyle = "#000"; ctx.stroke();
+    ctx.lineWidth = 1; ctx.strokeStyle = "#ff5a45"; ctx.stroke();
+  }
+
+  // cuernos
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.scale(side, 1);
+    ctx.beginPath();
+    ctx.moveTo(6, -20);
+    ctx.bezierCurveTo(11, -21, 14, -25, 13, -31);
+    ctx.bezierCurveTo(10, -26, 7, -25, 4, -24);
+    ctx.closePath();
+    ctx.fillStyle = "#e8dcc0"; ctx.fill();
+    ctx.lineWidth = 1.4; ctx.strokeStyle = "#000"; ctx.stroke();
+    ctx.restore();
+  }
+
+  // cabeza / casco
+  ctx.beginPath(); ctx.arc(0, -14, 8.4, 0, Math.PI * 2);
+  ctx.fillStyle = "#5a0f0c"; ctx.fill();
+  ctx.lineWidth = 2.4; ctx.strokeStyle = "#000"; ctx.stroke();
+  ctx.lineWidth = 1; ctx.strokeStyle = "#ff5a45"; ctx.stroke();
+  ctx.fillStyle = "#140b07";
+  ctx.beginPath();
+  ctx.moveTo(-6.4, -14.6);
+  ctx.quadraticCurveTo(0, -11, 6.4, -14.6);
+  ctx.lineTo(5.6, -8.5);
+  ctx.quadraticCurveTo(0, -6.2, -5.6, -8.5);
+  ctx.closePath(); ctx.fill();
+
+  // ojos malignos (inclinados hacia adentro, con brillo)
+  ctx.save();
+  ctx.shadowBlur = 6; ctx.shadowColor = "#ff3b2f";
+  ctx.fillStyle = "#ff3b2f";
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(side * 6, -14.6); ctx.lineTo(side * 0.9, -12.2);
+    ctx.lineTo(side * 1.6, -10.8); ctx.lineTo(side * 5.6, -12.4);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // ceno fruncido y colmillos
+  ctx.strokeStyle = "#140b07"; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(-7, -16.8); ctx.lineTo(-0.6, -13.4);
+  ctx.moveTo(7, -16.8); ctx.lineTo(0.6, -13.4);
+  ctx.stroke();
+  ctx.strokeStyle = "#e8dcc0"; ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(-3.8, -9.6); ctx.lineTo(-2.6, -8.2); ctx.lineTo(-1.4, -9.6);
+  ctx.lineTo(0, -8.2); ctx.lineTo(1.4, -9.6); ctx.lineTo(2.6, -8.2); ctx.lineTo(3.8, -9.6);
+  ctx.stroke();
+}
+
+function drawPlayer(p) {
+  // invuln blink
+  if (p.inv > 0 && Math.floor(p.inv * 20) % 2 === 0) ctx.globalAlpha = 0.5;
+
+  const ang = Math.atan2(p.aimY, p.aimX);
+
+  // Cuerpo segun la clase elegida (bow = Arquero, staff = Maga, axe = Barbaro).
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.scale(p.r / 20, p.r / 20);
+  if (state.weaponId === "bow") drawBodyArcher();
+  else if (state.weaponId === "staff") drawBodyMage();
+  else drawBodyBarbarian();
+  ctx.restore();
 
   // Draw the selected weapon facing the aim direction.
   ctx.save();
@@ -396,6 +588,32 @@ function drawPlayer(p) {
   ctx.restore();
 
   ctx.globalAlpha = 1;
+}
+
+// Hacha arrojadiza en vuelo: disco de 50 px (r = b.r) con un hacha doble que gira.
+function drawThrownAxe(b) {
+  const k = b.r / 25;                 // escala respecto al tamano base (r = 25)
+  ctx.save();
+  ctx.translate(b.x, b.y);
+  ctx.shadowBlur = 16; ctx.shadowColor = "#ff3a1a";
+  ctx.fillStyle = "rgba(255,118,89,0.22)";
+  ctx.beginPath(); ctx.arc(0, 0, b.r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(255,208,189,0.75)"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.rotate(b.life * 22);            // giro segun el tiempo de vida restante
+  ctx.scale(k, k);
+  ctx.lineCap = "round"; ctx.lineJoin = "miter";
+  for (let n = 0; n < 2; n++) {
+    ctx.strokeStyle = "#8a5a2a"; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(15, 0); ctx.stroke();
+    ctx.fillStyle = "#b9c0c8"; ctx.strokeStyle = "#69737d"; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(10, -3); ctx.lineTo(15, -12); ctx.lineTo(22, -10);
+    ctx.lineTo(19, 0); ctx.lineTo(22, 10); ctx.lineTo(15, 12); ctx.lineTo(10, 3);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.rotate(Math.PI);
+  }
+  ctx.restore();
 }
 
 // draw a single arrow pointing along its velocity. scale grows for the ultimate.

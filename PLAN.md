@@ -13,7 +13,7 @@ recarga.
 
 ## Decisiones acordadas
 
-- Armas iniciales: **arco**, **bastón de mago** y **hacha**.
+- Clases iniciales: **Arquero** (arco), **Mago** (bastón de mago) y **Bárbaro** (hacha).
 - Mostrar la selección de arma antes de comenzar la partida.
 - No permitir cambiar el arma una vez iniciada la partida.
 - El ataque básico con recarga reemplaza el disparo continuo actual del arco.
@@ -32,7 +32,7 @@ Estos ataques son ejemplos para orientar el diseño, no habilidades finales:
 | --- | --- | --- | --- |
 | Arco | Flecha rápida a un objetivo | Abanico de flechas | Flecha de gran daño que atraviesa enemigos |
 | Bastón | Proyectil mágico a distancia | Explosión o proyectiles que rebotan | Ataque mágico de área |
-| Hacha | Golpe en arco a corta distancia | Giro que golpea alrededor del jugador | Golpe de suelo de gran alcance |
+| Hacha | Golpe en arco a corta distancia | Dos hachas giratorias que atraviesan enemigos | Golpe de suelo de gran alcance |
 
 Antes de implementar, definir daño, alcance, cadencia, cooldown, efectos y
 comportamiento visual de cada habilidad. El hacha requiere una regla de
@@ -47,7 +47,7 @@ provisionales y quedan sujetos a pruebas de balance:
 | --- | --- | --- | --- |
 | Arco | Flecha (0,29 s) | Abanico (5,5 s) | Devastación (13 s) |
 | Bastón de mago | Orbe arcano (0,58 s) | Salva arcana (5,5 s) | Meteorito (13 s) |
-| Hacha | Tajo (0,62 s) | Giro amplio (5,5 s) | Golpe sísmico (13 s) |
+| Hacha | Tajo (1,6 A/s fijos; solo suben con guantes) | Hacha arrojadiza (5,5 s) | Golpe sísmico (13 s) |
 
 - La selección aparece antes de iniciar; **Reintentar** conserva el arma.
 - La ranura Arma cambia de nombre e icono según el kit elegido.
@@ -57,7 +57,8 @@ provisionales y quedan sujetos a pruebas de balance:
 - El HUD muestra nombres, iconos y cooldowns propios del arma.
 - El jugador ahora representa visualmente el arco, el bastón o el hacha.
 - El meteorito muestra la zona de caída, impacta tras 0,85 s y causa daño de
-  área; el hacha muestra el cono del tajo y el radio de sus golpes circulares.
+  área; el hacha muestra el cono del tajo y el radio del golpe sísmico; la hacha arrojadiza
+  lanza dos hachas de 50 px que recorren 300 px atravesando enemigos.
 - Se actualizaron la ayuda del juego y el README.
 
 ## Etapas de trabajo

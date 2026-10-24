@@ -13,12 +13,12 @@ dependencias ni servidor web.
 
 - **Sobrevive:** no hay temporizador ni límite de oleadas. La partida termina
   cuando la vida del personaje llega a cero.
-- **Elige tu arma antes de jugar:** el arco combate a distancia con flechas; el
-  bastón lanza orbes y un meteorito de área; el hacha golpea de cerca con tajos
-  y ataques de área visibles. El arma queda fija durante esa partida.
+- **Elige tu clase antes de jugar:** el Arquero combate a distancia con flechas; el
+  Mago lanza orbes y un meteorito de área; el Bárbaro golpea de cerca con tajos,
+  lanza hachas giratorias y usa ataques de área visibles. La clase queda fija durante esa partida.
 - **Lee las zonas de impacto:** el meteorito marca el área antes de caer y la
   muestra al impactar. El hacha dibuja el arco frontal del tajo y el radio de
-  sus ataques circulares.
+  su golpe sísmico.
 - **Ataca automáticamente:** cada arma tiene tres ataques —básico, intermedio y
   definitivo— que se activan solos cuando hay enemigos cerca y termina su
   cooldown. Apunta con el ratón para orientar proyectiles y ataques frontales.

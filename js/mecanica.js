@@ -275,11 +275,13 @@ var AFFIX = {
   regen:    { label: "Regen",     color: "#9affd0", fmt: v => "+" + v + "/s" },
   ashBonus: { label: "Brasas",    color: "#ffb347", fmt: v => "+" + v + "%" },
   crit:     { label: "Crítico",   color: "#ffd84d", fmt: v => "+" + v + "%" },
+  block:    { label: "Bloqueo",   color: "#9bb4d6", fmt: v => "+" + v + "%" },
   cdr:      { label: "Recarga",   color: "#c58aff", fmt: v => "+" + v + "%" },
 };
 var WEAPONS = {
   bow: {
     id: "bow", name: "Arco", icon: "🏹", color: "#ffd84d",
+    baseHp: 80,          // base Vida at level 1 (default 100); level-ups still add +12
     skills: [
       { name: "Flecha", icon: "➶", cooldown: 0.29 },
       { name: "Abanico", icon: "🏹", cooldown: 5.5 },
@@ -296,9 +298,19 @@ var WEAPONS = {
   },
   axe: {
     id: "axe", name: "Hacha", icon: "🪓", color: "#ff7659",
+    baseRate: 1.6,       // basic attack A/s at level 1
+    baseDmg: 30,         // base Daño at level 1 (others use 12); level-ups still add +2.5
+    baseSpeed: 110,      // base Velocidad at level 1 (others use 150); level-ups still add +4
+    baseHp: 200,         // base Vida at level 1 (others use 100); level-ups still add +12
+    fireRateStep: 0.1,   // gloves: A/s per Cadencia point with this weapon (default 0.2)
+    // weapon piece stats: Bloqueo (base 10%, +0.5% per point) replaces Crítico for the axe.
+    // Max with all 50 points in Bloqueo at Único: (10 + 50 * 0.5) * 5 = 175%
+    weaponStats: [
+      { key: "dmg",   base: 8,  step: 1 },
+      { key: "block", base: 10, step: 0.5 } ],
     skills: [
-      { name: "Tajo", icon: "🪓", cooldown: 0.62 },
-      { name: "Giro amplio", icon: "🌀", cooldown: 5.5 },
+      { name: "Tajo", icon: "🪓", cooldown: 0.625 },
+      { name: "Hacha arrojadiza", icon: "⚔️", cooldown: 5.5 },
       { name: "Golpe sísmico", icon: "💥", cooldown: 13 },
     ],
   },
@@ -321,8 +333,16 @@ var SLOTS = [
 ];
 
 // value of one stat of a piece: (base + points * step) * RARITY_MULT[rarity level]
+// Step per stat point; Cadencia depends on the weapon in use (weapon.fireRateStep overrides the slot default)
+function statStep(st) {
+  if (st.key === "fireRate") {
+    const weapon = getWeapon((typeof state !== "undefined" && state && state.weaponId) || selectedWeaponId);
+    if (weapon.fireRateStep) return weapon.fireRateStep;
+  }
+  return st.step;
+}
 function statValue(item, st, points, level) {
-  return +((st.base + points * st.step) * RARITY_MULT[level]).toFixed(2);
+  return +((st.base + points * statStep(st)) * RARITY_MULT[level]).toFixed(2);
 }
 function statCur(item, st) { return statValue(item, st, st.points, item.level); }
 
@@ -336,7 +356,7 @@ function makeBaseEquipment(weaponId) {
       icon: isWeapon ? weapon.icon : sl.icon,
       name: isWeapon ? weapon.name : sl.name,
       level: 0, plus: 0,
-      stats: sl.stats.map(st => ({ key: st.key, base: st.base, step: st.step, points: 0 })),
+      stats: ((isWeapon && weapon.weaponStats) || sl.stats).map(st => ({ key: st.key, base: st.base, step: st.step, points: 0 })),
     };
   });
   return eq;
@@ -353,10 +373,29 @@ function equipSum(p, key) {
   return sum;
 }
 
+// Bloqueo: each "layer" blocks 50% of the incoming damage. floor(block) layers are guaranteed and the remaining
+// fraction is the chance of one extra layer (e.g. 150% -> 1 sure layer + 50% chance of a second). 2 layers = 100%.
+function blockDamage(dmg) {
+  const p = state.player, b = p.block || 0;
+  if (b <= 0) return dmg;
+  const sure = Math.floor(b);
+  const layers = sure + (Math.random() < b - sure ? 1 : 0);
+  if (layers <= 0) return dmg;
+  floatText(p.x, p.y - 44, layers >= 2 ? "¡Bloqueo total!" : "¡Bloqueo!", "#9bb4d6");
+  return dmg * (1 - Math.min(1, layers * 0.5));
+}
+
+// Basic attack rate (A/s) coming from weapon + level, before equipment
+function weaponLevelRate(p, weapon) {
+  const base = weapon.baseRate || 1 / weapon.skills[0].cooldown;
+  return base + (weapon.ratePerLevel || 0) * Math.max(0, p.level - 1);
+}
+
 function weaponSkillCooldown(p, index) {
-  const cooldown = getWeapon(state.weaponId).skills[index].cooldown;
+  const weapon = getWeapon(state.weaponId);
+  const cooldown = weapon.skills[index].cooldown;
   if (index !== 0) return cooldown;
-  return 1 / (1 / cooldown + equipSum(p, "fireRate"));
+  return 1 / (weaponLevelRate(p, weapon) + equipSum(p, "fireRate"));
 }
 
 // Recompute effective stats from base + equipment. Keeps current hp ratio when maxHp changes.
@@ -369,6 +408,7 @@ function recalcStats(p) {
   // Cadencia: equipment adds attacks per second (A/s) on top of the level-based A/s; no minimum interval
   p.regen = p.base.regen + equipSum(p, "regen");
   p.ashBonus = equipSum(p, "ashBonus") / 100;
+  p.block = Math.max(0, equipSum(p, "block") / 100);               // block chance; >1 = extra guaranteed layers (no cap)
   p.crit = clamp(equipSum(p, "crit") / 100, 0, 1);                 // crit chance 0..1 (crit = x2 damage)
   p.cdr = equipSum(p, "cdr") / 100;                                // Recarga: no cap; cooldowns tick (1 + cdr) times faster
   p.hp = Math.min(p.maxHp, Math.max(1, Math.round(hpRatio * p.maxHp)));
@@ -445,14 +485,14 @@ function newState(weaponId) {
     player: {
       x: WORLD.w / 2, y: WORLD.h / 2,
       r: 20,             // bigger hero so it reads clearly against loot/ash
-      hp: 100,
+      hp: weapon.baseHp || 100,
       level: 1, xp: 0, xpNext: 1000,
       aimX: 1, aimY: 0,
       inv: 0,            // invulnerability frames after hit
       // base stats (raised by level-ups); effective stats are derived in recalcStats()
-      base: { speed: 150, maxHp: 100, dmg: 12, regen: 0.5 },
+      base: { speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: 0.5 },
       // effective stats after equipment (filled by recalcStats)
-      speed: 150, maxHp: 100, dmg: 12, regen: 0.5, ashBonus: 0, crit: 0, cdr: 0,
+      speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: 0.5, ashBonus: 0, crit: 0, block: 0, cdr: 0,
       // equipment: slotKey -> item (or null)
       equipped: makeBaseEquipment(weapon.id), // start with the 6 base pieces
       power: 0,          // total gear score
@@ -724,11 +764,13 @@ function update(dt) {
   if (p.inv > 0) p.inv -= dt;
 
   // Weapon skill cooldowns
-  for (let i = 0; i < 3; i++) if (p.skillCd[i] > 0) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt * (1 + p.cdr)); // Recarga = faster cooldown tick
+  // Recarga only speeds up skills 1 and 2; the basic attack (0) is controlled solely by Cadencia (fireRate)
+  for (let i = 0; i < 3; i++) if (p.skillCd[i] > 0) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt * (i === 0 ? 1 : 1 + p.cdr));
   if (p.autoSkillCd > 0) p.autoSkillCd = Math.max(0, p.autoSkillCd - dt);
 
-  // Auto-fire the next ready weapon skill while a target is within engagement range.
-  if (state.phase !== "intermission" && p.autoSkillCd <= 0) {
+  // Auto-fire: the basic attack (skill 0) runs on its own cooldown; skills 1 and 2 share a short gap between them
+  // so they never delay or interleave with the basic attack.
+  if (state.phase !== "intermission") {
     const weapon = getWeapon(state.weaponId);
     const range = weapon.id === "axe" ? 210 : 450;
     const rangeSq = range * range;
@@ -739,13 +781,14 @@ function update(dt) {
       }
     }
     if (threat) {
-      for (let offset = 0; offset < 3; offset++) {
-        const index = (p.nextAutoSkill + offset) % 3;
-        if (p.skillCd[index] <= 0) {
-          useSkill(index);
-          p.autoSkillCd = 0.22;
-          p.nextAutoSkill = (index + 1) % 3;
-          break;
+      if (p.skillCd[0] <= 0) useSkill(0);
+      if (p.autoSkillCd <= 0) {
+        for (let index = 1; index < 3; index++) {
+          if (p.skillCd[index] <= 0) {
+            useSkill(index);
+            p.autoSkillCd = 0.22;
+            break;
+          }
         }
       }
     }
@@ -878,11 +921,12 @@ function update(dt) {
     }
     // contact damage (el duende no daña al jugador)
     if (e.type !== "goblin" && !(e.tpArrive > 0) && d < e.r + p.r && p.inv <= 0 && !debugGod) {
-      p.hp -= e.dmg;
+      const taken = blockDamage(e.dmg);
+      p.hp -= taken;
       p.inv = 0.6;
       state.shake = Math.max(state.shake, 9);
       Sound.hurt();
-      floatText(p.x, p.y - 26, "-" + Math.round(e.dmg), "#ff5050");
+      floatText(p.x, p.y - 26, "-" + Math.round(taken), "#ff5050");
       if (p.hp <= 0) { endGame(); return; }
     }
   }
@@ -943,8 +987,9 @@ function update(dt) {
 
     // contact damage
     if (bd < boss.r + p.r && p.inv <= 0 && !debugGod) {
-      p.hp -= boss.dmg; p.inv = 0.7; state.shake = Math.max(state.shake, 12); Sound.hurt();
-      floatText(p.x, p.y - 26, "-" + Math.round(boss.dmg), "#ff5050");
+      const taken = blockDamage(boss.dmg);
+      p.hp -= taken; p.inv = 0.7; state.shake = Math.max(state.shake, 12); Sound.hurt();
+      floatText(p.x, p.y - 26, "-" + Math.round(taken), "#ff5050");
       if (p.hp <= 0) { endGame(); return; }
     }
 
@@ -984,8 +1029,8 @@ function update(dt) {
   for (const bb of state.bossBullets) {
     bb.x += bb.vx * dt; bb.y += bb.vy * dt; bb.life -= dt;
     if (bb.life > 0 && p.inv <= 0 && !debugGod && dist2(bb.x, bb.y, p.x, p.y) < (bb.r + p.r) ** 2) {
-      bb.life = 0; p.hp -= bb.dmg; p.inv = 0.5; state.shake = Math.max(state.shake, 8); Sound.hurt();
-      floatText(p.x, p.y - 26, "-" + Math.round(bb.dmg), "#ff5050");
+      bb.life = 0; const taken = blockDamage(bb.dmg); p.hp -= taken; p.inv = 0.5; state.shake = Math.max(state.shake, 8); Sound.hurt();
+      floatText(p.x, p.y - 26, "-" + Math.round(taken), "#ff5050");
       if (p.hp <= 0) { endGame(); return; }
     }
   }
@@ -1007,8 +1052,8 @@ function update(dt) {
     } else if (z.active > 0) {
       z.active -= dt;
       if (!z.hit && p.inv <= 0 && !debugGod && dist2(p.x, p.y, z.x, z.y) < (z.r + p.r) ** 2) {
-        z.hit = true; p.hp -= z.dmg; p.inv = 0.6; state.shake = Math.max(state.shake, 10); Sound.hurt();
-        floatText(p.x, p.y - 26, "-" + Math.round(z.dmg), "#ff5050");
+        z.hit = true; const taken = blockDamage(z.dmg); p.hp -= taken; p.inv = 0.6; state.shake = Math.max(state.shake, 10); Sound.hurt();
+        floatText(p.x, p.y - 26, "-" + Math.round(taken), "#ff5050");
         if (p.hp <= 0) { endGame(); return; }
       }
     }
@@ -1187,6 +1232,8 @@ function draw() {
       ctx.fillStyle = "#fff0ff";
       ctx.beginPath(); ctx.arc(b.x - b.r * 0.25, b.y - b.r * 0.25, Math.max(2, b.r * 0.28), 0, Math.PI * 2); ctx.fill();
       ctx.restore();
+    } else if (b.kind === "axe") {
+      drawThrownAxe(b);
     } else if (b.big) drawArrow(b.x, b.y, b.vx, b.vy, 24, b.color || "#ff7a2a", 2.4);
     else drawArrow(b.x, b.y, b.vx, b.vy, 11, b.color || "#e7cda0", 1);
   }
@@ -1541,15 +1588,17 @@ function itemCard(item) {
 // Stats panel: splits each stat into what comes from level (base) and from equipment.
 function renderStatsPanel(p) {
   const f1 = v => (Math.round(v * 10) / 10).toString();
-  const shots = 1 / getWeapon(state.weaponId).skills[0].cooldown;
+  const shots = weaponLevelRate(p, getWeapon(state.weaponId));
   const rows = [
     { label: "Daño",      color: AFFIX.dmg.color,      lvl: p.base.dmg,   eq: equipSum(p, "dmg"),      fmt: v => f1(v) },
     { label: "Vida máx",  color: AFFIX.maxHp.color,    lvl: p.base.maxHp, eq: equipSum(p, "maxHp"),    fmt: v => f1(v) },
     { label: "Velocidad", color: AFFIX.speed.color,    lvl: p.base.speed, eq: equipSum(p, "speed"),    fmt: v => f1(v) },
-    { label: "Cadencia básica", color: AFFIX.fireRate.color, lvl: shots, eq: equipSum(p, "fireRate"), fmt: v => f1(v * 100) / 100 + " A/s", dec: 2 },
+    { label: "Cadencia", color: AFFIX.fireRate.color, lvl: shots, eq: equipSum(p, "fireRate"), fmt: v => f1(v * 100) / 100 + " A/s", dec: 2 },
     { label: "Regen",     color: AFFIX.regen.color,    lvl: p.base.regen, eq: equipSum(p, "regen"),    fmt: v => f1(v) + "/s" },
     { label: "Brasas",    color: AFFIX.ashBonus.color, lvl: 0,            eq: equipSum(p, "ashBonus"), fmt: v => f1(v) + "%" },
-    { label: "Crítico",   color: AFFIX.crit.color,     lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%", cap: 100 },
+    state.weaponId === "axe"
+      ? { label: "Bloqueo", color: AFFIX.block.color,    lvl: 0,            eq: equipSum(p, "block"),    fmt: v => f1(v) + "%" }
+      : { label: "Crítico", color: AFFIX.crit.color,     lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%", cap: 100 },
     { label: "Recarga",   color: AFFIX.cdr.color,      lvl: 0,            eq: equipSum(p, "cdr"),      fmt: v => f1(v) + "%" },
   ];
   const fmtV = (r, v) => r.dec ? (Math.round(v * 100) / 100) + " A/s" : r.fmt(v);
@@ -1577,7 +1626,7 @@ function renderInventory() {
     + "  ·  Vida " + Math.round(p.maxHp)
     + "  ·  Vel " + Math.round(p.speed)
     + "  ·  Brasas +" + Math.round(p.ashBonus * 100) + "%"
-    + "  ·  Crit " + Math.round(p.crit * 100) + "%"
+    + (state.weaponId === "axe" ? "  ·  Bloqueo " + Math.round(p.block * 100) + "%" : "  ·  Crit " + Math.round(p.crit * 100) + "%")
     + "  ·  Recarga " + Math.round(p.cdr * 100) + "%";
   const equipList = el("equip-list");
   equipList.innerHTML = "";
