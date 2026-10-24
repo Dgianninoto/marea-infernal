@@ -474,6 +474,9 @@ function recalcStats(p) {
   p.power = power;
 }
 
+// Total de brasas de la partida: las que quedan en mano + las gastadas en mejoras.
+function ashTotal() { return state.ash + state.ashSpent; }
+
 // Spend brasas to add one stat point to a piece.
 function upgradePoint(slotKey, statKey) {
   const p = state.player;
@@ -483,6 +486,7 @@ function upgradePoint(slotKey, statKey) {
   const cost = pointCost(it);
   if (state.ash < cost) return;
   state.ash -= cost;
+  state.ashSpent += cost;
   st.points++;
   it.plus++;
   state.lootCount++;
@@ -500,6 +504,7 @@ function upgradeItem(slotKey) {
   const cost = rarityCost(it.level);
   if (state.ash < cost) return;
   state.ash -= cost;
+  state.ashSpent += cost;
   it.level++;
   it.plus = 0; // indicator back to +0; the stat points already bought are kept
   state.lootCount++; // counts upgrades done
@@ -529,6 +534,7 @@ function newState(weaponId) {
     kills: 0,
     lootCount: 0,
     ash: 0,
+    ashSpent: 0,        // brasas gastadas en mejoras (para el total de la partida)
     score: 0,
     shake: 0,
     boss: null,
@@ -1939,8 +1945,8 @@ function endGame() {
   paused = false;
   pauseScreen.classList.add("hidden");
   const p = state.player;
-  // score rewards waves reached, levels, bosses felled and ash hoarded
-  const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * 2 + state.bossesDown * 1500;
+  // score rewards waves reached, levels, bosses felled and ash collected (held + spent)
+  const finalScore = state.score + state.wave * 150 + p.level * 100 + ashTotal() * 2 + state.bossesDown * 1500;
   bossWrap.style.display = "none";
   interPanel.style.display = "none";
   el("over-title").textContent = "Has caído";
@@ -1948,13 +1954,13 @@ function endGame() {
   el("final-wave").textContent = state.wave;
   el("final-kills").textContent = state.kills;
   el("final-loot").textContent = state.lootCount;
-  el("final-ash").textContent = state.ash;
+  el("final-ash").textContent = ashTotal();
   el("final-score").textContent = finalScore.toLocaleString();
 
   // stash this run so the player can name & save it
   pendingRun = {
     score: finalScore, level: p.level, wave: state.wave,
-    kills: state.kills, loot: state.lootCount, ash: state.ash,
+    kills: state.kills, loot: state.lootCount, ash: ashTotal(),
     boss: state.bossesDown > 0, date: Date.now(),
   };
   if (state.debugUsed) pendingRun = null; // partida con debug: no se guarda ni en local ni en global
@@ -2019,12 +2025,12 @@ function endGameToMenu() {
     state.running = false;
     state.over = true;
     const p = state.player;
-    const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * 2 + state.bossesDown * 1500;
+    const finalScore = state.score + state.wave * 150 + p.level * 100 + ashTotal() * 2 + state.bossesDown * 1500;
     if (!state.debugUsed) { // con debug no se guarda el abandono ni en local ni en global
       addScore({
         id: "r" + Date.now() + Math.random().toString(36).slice(2, 6),
         name: "Abandono", score: finalScore, level: p.level, wave: state.wave,
-        kills: state.kills, loot: state.lootCount, ash: state.ash,
+        kills: state.kills, loot: state.lootCount, ash: ashTotal(),
         boss: state.bossesDown > 0, date: Date.now(),
       });
     }
