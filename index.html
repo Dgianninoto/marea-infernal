@@ -14,10 +14,10 @@
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 172 -> la proxima entrega 173,
-         luego 174, 175, etc. (se muestra como 0.172, 0.173, 0.174...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 175 -> la proxima entrega 176,
+         luego 177, 178, etc. (se muestra como 0.175, 0.176, 0.177...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.172</div>
+    <div id="build-tag">Build 0.175</div>
 
     <div id="float-layer"></div>
 
@@ -152,38 +152,38 @@
         <!-- Weapon selection view -->
         <div class="menu-view hidden" id="menu-weapons">
           <h2>Elige tu arma</h2>
-          <p class="weapon-intro">Tu elección define tu estilo de combate durante toda la partida.</p>
+          <p class="weapon-intro">Elige con cuidado: tu héroe define tu estilo de combate y no se puede cambiar durante la partida.</p>
           <div class="weapon-grid">
             <article class="weapon-card">
               <div class="weapon-icon">🏹</div>
               <h3>Arquero</h3>
-              <p>Combate a distancia con precisión y ataques perforantes.</p>
+              <p>A distancia: flechas rápidas, golpes críticos y vida equilibrada.</p>
               <ul>
-                <li>Flecha rápida</li>
-                <li>Abanico de flechas</li>
-                <li>Flecha devastadora</li>
+                <li>Flecha: disparo constante</li>
+                <li>Abanico: ráfaga en cono</li>
+                <li>Devastación: atraviesa todo</li>
               </ul>
               <button class="btn weapon-start" data-weapon="bow">Jugar con arco</button>
             </article>
             <article class="weapon-card">
               <div class="weapon-icon">🪄</div>
               <h3>Mago</h3>
-              <p>Proyectiles arcanos y explosiones de energía a distancia.</p>
+              <p>Frágil y de largo alcance, con meteoritos y esquiva en parpadeo.</p>
               <ul>
-                <li>Orbe arcano guiado</li>
-                <li>Salva explosiva</li>
-                <li>Meteorito de área</li>
+                <li>Orbe arcano: proyectil guiado</li>
+                <li>Salva arcana: abanico de orbes</li>
+                <li>Meteorito: explosión de área</li>
               </ul>
               <button class="btn weapon-start" data-weapon="staff">Jugar con bastón</button>
             </article>
             <article class="weapon-card">
               <div class="weapon-icon">🪓</div>
               <h3>Bárbaro</h3>
-              <p>Golpes cuerpo a cuerpo, barridos y ataques de área.</p>
+              <p>Cuerpo a cuerpo y muy resistente, pero más lento.</p>
               <ul>
-                <li>Tajo frontal</li>
-                <li>Hacha arrojadiza</li>
-                <li>Golpe sísmico</li>
+                <li>Tajo: golpe en arco frontal</li>
+                <li>Hacha arrojadiza: hace sangrar</li>
+                <li>Golpe sísmico: onda de área</li>
               </ul>
               <button class="btn weapon-start" data-weapon="axe">Jugar con hacha</button>
             </article>
@@ -196,24 +196,47 @@
           <h2>Cómo jugar</h2>
           <div class="howto-body">
             <div class="howto-text">
-              <p><b style="color:var(--ember-glow)">Objetivo.</b> Sobrevive el mayor número de oleadas posible: no hay
-                límite de tiempo y la única forma de perder es quedarte sin vida. Cada oleada sube la dificultad. Gana
-                <b>experiencia</b> para subir de nivel, acumula <b>cenizas candentes</b> 🔥 y recoge <b>botín</b> para
-                hacerte más poderoso.</p>
-              <p><b style="color:var(--ember-glow)">Armas.</b> Antes de jugar, elige Arquero, Mago o Bárbaro. Cada
-                arma tiene tres ataques automáticos con cooldown: básico, intermedio y definitivo. El arma elegida queda
-                fija durante esa partida; el ratón orienta los proyectiles y ataques frontales, mientras que los ataques
-                circulares se centran en el jugador. El Bárbaro requiere acercarse a los enemigos.</p>
-              <p><b style="color:#bd8cff">Mago y Bárbaro.</b> El definitivo del Mago invoca un meteorito: el círculo
-                marca dónde caerá y el área que dañará. El Mago usa <b>Poder</b> en lugar de crítico: cada punto (+0,5 %) agranda el meteorito y, cada 10 %, añade un orbe a la salva arcana hasta cerrar un círculo. El golpe sísmico del Bárbaro muestra su radio al impactar, dividido en 3 anillos (exterior ×2, central ×4, interior ×7 del daño); el tajo
-                dibuja el arco frontal de su alcance y la hacha arrojadiza lanza tres hachas giratorias (una central del doble de tamaño y alcance) que atraviesan enemigos y los hacen sangrar: pierden el 120 % del daño del Bárbaro en 5 s, con un latido rojo sobre ellos.</p>
+              <p><b style="color:var(--ember-glow)">Objetivo.</b> Sobrevive tantas oleadas como puedas: no hay límite
+                de tiempo y solo pierdes si te quedas sin vida. Cada oleada es más dura. Sube de nivel con la
+                <b>experiencia</b>, reúne <b>cenizas candentes</b> 🔥 y mejora tu equipo con el <b>botín</b>.</p>
+              <p><b style="color:var(--ember-glow)">Héroes.</b> Elige uno antes de jugar; no se puede cambiar durante la
+                partida. Cada héroe tiene tres ataques automáticos (básico, intermedio y definitivo) con su propio
+                cooldown: tú solo te mueves y apuntas con el ratón, que orienta los ataques frontales (los circulares
+                salen desde ti).</p>
+              <p><b style="color:#ffd84d">🏹 Arquero.</b> Combate a distancia con 120 de vida base. Dispara flechas
+                rápidas, un abanico de flechas y una flecha devastadora que atraviesa a todos los enemigos. Su stat
+                propio es el <b>Crítico</b>.</p>
+              <p><b style="color:#bd8cff">🪄 Mago.</b> El más frágil (80 de vida) pero con más daño base (15). Lanza un
+                orbe arcano guiado, una salva de orbes en abanico y un meteorito que marca un círculo antes de caer. Su
+                <b>Poder</b> (en lugar de Crítico) agranda el meteorito y añade orbes a la salva. Su esquiva es un
+                <b>parpadeo arcano</b>: desapareces mientras te desplazas, recarga un 75 % más rápido y llega un 25 %
+                más lejos.</p>
+              <p><b style="color:#ff7659">🪓 Bárbaro.</b> Cuerpo a cuerpo y muy resistente: 200 de vida, 30 de daño y
+                regeneración de 1/s, pero más lento. Su <b>Bloqueo</b> (en lugar de Crítico) da probabilidad de reducir
+                a la mitad el daño recibido. El tajo golpea en arco frontal, el hacha arrojadiza lanza tres hachas que
+                atraviesan y hacen sangrar (120 % de su daño en 5 s) y el golpe sísmico daña en tres anillos
+                (×2 exterior, ×4 central, ×7 interior).</p>
+              <p><b style="color:var(--ember-glow)">Esquiva.</b> Pulsa <kbd>Espacio</kbd> para hacer un dash con una
+                breve invulnerabilidad. Tiene tiempo de recarga.</p>
               <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu
                 mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza).
                 Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats
                 ya comprados) para repetir el ciclo en el rango superior.</p>
+              <p><b style="color:var(--ember-glow)">Rareza.</b> La rareza de una pieza multiplica <b>todos sus
+                stats</b>:
+                <span style="color:#d9d2c6">Común ×1</span> ·
+                <span style="color:#5aa0ff">Mágico ×1,5</span> ·
+                <span style="color:#ffd84d">Raro ×2</span> ·
+                <span style="color:#ff7a2a">Legendario ×3</span> ·
+                <span style="color:#c9622b">Único ×5</span>.
+                Subirla cuesta 250, 375, 575 y 850 cenizas (de un nivel al siguiente), así que es la mejora más
+                potente del equipo.</p>
               <p><b style="color:var(--ember-glow)">Cofres.</b> Aparecen con un 5% de probabilidad en cada tanda de
                 enemigos y siempre al matar al jefe. Duran solo 5 segundos: acércate y pulsa <kbd>E</kbd> para abrirlos
                 gratis y recibir 100 + (nivel × 50) cenizas, aumentadas por tu bonus de Brasas.</p>
+              <p><b style="color:#ffd84d">Duende del Tesoro.</b> Con poca probabilidad aparece un duende que huye de
+                ti dejando cenizas. No hace daño, pero acaba escapando por un portal dorado: si lo golpeas mientras lo
+                abre, lo interrumpes; tras unos 25 s ya no se puede detener. Derrótalo para ganar 200 cenizas.</p>
               <p><b style="color:#ff5050">El Señor de la Marea.</b> Aparece cada 10 oleadas. Desde la oleada 20 salta
                 para aplastar; desde la 30 invoca lluvia de fuego. Al derrotarlo deja un cofre. Cada 5 oleadas
                 hay una <b>pausa</b> (sin nuevos enemigos hasta pulsar Continuar) para revisar tu equipo, y cada 10

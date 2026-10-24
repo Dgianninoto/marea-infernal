@@ -1579,7 +1579,10 @@ for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
 }]]) {
   const b = el(id);
   b.addEventListener("mousedown", e => e.preventDefault()); // keep focus off the button so Space/E don't trigger it
-  b.addEventListener("click", fn);
+  b.addEventListener("click", () => {
+    if (state) state.debugUsed = true; // cualquier uso del debug invalida el guardado de puntajes de esta partida
+    fn();
+  });
 }
 
 // ---------------------------------------------------------------- Inventory UI
@@ -1905,6 +1908,8 @@ function startGame(weaponId) {
   Sound.resume(); // unlock audio on user gesture
   if (typeof weaponId === "string") selectedWeaponId = getWeapon(weaponId).id;
   state = newState(selectedWeaponId);
+  // si el debug (cenizas infinitas / invulnerable) sigue activo de la partida anterior, esta tambien cuenta como debug
+  state.debugUsed = !!(debugInfAsh || debugGod);
   updateWeaponHud(state.weaponId);
   recalcStats(state.player); // initialize effective stats
   closeInventory();
@@ -1952,15 +1957,18 @@ function endGame() {
     kills: state.kills, loot: state.lootCount, ash: state.ash,
     boss: state.bossesDown > 0, date: Date.now(),
   };
+  if (state.debugUsed) pendingRun = null; // partida con debug: no se guarda ni en local ni en global
 
   const prevBest = bestScore();
-  el("best-score").textContent = finalScore > prevBest && prevBest > 0
+  el("best-score").textContent = state.debugUsed
+    ? "🛠 Debug usado: esta partida no se guarda"
+    : finalScore > prevBest && prevBest > 0
     ? "🏆 ¡Nuevo récord! " + finalScore.toLocaleString()
     : "Mejor puntuación: " + Math.max(prevBest, finalScore).toLocaleString();
 
   // reset the save row
   const nameRow = el("name-row");
-  nameRow.style.display = "flex";
+  nameRow.style.display = state.debugUsed ? "none" : "flex";
   const input = el("name-input");
   input.value = "";
   input.disabled = false;
@@ -2012,12 +2020,14 @@ function endGameToMenu() {
     state.over = true;
     const p = state.player;
     const finalScore = state.score + state.wave * 150 + p.level * 100 + state.ash * 2 + state.bossesDown * 1500;
-    addScore({
-      id: "r" + Date.now() + Math.random().toString(36).slice(2, 6),
-      name: "Abandono", score: finalScore, level: p.level, wave: state.wave,
-      kills: state.kills, loot: state.lootCount, ash: state.ash,
-      boss: state.bossesDown > 0, date: Date.now(),
-    });
+    if (!state.debugUsed) { // con debug no se guarda el abandono ni en local ni en global
+      addScore({
+        id: "r" + Date.now() + Math.random().toString(36).slice(2, 6),
+        name: "Abandono", score: finalScore, level: p.level, wave: state.wave,
+        kills: state.kills, loot: state.lootCount, ash: state.ash,
+        boss: state.bossesDown > 0, date: Date.now(),
+      });
+    }
     pendingRun = null;
   }
   openMenu();
