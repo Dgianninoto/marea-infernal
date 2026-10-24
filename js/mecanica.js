@@ -1811,13 +1811,14 @@ async function fetchGlobalScores() {
 }
 
 // Add a run to the board. Returns the saved entry (so we can highlight it).
-function addScore(entry) {
+// localOnly = true: solo ranking local del dispositivo, NO se envia al ranking global.
+function addScore(entry, localOnly) {
   const list = loadScores();
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
   if (list.length > MAX_SCORES) list.length = MAX_SCORES;
   saveScores(list);
-  sbInsertScore(entry);
+  if (!localOnly) sbInsertScore(entry);
   return entry;
 }
 // Que ranking se muestra: "global" (Supabase) o "local" (este dispositivo). Se recuerda mientras dure la sesion.
@@ -2033,7 +2034,7 @@ function endGameToMenu() {
         name: "Abandono", score: finalScore, level: p.level, wave: state.wave,
         kills: state.kills, loot: state.lootCount, ash: ashTotal(),
         boss: state.bossesDown > 0, date: Date.now(),
-      });
+      }, true); // abandono: solo ranking local, nunca se envia al global
     }
     pendingRun = null;
   }
