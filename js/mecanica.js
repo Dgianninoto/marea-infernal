@@ -285,10 +285,10 @@ var RARITY = [
   { name: "Único",      color: "#c9622b" },
 ];
 var MAX_LEVEL = RARITY.length - 1;
-var MAX_PLUS = 10;            // an item holds at most +10 (each stat point = +1); rarity can only be raised at +10
-var POINT_BASE_COST = 25;     // brasas per +1: 25 + 5 * rarity index of the item
+var MAX_PLUS = 5;             // an item holds at most +5 (each stat point = +1); rarity can only be raised at +5
+var POINT_BASE_COST = 40;     // brasas per +1: 40 + 5 * rarity index of the item
 var POINT_RARITY_COST = 5;
-var itemPlus = it => it.plus; // upgrade indicator 0..10 (stat points themselves are permanent)
+var itemPlus = it => it.plus; // upgrade indicator 0..5 (stat points themselves are permanent)
 function pointCost(it) { return POINT_BASE_COST + it.level * POINT_RARITY_COST; }
 var RARITY_BASE_COST = 250;   // brasas for the first rarity level
 var RARITY_GROWTH = 1.5;      // each rarity level costs 150% of the previous one
@@ -496,7 +496,7 @@ function upgradePoint(slotKey, statKey) {
 function upgradeItem(slotKey) {
   const p = state.player;
   const it = p.equipped[slotKey];
-  if (!it || it.level >= MAX_LEVEL || itemPlus(it) < MAX_PLUS) return; // needs +10 first
+  if (!it || it.level >= MAX_LEVEL || itemPlus(it) < MAX_PLUS) return; // needs +5 first
   const cost = rarityCost(it.level);
   if (state.ash < cost) return;
   state.ash -= cost;
@@ -1625,7 +1625,7 @@ function itemCard(item) {
     const ptBtn = document.createElement("button");
     ptBtn.className = "mini equip";
     const pc = pointCost(item);
-    ptBtn.textContent = plusFull ? "+10 máx" : "+1 · " + pc + " 🔥";
+    ptBtn.textContent = plusFull ? "+" + MAX_PLUS + " máx" : "+1 · " + pc + " 🔥";
     ptBtn.disabled = plusFull || state.ash < pc;
     ptBtn.addEventListener("click", () => upgradePoint(item.slot, st.key));
     row.appendChild(ptBtn);

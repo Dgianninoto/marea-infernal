@@ -33,7 +33,7 @@ dependencias ni servidor web.
   recompensa al superar oleadas y al derrotar jefes.
 - **Mejora el equipo:** abre el inventario durante la partida para gastar
   cenizas en las seis piezas iniciales —arma, casco, pecho, guantes, botas y
-  anillo—. Cada pieza tiene atributos mejorables; al llegar a +10 puedes subir
+  anillo—. Cada pieza tiene atributos mejorables; al llegar a +5 puedes subir
   su rareza y continuar mejorándola.
 - **Abre cofres:** acércate y pulsa `E` antes de que desaparezcan. Pueden
   aparecer durante las tandas de enemigos y siempre aparecen al derrotar al
