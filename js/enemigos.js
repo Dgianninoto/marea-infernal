@@ -440,15 +440,15 @@ function drawBoss(b) {
 function spawnGoblin(x, y) {
   const p = state.player;
   const w = state.wave;
-  const hpScale = 1 + (w - 1) * 0.18;
+  const hpScale = 1 + (w - 1) * 0.25;
   const e = {
     x: clamp(x, WALL + 30, WORLD.w - WALL - 30),
     y: clamp(y, WALL + 30, WORLD.h - WALL - 30),
     type: "goblin",
     r: 18,
     speed: 155, // ágil y escurridizo
-    hp: 130 * hpScale,
-    maxHp: 130 * hpScale,
+    hp: 390 * hpScale,
+    maxHp: 390 * hpScale,
     dmg: 0, // ¡no daña al jugador!
     xp: 70 + w * 12,
     color: "#2ecc71",
@@ -462,14 +462,17 @@ function spawnGoblin(x, y) {
     ashTimer: rand(1.1, 1.6),
     trailTimer: 0,
     panicTimer: 0,
-    escapeTimer: 32, // tiempo total antes de escapar
+    escapeTimer: 30, // tiempo total antes de escapar: 25 s corriendo + 5 s de portal (a los 25 s ya no se detiene)
+    portalGrace: 5, // segundos tras aparecer en los que no puede usar el portal
+    portalLocked: false, // true al pasar 25 s: el portal ya no se puede interrumpir
     portalState: "none", // "none" | "opening"
     portalTime: 0,
+    edgeTimer: 0, // segundos seguidos cerca del borde del mapa
+    laughTimer: rand(2.5, 4), // proxima risita
+    wasChanneling: false, portalTick: 0.4, // sonidos del portal
   };
   state.enemies.push(e);
   if (Sound && Sound.goblin) Sound.goblin();
-  floatText(e.x, e.y - 50, "¡Duende del Tesoro!", "#ffd84d");
-  showWarning("¡Un Duende del Tesoro ha aparecido!<br><span style='font-size:18px;color:#ffd84d'>¡Persíguelo antes de que escape con las cenizas!</span>");
   for (let i = 0; i < 24; i++) {
     const a = rand(0, Math.PI * 2), s = rand(50, 200);
     state.particles.push({
@@ -499,32 +502,64 @@ function spawnGoblinNearPlayer() {
   spawnGoblin(x, y);
 }
 
+var GOBLIN_PORTAL_FAR = 500;     // a mas de esta distancia (px) del jugador empieza a abrir el portal
+var GOBLIN_PORTAL_CHANNEL = 5;   // segundos de canalizacion antes de escapar
+var GOBLIN_EDGE_ZONE = 150;      // zona (px) junto al borde del mapa donde no puede quedarse mucho
+var GOBLIN_EDGE_MAX_TIME = 2;    // segundos maximos seguidos dentro de esa zona antes de ser obligado a salir
+
 function updateGoblin(e, dt, p, dx, dy, d) {
   if (e.panicTimer > 0) e.panicTimer -= dt;
   e.escapeTimer -= dt;
+  if (e.portalGrace > 0) e.portalGrace -= dt;
 
-  // Apertura de portal de escape al acabarse el tiempo
-  if (e.escapeTimer <= 5 && e.portalState === "none") {
+  // Zona de borde: a menos de GOBLIN_EDGE_ZONE px del borde del mapa NO puede abrir/canalizar el portal
+  // anticipado; el portal por tiempo (bloqueado a los 25 s) si puede usarlo aunque este en el borde.
+  const edgeDistMin = Math.min(e.x - WALL, WORLD.w - WALL - e.x, e.y - WALL, WORLD.h - WALL - e.y);
+  const inEdgeZone = edgeDistMin < GOBLIN_EDGE_ZONE;
+
+  // Apertura del portal de escape:
+  //  - pasados 25 s desde que aparece (escapeTimer <= 5) se abre y queda BLOQUEADO: ya no se puede interrumpir.
+  //  - antes de eso, pasados los 5 s de gracia iniciales y si esta a mas de GOBLIN_PORTAL_FAR px del jugador
+  //    (y no esta en panico) empieza a
+  //    abrirlo; un golpe lo interrumpe (ver onGoblinHit).
+  if (e.escapeTimer <= 5 && !e.portalLocked) {
+    e.portalLocked = true;
+    if (e.portalState === "none") { e.portalState = "opening"; e.portalTime = 0; }
+  } else if (e.portalState === "none" && e.panicTimer <= 0 && d > GOBLIN_PORTAL_FAR && !inEdgeZone && e.portalGrace <= 0) {
     e.portalState = "opening";
     e.portalTime = 0;
-    floatText(e.x, e.y - 45, "¡Abriendo portal!", "#e056fd");
   }
 
-  const channeling = e.portalState === "opening" && e.panicTimer <= 0;
+  const channeling = e.portalState === "opening" && e.panicTimer <= 0 && (!inEdgeZone || e.portalLocked);
+  e.channeling = channeling; // para dibujar el portal solo mientras canaliza
+  const sfxVol = clamp(1 - d / 1500, 0.3, 1); // mas lejos = mas bajito
+  // sonido de portal de fantasia: al empezar a canalizar y destellos mientras dura
+  if (channeling && !e.wasChanneling) { e.portalTick = 0.8; if (Sound.goblinPortal) Sound.goblinPortal(sfxVol); }
+  e.wasChanneling = channeling;
+  // risita periodica mientras el duende esta en el mapa (no mientras canaliza el portal)
+  if (!channeling) {
+    e.laughTimer -= dt;
+    if (e.laughTimer <= 0) { e.laughTimer = rand(5, 8); if (Sound.goblinLaugh) Sound.goblinLaugh(sfxVol); }
+  }
   if (channeling) {
     e.portalTime += dt;
+    e.portalTick -= dt;
+    if (e.portalTick <= 0) {
+      e.portalTick = 0.8;
+      if (Sound.goblinPortalTick) Sound.goblinPortalTick(clamp(e.portalTime / GOBLIN_PORTAL_CHANNEL, 0, 1), sfxVol);
+    }
     if (Math.random() < 0.6) {
-      const a = rand(0, Math.PI * 2), dist = rand(15, 36);
+      const a = rand(0, Math.PI * 2), dist = rand(30, 70);
       state.particles.push({
         x: e.x + Math.cos(a) * dist,
-        y: e.y + Math.sin(a) * dist,
+        y: e.y + Math.sin(a) * dist * 0.45,
         vx: -Math.cos(a) * 45 + rand(-10, 10),
         vy: -Math.sin(a) * 45 + rand(-10, 10),
         life: 0.4, r: rand(2, 4),
-        color: pick(["#e056fd", "#be2edd", "#ffd84d"])
+        color: pick(["#ffd84d", "#f1c40f", "#fff3b0"])
       });
     }
-    if (e.escapeTimer <= 0) {
+    if (e.portalTime >= GOBLIN_PORTAL_CHANNEL) {
       e.hp = 0; // Desaparece a través del portal
       if (Sound && Sound.goblinEscape) Sound.goblinEscape();
       floatText(e.x, e.y - 40, "¡El Duende escapó!", "#ff7675");
@@ -563,6 +598,15 @@ function updateGoblin(e, dt, p, dx, dy, d) {
 
   const fLen = Math.hypot(fleeX, fleeY) || 1;
   fleeX /= fLen; fleeY /= fLen;
+
+  // Limite junto al borde: no puede pasar mas de GOBLIN_EDGE_MAX_TIME s a menos de GOBLIN_EDGE_ZONE px del borde.
+  // Pasado ese tiempo ignora al jugador y se dirige al centro del mapa hasta salir de la zona (no aplica mientras canaliza).
+  if (!inEdgeZone) e.edgeTimer = 0;
+  else e.edgeTimer += dt;
+  if (inEdgeZone && !channeling && e.edgeTimer >= GOBLIN_EDGE_MAX_TIME) {
+    const cx = WORLD.w / 2 - e.x, cy = WORLD.h / 2 - e.y, cl = Math.hypot(cx, cy) || 1;
+    fleeX = cx / cl; fleeY = cy / cl;
+  }
 
   if (!channeling) {
     e.vx = fleeX * moveSpd;
@@ -628,11 +672,12 @@ function updateGoblin(e, dt, p, dx, dy, d) {
 }
 
 function onGoblinHit(e) {
-  e.panicTimer = 1.2;
-  if (e.portalState === "opening") {
-    e.escapeTimer = Math.min(12, e.escapeTimer + 2.2);
+  // Si el portal esta bloqueado (pasaron 25 s) ya no se puede detener: ni panico ni interrupcion, solo suelta cenizas.
+  // Antes de eso, un golpe lo interrumpe (reinicia el progreso) y el duende entra en panico.
+  if (!e.portalLocked) {
+    e.panicTimer = 1.2;
     e.portalState = "none";
-    floatText(e.x, e.y - 45, "¡Portal interrumpido!", "#ffd84d");
+    e.portalTime = 0;
   }
   if (Sound && Sound.goblinHit) Sound.goblinHit();
   // Deja caer cenizas extras al ser golpeado
@@ -734,24 +779,25 @@ function drawGoblin(e) {
   ctx.restore();
 
   // Portal de escape dimensional si está canalizando
-  if (e.portalState === "opening") {
+  if (e.channeling) {
     const t = performance.now() / 200;
     ctx.save();
     ctx.translate(e.x, e.y + 4);
     ctx.scale(1, 0.45);
-    const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, 42);
-    grad.addColorStop(0, "rgba(224, 86, 253, 0.85)");
-    grad.addColorStop(0.6, "rgba(108, 92, 231, 0.5)");
-    grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    const PR = 75; // radio del portal: ~150 px de ancho (ovalado por el scale vertical)
+    const grad = ctx.createRadialGradient(0, 0, 8, 0, 0, PR);
+    grad.addColorStop(0, "rgba(255, 244, 176, 0.9)");
+    grad.addColorStop(0.6, "rgba(241, 196, 15, 0.55)");
+    grad.addColorStop(1, "rgba(255, 216, 77, 0)");
     ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(0, 0, 42, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, PR, 0, Math.PI * 2); ctx.fill();
 
     ctx.rotate(t);
-    ctx.strokeStyle = "rgba(255, 216, 77, 0.75)";
-    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "rgba(255, 244, 176, 0.85)";
+    ctx.lineWidth = 3;
     ctx.beginPath();
     for (let a = 0; a < Math.PI * 4; a += 0.2) {
-      const pr = 4 + a * 2.8;
+      const pr = 6 + a * 5.4;
       const px = Math.cos(a) * pr, py = Math.sin(a) * pr;
       if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
@@ -932,10 +978,10 @@ function drawGoblin(e) {
   const hpPct = clamp(e.hp / e.maxHp, 0, 1);
   ctx.fillRect(e.x - barW / 2, barY, barW * hpPct, 3.5);
 
-  if (e.portalState === "opening") {
+  if (e.channeling) {
     ctx.fillStyle = "#ff7675";
     ctx.font = "bold 10px sans-serif";
-    ctx.fillText("¡Portal! " + Math.max(0, e.escapeTimer).toFixed(1) + "s", e.x, barY - 14);
+    ctx.fillText("¡Portal! " + Math.max(0, GOBLIN_PORTAL_CHANNEL - e.portalTime).toFixed(1) + "s", e.x, barY - 14);
   }
 
   ctx.textAlign = "left";

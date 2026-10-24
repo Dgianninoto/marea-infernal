@@ -13,7 +13,11 @@
     <canvas id="game"></canvas>
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
-    <div id="build-tag">Build 17 · 23/10/2026</div>
+    <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 172 -> la proxima entrega 173,
+         luego 174, 175, etc. (se muestra como 0.172, 0.173, 0.174...). Actualiza este comentario tambien.
+         La etiqueta NO lleva fecha. -->
+    <div id="build-tag">Build 0.172</div>
 
     <div id="float-layer"></div>
 
@@ -57,23 +61,14 @@
               <div class="label" id="xp-txt"></div>
             </div>
           </div>
-          <div class="stat-row">
-            <span class="stat-label">Esquive</span>
-            <div class="bar">
-              <div class="fill" id="dash-fill"></div>
-              <div class="label" id="dash-txt"></div>
-            </div>
-          </div>
         </div>
 
         <div class="panel tide-panel">
-          <div class="tide-title">Marea Infernal</div>
           <div id="tide-timer">OLEADA 1</div>
           <div id="wave-progress" style="font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">0 / 0
           </div>
           <div class="ash"><span>🔥</span><span id="ash-txt">0</span><span
               style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">cenizas</span></div>
-          <button id="sound-btn">🔊 Sonido</button>
         </div>
 
         <div class="panel" style="text-align:right">
@@ -108,11 +103,14 @@
             <div class="skill-name"></div>
           </div>
         </div>
-        <div id="controls-hint">
-          <kbd>W A S D</kbd> / flechas — mover<br />
-          <kbd>ratón</kbd> apunta — ataques automáticos<br />
-          <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br />
-          <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
+        <div id="hud-br">
+          <div id="controls-hint">
+            <kbd>W A S D</kbd> / flechas — mover<br />
+            <kbd>ratón</kbd> apunta — ataques automáticos<br />
+            <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br />
+            <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
+          </div>
+          <button id="sound-btn" title="Sonido" aria-label="Sonido">🔊</button>
         </div>
       </div>
     </div>
@@ -207,8 +205,8 @@
                 fija durante esa partida; el ratón orienta los proyectiles y ataques frontales, mientras que los ataques
                 circulares se centran en el jugador. El Bárbaro requiere acercarse a los enemigos.</p>
               <p><b style="color:#bd8cff">Mago y Bárbaro.</b> El definitivo del Mago invoca un meteorito: el círculo
-                marca dónde caerá y el área que dañará. El Mago usa <b>Poder</b> en lugar de crítico: cada punto (+0,5 %) agranda el meteorito y, cada 10 %, añade un orbe a la salva arcana hasta cerrar un círculo. El golpe sísmico del Bárbaro muestra su radio al impactar; el tajo
-                dibuja el arco frontal de su alcance y la hacha arrojadiza lanza dos hachas giratorias que atraviesan enemigos.</p>
+                marca dónde caerá y el área que dañará. El Mago usa <b>Poder</b> en lugar de crítico: cada punto (+0,5 %) agranda el meteorito y, cada 10 %, añade un orbe a la salva arcana hasta cerrar un círculo. El golpe sísmico del Bárbaro muestra su radio al impactar, dividido en 3 anillos (exterior ×2, central ×4, interior ×7 del daño); el tajo
+                dibuja el arco frontal de su alcance y la hacha arrojadiza lanza tres hachas giratorias (una central del doble de tamaño y alcance) que atraviesan enemigos y los hacen sangrar: pierden el 120 % del daño del Bárbaro en 5 s, con un latido rojo sobre ellos.</p>
               <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu
                 mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 25 + 5 × rareza).
                 Al llegar a +10 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats

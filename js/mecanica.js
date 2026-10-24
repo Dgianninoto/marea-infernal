@@ -89,6 +89,36 @@ var Sound = (() => {
       tone(600, 0.35, "sawtooth", 0.14, 150);
       noise(0.3, 0.1);
     },
+    // Risita del duende ("je-je-je-je"): notas cortas y agudas que alternan de tono. vol = 0..1 (segun distancia)
+    goblinLaugh: (vol) => {
+      const v = vol == null ? 1 : vol;
+      const base = 560 + Math.random() * 120;
+      const n = 5 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < n; i++) {
+        setTimeout(() => {
+          const f = base * (i % 2 ? 0.88 : 1.1) * (1 - i * 0.02);
+          tone(f, 0.075, "square", 0.045 * v, f * 0.72);
+          tone(f * 2, 0.05, "triangle", 0.022 * v, f * 1.5);
+        }, i * 95);
+      }
+    },
+    // Portal de fantasia al abrirse: barrido ascendente brillante + arpegio de campanillas
+    goblinPortal: (vol) => {
+      const v = vol == null ? 1 : vol;
+      tone(260, 0.9, "sine", 0.1 * v, 1300);
+      tone(392, 0.9, "triangle", 0.05 * v, 1960);
+      [1047, 1319, 1568, 2093, 2637].forEach((f, i) => {
+        setTimeout(() => tone(f, 0.38, "sine", 0.07 * v, f * 1.01), 250 + i * 110);
+      });
+      noise(0.5, 0.03 * v);
+    },
+    // Destello magico recurrente mientras el portal canaliza; k (0..1) sube el tono al acercarse el escape
+    goblinPortalTick: (k, vol) => {
+      const v = vol == null ? 1 : vol;
+      const f = 880 + (k || 0) * 880;
+      tone(f, 0.25, "sine", 0.05 * v, f * 1.5);
+      setTimeout(() => tone(f * 1.5, 0.3, "triangle", 0.035 * v, f * 2), 90);
+    },
   };
 })();
 
@@ -282,7 +312,7 @@ var AFFIX = {
 var WEAPONS = {
   bow: {
     id: "bow", name: "Arco", icon: "🏹", color: "#ffd84d",
-    baseHp: 80,          // base Vida at level 1 (default 100); level-ups still add +12
+    baseHp: 120,         // base Vida at level 1 (default 100); level-ups still add +12
     skills: [
       { name: "Flecha", icon: "➶", cooldown: 0.29 },
       { name: "Abanico", icon: "🏹", cooldown: 5.5 },
@@ -292,6 +322,10 @@ var WEAPONS = {
   staff: {
     id: "staff", name: "Bastón de mago", icon: "🪄", color: "#bd8cff",
     baseDmg: 15,         // base Daño at level 1 (others use 12)
+    baseHp: 80,          // base Vida at level 1 (default 100); level-ups still add +12
+    // Esquiva especial (parpadeo arcano): recarga 75 % mas rapida (cooldown / 1.75) y 25 % mas larga
+    // (distancia x1.25), con efecto violeta similar al teletransporte de los enemigos.
+    dashRecharge: 1.75, dashLength: 1.25, dashFx: "blink",
     statSteps: { cdr: 8, fireRate: 0.3, speed: 0.5 }, // per stat point bought with this weapon: Recarga % (default 5), Cadencia A/s (default 0.2) and Velocidad (boots, default 1)
     // weapon piece stats: Poder (base 0%, +0.5% per point) replaces Crítico for the mage. Poder agranda el
     // Meteorito (+% de radio) y añade orbes a la Salva arcana (1 orbe extra cada 10 % hasta cerrar el circulo).
@@ -310,6 +344,7 @@ var WEAPONS = {
     baseDmg: 30,         // base Daño at level 1 (others use 12); level-ups still add +2.5
     baseSpeed: 125,      // base Velocidad at level 1 (others use 150); level-ups still add +4
     baseHp: 200,         // base Vida at level 1 (others use 100); level-ups still add +12
+    baseRegen: 1,        // base Regen at level 1 (others use 0.5) in HP/s
     fireRateStep: 0.1,   // gloves: A/s per Cadencia point with this weapon (default 0.2)
     // weapon piece stats: Bloqueo (base 10%, +0.5% per point) replaces Crítico for the axe.
     // Max with all 50 points in Bloqueo at Único: (10 + 50 * 0.5) * 5 = 175%
@@ -507,16 +542,17 @@ function newState(weaponId) {
       aimX: 1, aimY: 0,
       inv: 0,            // invulnerability frames after hit
       // base stats (raised by level-ups); effective stats are derived in recalcStats()
-      base: { speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: 0.5 },
+      base: { speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: weapon.baseRegen || 0.5 },
       // effective stats after equipment (filled by recalcStats)
-      speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: 0.5, ashBonus: 0, crit: 0, poder: 0, block: 0, cdr: 0,
+      speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: weapon.baseRegen || 0.5, ashBonus: 0, crit: 0, poder: 0, block: 0, cdr: 0,
       // equipment: slotKey -> item (or null)
       equipped: makeBaseEquipment(weapon.id), // start with the 6 base pieces
       power: 0,          // total gear score
       dashCd: 0,         // current cooldown remaining
-      dashMax: 2.2,      // cooldown length
+      dashMax: 2.2 / (weapon.dashRecharge || 1), // cooldown length (el mago la recarga 75 % mas rapido)
       dashTime: 0,       // active dash remaining
-      dashDur: 0.16,     // dash duration
+      dashDur: 0.16 * (weapon.dashLength || 1),  // dash duration (el mago: 25 % mas larga = mas distancia)
+      dashFx: weapon.dashFx || null, blinkArrive: 0, // efecto especial de la esquiva (mago: "blink")
       dashSpeed: 900,    // dash velocity
       dashVX: 0, dashVY: 0,
       skillCd: [0, 0, 0],
@@ -814,13 +850,15 @@ function update(dt) {
 
   // dash cooldown / active dash
   if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
+  if (p.blinkArrive > 0) p.blinkArrive = Math.max(0, p.blinkArrive - dt);
   if (p.dashTime > 0) {
     p.dashTime -= dt;
     p.x = clamp(p.x + p.dashVX * p.dashSpeed * dt, WALL + p.r, WORLD.w - WALL - p.r);
     p.y = clamp(p.y + p.dashVY * p.dashSpeed * dt, WALL + p.r, WORLD.h - WALL - p.r);
     const rd = resolveObstacles(p.x, p.y, p.r); p.x = rd.x; p.y = rd.y;
     // dash trail
-    state.particles.push({ x: p.x, y: p.y, vx: rand(-20, 20), vy: rand(-20, 20), life: 0.25, r: rand(3, 6), color: "#6ad1ff" });
+    state.particles.push({ x: p.x, y: p.y, vx: rand(-20, 20), vy: rand(-20, 20), life: 0.25, r: rand(3, 6), color: p.dashFx === "blink" ? "#bd8cff" : "#6ad1ff" });
+    if (p.dashTime <= 0 && p.dashFx === "blink") endMageBlink(p);
   }
 
   // ---- wave director ----
@@ -850,6 +888,9 @@ function update(dt) {
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
     if (!b.big && b.life > 0 && pointInObstacle(b.x, b.y)) b.life = 0;
   }
+
+  // sangrado (Hacha arrojadiza)
+  updateBleeding(dt);
 
   // enemies
   for (const e of state.enemies) {
@@ -1093,6 +1134,7 @@ function update(dt) {
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
         }
         if (e.type === "goblin" && typeof onGoblinHit === "function") onGoblinHit(e);
+        if (b.bleed > 0 && e.hp > 0) applyBleed(e, b.bleed);
         if (e.hp <= 0) killEnemy(e);
         if (b.splashRadius > 0) {
           damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, e);
@@ -1111,6 +1153,7 @@ function update(dt) {
           const a = Math.atan2(b.vy, b.vx) + rand(-0.8, 0.8), s = rand(40, 140);
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
         }
+        if (b.bleed > 0 && boss.hp > 0) applyBleed(boss, b.bleed);
         if (boss.hp <= 0) killBoss(boss);
         if (b.splashRadius > 0) {
           damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, boss);
@@ -1224,10 +1267,10 @@ function draw() {
   ctx.globalAlpha = 1;
 
   // enemies
-  for (const e of state.enemies) drawEnemy(e);
+  for (const e of state.enemies) { drawEnemy(e); if (e.bleed) drawBleedPulse(e); }
 
   // boss
-  if (state.boss) drawBoss(state.boss);
+  if (state.boss) { drawBoss(state.boss); if (state.boss.bleed) drawBleedPulse(state.boss); }
   drawWeaponEffects();
 
   // boss + caster projectiles
@@ -1463,7 +1506,6 @@ function roundRect(x, y, w, h, r) {
 var el = id => document.getElementById(id);
 var hpFill = el("hp-fill"), hpTxt = el("hp-txt");
 var xpFill = el("xp-fill"), xpTxt = el("xp-txt");
-var dashFill = el("dash-fill"), dashTxt = el("dash-txt");
 var skillEls = [el("skill-0"), el("skill-1"), el("skill-2")];
 var skillCdEls = skillEls.map(s => s.querySelector(".skill-cd"));
 var skillIconEls = skillEls.map(s => s.querySelector(".skill-icon"));
@@ -1497,7 +1539,8 @@ function showWarning(html) {
 // sound toggle
 el("sound-btn").addEventListener("click", () => {
   const on = Sound.toggle();
-  el("sound-btn").textContent = on ? "🔊 Sonido" : "🔇 Silencio";
+  el("sound-btn").textContent = on ? "🔊" : "🔇";
+  el("sound-btn").title = on ? "Sonido" : "Silencio";
 });
 
 // intermission: let the player skip the breather
@@ -1668,11 +1711,6 @@ function updateHud() {
   hpTxt.textContent = Math.max(0, Math.round(p.hp)) + " / " + Math.round(p.maxHp);
   xpFill.style.width = clamp(p.xp / p.xpNext * 100, 0, 100) + "%";
   xpTxt.textContent = Math.round(p.xp) + " / " + p.xpNext;
-
-  const dashReady = p.dashCd <= 0;
-  dashFill.style.width = (dashReady ? 100 : (1 - p.dashCd / p.dashMax) * 100) + "%";
-  dashFill.classList.toggle("ready", dashReady);
-  dashTxt.textContent = dashReady ? "LISTO" : p.dashCd.toFixed(1) + "s";
 
   // ability cooldown overlays (curtain shrinks to 0% when ready)
   for (let i = 0; i < 3; i++) {

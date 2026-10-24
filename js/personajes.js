@@ -12,10 +12,24 @@
 var AXE_CONE_HALF_ANGLE = 0.58;
 // Angulo de cada hacha de la Hacha arrojadiza respecto a la mira (rad); apertura total = el doble.
 var AXE_THROW_ANGLE = 0.5;
+// Golpe sismico: radio total y 3 anillos concentricos, cada uno de 1/3 del radio. Cada anillo
+// multiplica el dano base del Barbaro: exterior x2, central x4, interior (el mas chico) x7.
+// `r` = fraccion del radio total hasta donde llega el anillo (de dentro hacia fuera).
+var SEISMIC_RADIUS = 195;
+var SEISMIC_RINGS = [
+  { r: 1 / 3, mult: 7 },
+  { r: 2 / 3, mult: 4 },
+  { r: 1,     mult: 2 },
+];
+// Sangrado de la Hacha arrojadiza: 10 ticks (cada 0,5 s) de 12 % del dano del Barbaro = 120 % en 5 s.
+var BLEED_TICK_INTERVAL = 0.5;
+var BLEED_TICKS = 10;
+var BLEED_TICK_RATIO = 0.12;
 
 // ---------------------------------------------------------------- Combat / loot
 // Spawn a projectile heading at angle `ang`.
-// opts: {dmg, r, spd, pierce, big, color, kind, splashRadius, splashDamage, homing}
+// opts: {dmg, r, spd, pierce, big, color, kind, splashRadius, splashDamage, homing, bleed}
+// bleed = dano por tick del sangrado que el proyectil aplica a lo que golpea (0 = sin sangrado).
 // homing = velocidad maxima de giro (rad/s) para guiar el proyectil hacia el enemigo mas cercano.
 function spawnArrow(ang, opts) {
   const p = state.player;
@@ -28,7 +42,7 @@ function spawnArrow(ang, opts) {
     r: o.r || 5, dmg: (o.dmg || p.dmg) * (crit ? 2 : 1), life: o.life || 0.55, crit,
     pierce: o.pierce || 0, big: !!o.big, color: o.color || null,
     kind: o.kind || "arrow", splashRadius: o.splashRadius || 0, splashDamage: o.splashDamage || 0,
-    homing: o.homing || 0, target: null,
+    homing: o.homing || 0, target: null, bleed: o.bleed || 0,
   });
 }
 
@@ -209,6 +223,25 @@ function drawWeaponEffects() {
       ctx.arc(effect.x, effect.y, effect.range, start, end);
       ctx.lineTo(effect.x, effect.y);
       ctx.stroke();
+    } else if (effect.kind === "blink-out" || effect.kind === "blink-in") {
+      const t = 1 - alpha;                                   // 0 -> 1
+      const rr = effect.radius * (effect.kind === "blink-out" ? 0.5 + t * 1.3 : 1.8 - t * 1.3);
+      ctx.shadowBlur = 16; ctx.shadowColor = "#bd8cff";
+      ctx.fillStyle = "rgba(189,140,255,0.22)";
+      ctx.beginPath(); ctx.arc(effect.x, effect.y, rr, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#e3c8ff"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(effect.x, effect.y, rr, 0, Math.PI * 2); ctx.stroke();
+    } else if (effect.kind === "axe-ring") {
+      // 3 anillos: los discos se superponen, asi el centro (x7) es el mas intenso y el borde (x2) el mas suave
+      ctx.fillStyle = effect.color;
+      for (let k = SEISMIC_RINGS.length - 1; k >= 0; k--) {
+        const rr = effect.radius * SEISMIC_RINGS[k].r;
+        ctx.globalAlpha = alpha * 0.16;
+        ctx.beginPath(); ctx.arc(effect.x, effect.y, rr, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = alpha * (k === SEISMIC_RINGS.length - 1 ? 1 : 0.8);
+        ctx.strokeStyle = "#ffd0bd"; ctx.lineWidth = k === SEISMIC_RINGS.length - 1 ? 5 : 3;
+        ctx.beginPath(); ctx.arc(effect.x, effect.y, rr, 0, Math.PI * 2); ctx.stroke();
+      }
     } else {
       ctx.fillStyle = effect.color;
       ctx.globalAlpha = alpha * 0.22;
@@ -256,6 +289,27 @@ function damageWeaponArea(x, y, radius, damage, excludedTarget) {
   }
 }
 
+// Dano por anillos concentricos: cada enemigo recibe un solo golpe, el del anillo mas interior que
+// toque su cuerpo (distancia al centro - radio del enemigo <= radio del anillo).
+function damageWeaponRings(x, y, radius, rings, baseDamage) {
+  const ringFor = t => {
+    const d = Math.sqrt(dist2(x, y, t.x, t.y));
+    if (d > radius + t.r) return null;
+    for (const ring of rings) if (d - t.r <= radius * ring.r) return ring;
+    return null;
+  };
+  for (const enemy of state.enemies.slice()) {
+    if (enemy.hp <= 0) continue;
+    const ring = ringFor(enemy);
+    if (ring) damageWeaponEnemy(enemy, baseDamage * ring.mult);
+  }
+  const boss = state.boss;
+  if (boss && boss.hp > 0) {
+    const ring = ringFor(boss);
+    if (ring) damageWeaponBoss(boss, baseDamage * ring.mult);
+  }
+}
+
 function damageWeaponCone(angle, range, halfAngle, damage) {
   const fx = Math.cos(angle), fy = Math.sin(angle);
   const tangent = Math.tan(halfAngle);
@@ -286,7 +340,7 @@ function useSkill(i) {
       const count = 7, spread = 0.9;
       for (let k = 0; k < count; k++) {
         const angle = base + (k - (count - 1) / 2) * (spread / (count - 1));
-        spawnArrow(angle, { dmg: p.dmg * 0.75, spd: 640, life: 1.1, color: "#ffd84d" });
+        spawnArrow(angle, { dmg: p.dmg * 0.75, spd: 640, life: 1.1, pierce: 1, color: "#ffd84d" }); // pierce 1: atraviesa al primer enemigo y se detiene en el segundo (o al alcanzar su alcance maximo)
       }
       floatText(p.x, p.y - 34, "¡Abanico!", "#ffd84d");
       Sound.shoot();
@@ -326,19 +380,26 @@ function useSkill(i) {
       Sound.hit();
     } else if (i === 1) {
       // Hacha arrojadiza: 2 hachas giratorias (circulos de 50 px) lanzadas en abanico a +-0,5 rad
-      // de la mira. Recorren 300 px atravesando enemigos; dano = 75 % del dano base.
-      const diameter = 50, travel = 300, spd = 500;
-      for (const side of [-1, 1]) {
-        spawnArrow(base + side * AXE_THROW_ANGLE, {
-          dmg: p.dmg * 0.75, r: diameter / 2, spd, life: travel / spd,
-          pierce: 999, color: "#ff7659", kind: "axe",
+      // de la mira, mas una hacha central del doble de tamano (100 px) que viaja el doble (600 px).
+      // Recorren su trayecto atravesando enemigos; dano = 25 % del dano base, pero cada impacto
+      // deja sangrado (120 % del dano del Barbaro en 5 s, ver applyBleed).
+      const spd = 500, bleed = p.dmg * BLEED_TICK_RATIO;
+      const throws = [
+        { angle: base - AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
+        { angle: base + AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
+        { angle: base,                   diameter: 100, travel: 600 },
+      ];
+      for (const t of throws) {
+        spawnArrow(t.angle, {
+          dmg: p.dmg * 0.25, r: t.diameter / 2, spd, life: t.travel / spd,
+          pierce: 999, color: "#ff7659", kind: "axe", bleed,
         });
       }
       floatText(p.x, p.y - 38, "¡Hacha arrojadiza!", "#ff9d4d");
       Sound.shoot();
     } else {
-      const radius = 195;
-      damageWeaponArea(p.x, p.y, radius, p.dmg * 7 + 45);
+      const radius = SEISMIC_RADIUS;
+      damageWeaponRings(p.x, p.y, radius, SEISMIC_RINGS, p.dmg);
       showWeaponArea(p.x, p.y, radius, "#ff3a1a", 0.68, "axe-ring");
       weaponBurst(p.x, p.y, radius, "#ff3a1a", 48);
       floatText(p.x, p.y - 44, "¡GOLPE SÍSMICO!", "#ff7659");
@@ -390,8 +451,23 @@ function tryDash() {
   p.dashCd = p.dashMax;
   p.inv = Math.max(p.inv, p.dashDur + 0.1); // i-frames during dash
   Sound.dash();
-  for (let i = 0; i < 12; i++) {
-    state.particles.push({ x: p.x, y: p.y, vx: -dx * rand(60, 200) + rand(-40, 40), vy: -dy * rand(60, 200) + rand(-40, 40), life: rand(0.2, 0.4), r: rand(2, 4), color: "#6ad1ff" });
+  const blink = p.dashFx === "blink";
+  if (blink) showWeaponArea(p.x, p.y, 38, "#bd8cff", MAGE_BLINK_TIME, "blink-out"); // desaparece: anillo que se expande
+  for (let i = 0; i < (blink ? 18 : 12); i++) {
+    state.particles.push({ x: p.x, y: p.y, vx: -dx * rand(60, 200) + rand(-40, 40), vy: -dy * rand(60, 200) + rand(-40, 40), life: rand(0.2, 0.4), r: rand(2, 4), color: blink ? (i % 2 ? "#bd8cff" : "#f4d4ff") : "#6ad1ff" });
+  }
+}
+
+// Esquiva del mago (parpadeo arcano): al terminar reaparece con un anillo que se cierra y
+// parpadea en violeta unos instantes (como los enemigos al reaparecer, pero violeta).
+var MAGE_BLINK_TIME = 0.4;   // duracion de los anillos
+var MAGE_BLINK_ARRIVE = 0.4; // segundos de parpadeo violeta al reaparecer
+function endMageBlink(p) {
+  p.blinkArrive = MAGE_BLINK_ARRIVE;
+  showWeaponArea(p.x, p.y, 38, "#bd8cff", MAGE_BLINK_TIME, "blink-in");
+  for (let i = 0; i < 16; i++) {
+    const a = rand(0, Math.PI * 2), s = rand(40, 170);
+    state.particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(0.25, 0.5), r: rand(2, 4), color: i % 2 ? "#bd8cff" : "#f4d4ff" });
   }
 }
 
@@ -598,6 +674,10 @@ function drawBodyBarbarian() {
 }
 
 function drawPlayer(p) {
+  // Esquiva del mago (parpadeo arcano): mientras se desplaza desaparece por completo (sensacion de
+  // teletransporte); solo se ven los anillos violeta y las particulas, que se dibujan aparte.
+  if (p.dashFx === "blink" && p.dashTime > 0) return;
+
   // invuln blink
   if (p.inv > 0 && Math.floor(p.inv * 20) % 2 === 0) ctx.globalAlpha = 0.5;
 
@@ -642,7 +722,64 @@ function drawPlayer(p) {
   }
   ctx.restore();
 
+  // Esquiva del mago: al reaparecer parpadea en violeta unos instantes
+  if (p.dashFx === "blink" && p.blinkArrive > 0 && Math.floor(p.blinkArrive * 20) % 2 === 0) {
+    ctx.save();
+    ctx.shadowBlur = 26; ctx.shadowColor = "#bd8cff";
+    ctx.fillStyle = "rgba(215,165,255,0.9)";
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   ctx.globalAlpha = 1;
+}
+
+// ---------------------------------------------------------------- Sangrado
+// Aplica (o renueva) el sangrado a un enemigo o jefe: BLEED_TICKS ticks, uno cada
+// BLEED_TICK_INTERVAL s, de `tickDmg` cada uno. Volver a golpear renueva la duracion con el
+// dano del ultimo impacto, sin acumular (no se apila).
+function applyBleed(target, tickDmg) {
+  if (!target || target.hp <= 0 || !(tickDmg > 0)) return;
+  const b = target.bleed;
+  if (b) { b.ticks = BLEED_TICKS; b.dmg = tickDmg; }
+  else target.bleed = { ticks: BLEED_TICKS, next: BLEED_TICK_INTERVAL, dmg: tickDmg };
+}
+
+// Avanza el sangrado de todos los enemigos y del jefe. Los ticks no hacen critico.
+function updateBleeding(dt) {
+  const tick = (t, isBoss) => {
+    const b = t.bleed;
+    if (!b) return;
+    if (t.hp <= 0) { t.bleed = null; return; }
+    b.next -= dt;
+    while (b.next <= 0 && b.ticks > 0 && t.hp > 0) {
+      b.next += BLEED_TICK_INTERVAL;
+      b.ticks--;
+      t.hp -= b.dmg;
+      floatText(t.x + rand(-8, 8), t.y - t.r - 4, "-" + Math.round(b.dmg), "#ff3a4a");
+      if (t.hp <= 0) { if (isBoss) killBoss(t); else killEnemy(t); }
+    }
+    if (b.ticks <= 0 || t.hp <= 0) t.bleed = null;
+  };
+  for (const e of state.enemies.slice()) tick(e, false);
+  if (state.boss) tick(state.boss, true);
+}
+
+// Latido rojo discreto sobre quien sangra: doble pulso ("lub-dub") sincronizado con cada tick.
+function drawBleedPulse(t) {
+  const b = t.bleed;
+  if (!b) return;
+  const phase = Math.max(0, Math.min(1, 1 - b.next / BLEED_TICK_INTERVAL)); // 0 = recien hubo tick
+  const bump = (x, c, w) => Math.exp(-(((x - c) / w) ** 2));
+  const beat = Math.max(bump(phase, 0.04, 0.09), 0.6 * bump(phase, 0.34, 0.08));
+  ctx.save();
+  ctx.shadowBlur = 8 + beat * 10; ctx.shadowColor = "#ff1a2a";
+  ctx.fillStyle = "rgba(190,0,20," + (0.05 + 0.17 * beat).toFixed(3) + ")";
+  ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 1 + beat * 3, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(255,45,55," + (0.22 + 0.5 * beat).toFixed(3) + ")";
+  ctx.lineWidth = 1.5 + beat * 1.5;
+  ctx.beginPath(); ctx.arc(t.x, t.y, t.r + 3 + beat * 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
 }
 
 // Hacha arrojadiza en vuelo: disco de 50 px (r = b.r) con un hacha doble que gira.

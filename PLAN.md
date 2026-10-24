@@ -32,7 +32,7 @@ Estos ataques son ejemplos para orientar el diseño, no habilidades finales:
 | --- | --- | --- | --- |
 | Arco | Flecha rápida a un objetivo | Abanico de flechas | Flecha de gran daño que atraviesa enemigos |
 | Bastón | Orbe mágico guiado, repartido entre los enemigos cercanos | Explosión o proyectiles que rebotan | Ataque mágico de área |
-| Hacha | Golpe en arco a corta distancia | Dos hachas giratorias que atraviesan enemigos | Golpe de suelo de gran alcance |
+| Hacha | Golpe en arco a corta distancia | Tres hachas giratorias (la central, el doble de grande y de alcance) que atraviesan enemigos y aplican sangrado | Golpe de suelo de gran alcance |
 
 Antes de implementar, definir daño, alcance, cadencia, cooldown, efectos y
 comportamiento visual de cada habilidad. El hacha requiere una regla de
@@ -58,7 +58,10 @@ provisionales y quedan sujetos a pruebas de balance:
 - El jugador ahora representa visualmente el arco, el bastón o el hacha.
 - El meteorito muestra la zona de caída, impacta tras 0,85 s y causa daño de
   área; el hacha muestra el cono del tajo y el radio del golpe sísmico; la hacha arrojadiza
-  lanza dos hachas de 50 px que recorren 300 px atravesando enemigos.
+  lanza dos hachas de 50 px que recorren 300 px y una central de 100 px que recorre 600 px, todas atravesando enemigos con 25 % del daño; cada impacto aplica sangrado (10 ticks de 12 % del daño del Bárbaro, uno cada 0,5 s, 120 % en 5 s; se renueva sin apilarse) y el enemigo muestra un latido rojo.
+- El golpe sísmico tiene 3 anillos concentricos de 1/3 del radio (195 px) cada uno: exterior ×2, central ×4 e interior ×7 del daño base; cada enemigo recibe solo el anillo más interno que toca.
+- Las flechas del Abanico del Arquero tienen 1 de penetración: atraviesan al primer enemigo y desaparecen al llegar al segundo o a su alcance máximo.
+- La esquiva del Mago es especial (parpadeo arcano): recarga un 75 % más rápido (2,2 s → ≈1,26 s) y es un 25 % más larga (144 px → 180 px). Desaparece mientras se desplaza (sensación de teletransporte), deja anillos violeta al desaparecer y reaparecer y parpadea en violeta un instante, como el teletransporte de los enemigos.
 - Se actualizaron la ayuda del juego y el README.
 
 ## Etapas de trabajo
