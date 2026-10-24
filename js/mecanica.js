@@ -703,7 +703,7 @@ function pointInObstacle(x, y) {
 var CHEST_LIFE = 5;
 var chestReward = p => Math.round((100 + p.level * 50) * (1 + p.ashBonus));
 var CHEST_CHANCE = 0.05;
-var GOBLIN_CHANCE = 0.01; // 1% por tanda de enemigos
+var GOBLIN_CHANCE = 0.02; // 2% por tanda de enemigos
 function spawnChest(x, y) {
   state.chests.push({
     x: clamp(x, WALL + 40, WORLD.w - WALL - 40),
@@ -1540,7 +1540,8 @@ function drawOrb(o) {
   else if (o.kind === "ash") color = "#ff9d4d";
   else if (o.kind === "loot") color = "#3d9bff"; // ground loot is always blue
   const t = performance.now() / 300;
-  const pulse = 1 + Math.sin(t + o.x) * 0.12;
+  // xp y brasas se dibujan un 30 % mas pequenas (solo el dibujo: el radio de recogida o.r no cambia)
+  const pulse = (1 + Math.sin(t + o.x) * 0.12) * ((o.kind === "xp" || o.kind === "ash") ? 0.7 : 1);
   if (o.kind === "xp" || o.kind === "ash") ctx.globalAlpha = 0.55; // brasas y experiencia en el suelo mas translucidas
   ctx.shadowBlur = o.kind === "loot" ? 16 : 8;
   ctx.shadowColor = color;
@@ -1894,15 +1895,22 @@ function sbInsertScore(entry) {
   const row = {
     name: String(entry.name || "Anónimo").slice(0, 14), score: entry.score | 0, wave: entry.wave | 0,
     level: entry.level | 0, kills: entry.kills | 0, loot: entry.loot | 0, ash: entry.ash | 0, boss: !!entry.boss,
+    victory: !!entry.victory, // partida ganada (Desafio final superado); columna `victory` en supabase-setup.sql
   };
+  const post = body => sbRequest("scores", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
   sbPending = sbPending
-    .then(() => sbRequest("scores", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) }))
+    // si la columna `victory` aun no existe en la tabla, reintenta sin ella para no perder la partida
+    .then(() => post(row).catch(err => { const { victory, ...legacy } = row; return post(legacy); }))
     .catch(() => {}); // sin conexion: la partida igual queda en el ranking local
 }
 async function fetchGlobalScores() {
   await sbPending;
+  const base = "name,score,wave,level,kills,loot,ash,boss";
+  const q = cols => "scores?select=" + cols + ",created_at&order=score.desc&limit=" + MAX_SCORES;
   try {
-    const r = await sbRequest("scores?select=name,score,wave,level,kills,loot,ash,boss,created_at&order=score.desc&limit=" + MAX_SCORES);
+    let r;
+    try { r = await sbRequest(q(base + ",victory")); }
+    catch (e) { r = await sbRequest(q(base)); } // la columna `victory` aun no existe: ranking sin 🏆
     const rows = await r.json();
     globalScores = rows.map(x => Object.assign({}, x, { date: Date.parse(x.created_at) }));
   } catch (e) { globalScores = null; }

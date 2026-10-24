@@ -11,6 +11,7 @@ create table if not exists public.scores (
   loot       integer     not null default 0,
   ash        integer     not null default 0,
   boss       boolean     not null default false,
+  victory    boolean     not null default false,  -- true = supero el Desafio final
   created_at timestamptz not null default now(),
 
   -- limites de cordura: frenan los valores absurdos mandados desde fuera del juego
@@ -22,6 +23,9 @@ create table if not exists public.scores (
   constraint scores_loot_rng  check (loot  between 0 and 1000000),
   constraint scores_ash_rng   check (ash   between 0 and 100000000)
 );
+
+-- tablas ya creadas antes de existir `victory`: agrega la columna (no toca los datos existentes)
+alter table public.scores add column if not exists victory boolean not null default false;
 
 create index if not exists scores_score_idx on public.scores (score desc);
 
