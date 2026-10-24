@@ -16,7 +16,7 @@ dependencias ni servidor web.
 - **Elige tu clase antes de jugar:** el Arquero combate a distancia con flechas; el
   Mago lanza orbes y un meteorito de área; el Bárbaro golpea de cerca con tajos,
   lanza hachas giratorias y usa ataques de área visibles. La clase queda fija durante esa partida.
-  El Mago no tiene crítico: su stat de arma es **Poder** (+0,5 % por punto), que agranda el
+  El Mago no tiene crítico: su stat de arma es **Poder** (+1 % por punto), que agranda el
   radio del Meteorito y suma un orbe a la Salva arcana cada 10 % (hasta formar un círculo completo).
 - **Lee las zonas de impacto:** el meteorito marca el área antes de caer y la
   muestra al impactar. El hacha dibuja el arco frontal del tajo y el radio de

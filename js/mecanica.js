@@ -326,12 +326,12 @@ var WEAPONS = {
     // Esquiva especial (parpadeo arcano): recarga 75 % mas rapida (cooldown / 1.75) y 25 % mas larga
     // (distancia x1.25), con efecto violeta similar al teletransporte de los enemigos.
     dashRecharge: 1.75, dashLength: 1.25, dashFx: "blink",
-    statSteps: { cdr: 8, fireRate: 0.3, speed: 0.5 }, // per stat point bought with this weapon: Recarga % (default 5), Cadencia A/s (default 0.2) and Velocidad (boots, default 1)
-    // weapon piece stats: Poder (base 0%, +0.5% per point) replaces Crítico for the mage. Poder agranda el
+    statSteps: { cdr: 16, fireRate: 0.6, speed: 1 }, // per stat point bought with this weapon: Recarga % (default 10), Cadencia A/s (default 0.4) and Velocidad (boots, default 2)
+    // weapon piece stats: Poder (base 0%, +1% per point) replaces Crítico for the mage. Poder agranda el
     // Meteorito (+% de radio) y añade orbes a la Salva arcana (1 orbe extra cada 10 % hasta cerrar el circulo).
     weaponStats: [
-      { key: "dmg",   base: 8, step: 0.5 },
-      { key: "poder", base: 0, step: 0.5 } ],
+      { key: "dmg",   base: 8, step: 1 },
+      { key: "poder", base: 0, step: 1 } ],
     skills: [
       { name: "Orbe arcano", icon: "🔮", cooldown: 0.58 },
       { name: "Salva arcana", icon: "✨", cooldown: 5.5 },
@@ -345,12 +345,12 @@ var WEAPONS = {
     baseSpeed: 125,      // base Velocidad at level 1 (others use 150); level-ups still add +4
     baseHp: 200,         // base Vida at level 1 (others use 100); level-ups still add +12
     baseRegen: 1,        // base Regen at level 1 (others use 0.5) in HP/s
-    fireRateStep: 0.1,   // gloves: A/s per Cadencia point with this weapon (default 0.2)
-    // weapon piece stats: Bloqueo (base 10%, +0.5% per point) replaces Crítico for the axe.
-    // Max with all 50 points in Bloqueo at Único: (10 + 50 * 0.5) * 5 = 175%
+    fireRateStep: 0.2,   // gloves: A/s per Cadencia point with this weapon (default 0.4)
+    // weapon piece stats: Bloqueo (base 10%, +1% per point) replaces Crítico for the axe.
+    // Max with all 25 points in Bloqueo at Único: (10 + 25 * 1) * 5 = 175%
     weaponStats: [
-      { key: "dmg",   base: 8,  step: 1 },
-      { key: "block", base: 10, step: 0.5 } ],
+      { key: "dmg",   base: 8,  step: 2 },
+      { key: "block", base: 10, step: 1 } ],
     skills: [
       { name: "Tajo", icon: "🪓", cooldown: 0.625 },
       { name: "Hacha arrojadiza", icon: "⚔️", cooldown: 5.5 },
@@ -364,15 +364,15 @@ function getWeapon(id) { return WEAPONS[id] || WEAPONS.bow; }
 // each piece has one or more stats; every stat has its own base value and its own stat points
 var SLOTS = [
   { key: "arma",    label: "Arma",    icon: "🏹", name: "Arco",    stats: [
-      { key: "dmg",  base: 8, step: 1 },
-      { key: "crit", base: 10, step: 2 } ] },
-  { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [{ key: "ashBonus", base: 0, step: 2 }] },
-  { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 5 }] },
+      { key: "dmg",  base: 8, step: 2 },
+      { key: "crit", base: 10, step: 4 } ] },
+  { key: "casco",   label: "Casco",   icon: "⛑️", name: "Yelmo",   stats: [{ key: "ashBonus", base: 0, step: 4 }] },
+  { key: "pecho",   label: "Pecho",   icon: "🛡️", name: "Coraza",  stats: [{ key: "maxHp",    base: 40,  step: 10 }] },
   { key: "guantes", label: "Guantes", icon: "🧤", name: "Guantes", stats: [
-      { key: "fireRate", base: 0, step: 0.2 },
-      { key: "cdr",      base: 0, step: 5 } ] },
-  { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 1 }] },
-  { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0, step: 0.1 }] },
+      { key: "fireRate", base: 0, step: 0.4 },
+      { key: "cdr",      base: 0, step: 10 } ] },
+  { key: "botas",   label: "Botas",   icon: "🥾", name: "Botas",   stats: [{ key: "speed",    base: 10,   step: 2 }] },
+  { key: "anillo",  label: "Anillo",  icon: "💍", name: "Anillo",  stats: [{ key: "regen",    base: 0, step: 0.2 }] },
 ];
 
 // value of one stat of a piece: (base + points * step) * RARITY_MULT[rarity level]
@@ -469,7 +469,7 @@ function recalcStats(p) {
     const it = p.equipped[sk];
     if (!it) continue;
     power += (it.level + 1) * 10;
-    for (const st of it.stats) power += st.points * 2;
+    for (const st of it.stats) power += st.points * 4; // x4 (antes x2): cada punto vale el doble desde que el tope es +5
   }
   p.power = power;
 }
@@ -1483,6 +1483,7 @@ function drawOrb(o) {
   else if (o.kind === "loot") color = "#3d9bff"; // ground loot is always blue
   const t = performance.now() / 300;
   const pulse = 1 + Math.sin(t + o.x) * 0.12;
+  if (o.kind === "xp" || o.kind === "ash") ctx.globalAlpha = 0.55; // brasas y experiencia en el suelo mas translucidas
   ctx.shadowBlur = o.kind === "loot" ? 16 : 8;
   ctx.shadowColor = color;
   ctx.fillStyle = color;
