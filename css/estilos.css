@@ -362,6 +362,7 @@
   .score-row .meta { grid-column: 2 / 4; color: var(--muted); font-size: 11px; }
   .score-row.me { outline: 2px solid var(--ember-glow); }
   .scores-empty { color: var(--muted); font-style: italic; padding: 14px; }
+  .scores-tabs { display: flex; gap: 10px; justify-content: center; margin: 6px 0 2px; flex-wrap: wrap; }
 
   .name-row { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
   .name-row label { color: var(--muted); font-size: 14px; }

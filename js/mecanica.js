@@ -1706,6 +1706,40 @@ function bestScore() {
   const s = loadScores();
   return s.length ? s[0].score : 0;
 }
+// ---- Ranking global (Supabase). La clave "publishable" es publica por diseno: la
+// seguridad la dan las politicas RLS de la tabla (ver supabase-setup.sql).
+var SUPABASE_URL = "https://bpempqucqtitqzaihtoc.supabase.co";
+var SUPABASE_KEY = "sb_publishable_5Lw10GaXnWv75Sf1BUrnvw_yrUAW7nQ";
+var globalScores = null;          // ultimo top global traido (null = aun no / sin conexion)
+var sbPending = Promise.resolve(); // cola de envios, para no leer el ranking antes de que llegue la partida
+
+function sbRequest(path, opts) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6000);
+  return fetch(SUPABASE_URL + "/rest/v1/" + path, Object.assign({ signal: ctrl.signal }, opts, {
+    headers: Object.assign({ apikey: SUPABASE_KEY, "Content-Type": "application/json" }, opts && opts.headers),
+  })).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r; })
+    .finally(() => clearTimeout(timer));
+}
+function sbInsertScore(entry) {
+  const row = {
+    name: String(entry.name || "Anónimo").slice(0, 14), score: entry.score | 0, wave: entry.wave | 0,
+    level: entry.level | 0, kills: entry.kills | 0, loot: entry.loot | 0, ash: entry.ash | 0, boss: !!entry.boss,
+  };
+  sbPending = sbPending
+    .then(() => sbRequest("scores", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(row) }))
+    .catch(() => {}); // sin conexion: la partida igual queda en el ranking local
+}
+async function fetchGlobalScores() {
+  await sbPending;
+  try {
+    const r = await sbRequest("scores?select=name,score,wave,level,kills,loot,ash,boss,created_at&order=score.desc&limit=" + MAX_SCORES);
+    const rows = await r.json();
+    globalScores = rows.map(x => Object.assign({}, x, { date: Date.parse(x.created_at) }));
+  } catch (e) { globalScores = null; }
+  return globalScores;
+}
+
 // Add a run to the board. Returns the saved entry (so we can highlight it).
 function addScore(entry) {
   const list = loadScores();
@@ -1713,16 +1747,31 @@ function addScore(entry) {
   list.sort((a, b) => b.score - a.score);
   if (list.length > MAX_SCORES) list.length = MAX_SCORES;
   saveScores(list);
+  sbInsertScore(entry);
   return entry;
 }
+// Que ranking se muestra: "global" (Supabase) o "local" (este dispositivo). Se recuerda mientras dure la sesion.
+var scoresMode = "global";
+var globalLoading = false;
 function renderScores(highlightId) {
-  const list = loadScores();
+  const isGlobal = scoresMode === "global";
+  const list = isGlobal ? (globalScores || []) : loadScores();
+  const st = el("scores-status");
+  if (st) st.textContent = !isGlobal ? "💾 Solo este dispositivo"
+    : globalLoading ? "⏳ Cargando ranking global…"
+    : globalScores ? "🌐 Ranking global" : "⚠️ Sin conexión al ranking global";
+  // la pestaña activa usa el estilo principal; la otra, el secundario
+  el("scores-tab-global").classList.toggle("btn-sec", !isGlobal);
+  el("scores-tab-local").classList.toggle("btn-sec", isGlobal);
+  el("btn-clear-scores").style.display = isGlobal ? "none" : ""; // Borrar solo afecta al ranking local
   const table = el("scores-table");
   table.innerHTML = "";
   if (list.length === 0) {
     const e = document.createElement("div");
     e.className = "scores-empty";
-    e.textContent = "Aún no hay puntuaciones. ¡Sé el primero en caer con honor!";
+    e.textContent = isGlobal && !globalScores
+      ? (globalLoading ? "Buscando el ranking…" : "No se pudo conectar. Revisa tu conexión o mira el ranking Local.")
+      : "Aún no hay puntuaciones. ¡Sé el primero en caer con honor!";
     table.appendChild(e);
     return;
   }
@@ -1749,9 +1798,23 @@ var pendingRun = null;
 
 // ---------------------------------------------------------------- Menu navigation
 var menuViews = { home: el("menu-home"), weapons: el("menu-weapons"), howto: el("menu-howto"), scores: el("menu-scores") };
+// Cambia entre ranking global y local. El global se vuelve a pedir cada vez que se abre.
+function openScoresTab(mode) {
+  scoresMode = mode;
+  if (mode === "global") {
+    globalLoading = true;
+    renderScores();
+    fetchGlobalScores().then(() => {
+      globalLoading = false;
+      if (!menuViews.scores.classList.contains("hidden")) renderScores();
+    });
+  } else {
+    renderScores();
+  }
+}
 function showMenuView(name) {
   for (const k in menuViews) menuViews[k].classList.toggle("hidden", k !== name);
-  if (name === "scores") renderScores();
+  if (name === "scores") openScoresTab(scoresMode);
   if (name === "home") el("menu-best").textContent = bestScore().toLocaleString();
 }
 function openMenu() {
@@ -1870,6 +1933,8 @@ document.querySelectorAll("[data-weapon]").forEach(button => {
 });
 el("btn-how").addEventListener("click", () => showMenuView("howto"));
 el("btn-scores").addEventListener("click", () => showMenuView("scores"));
+el("scores-tab-global").addEventListener("click", () => openScoresTab("global"));
+el("scores-tab-local").addEventListener("click", () => openScoresTab("local"));
 document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => showMenuView("home")));
 el("btn-clear-scores").addEventListener("click", () => {
   saveScores([]);
