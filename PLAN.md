@@ -31,7 +31,7 @@ Estos ataques son ejemplos para orientar el diseño, no habilidades finales:
 | Arma | Básico | Intermedio | Definitivo |
 | --- | --- | --- | --- |
 | Arco | Flecha rápida a un objetivo | Abanico de flechas | Flecha de gran daño que atraviesa enemigos |
-| Bastón | Proyectil mágico a distancia | Explosión o proyectiles que rebotan | Ataque mágico de área |
+| Bastón | Orbe mágico guiado, repartido entre los enemigos cercanos | Explosión o proyectiles que rebotan | Ataque mágico de área |
 | Hacha | Golpe en arco a corta distancia | Dos hachas giratorias que atraviesan enemigos | Golpe de suelo de gran alcance |
 
 Antes de implementar, definir daño, alcance, cadencia, cooldown, efectos y
@@ -46,7 +46,7 @@ provisionales y quedan sujetos a pruebas de balance:
 | Arma | Básico | Intermedio | Definitivo |
 | --- | --- | --- | --- |
 | Arco | Flecha (0,29 s) | Abanico (5,5 s) | Devastación (13 s) |
-| Bastón de mago | Orbe arcano (0,58 s) | Salva arcana (5,5 s) | Meteorito (13 s) |
+| Bastón de mago | Orbe arcano guiado (0,58 s) | Salva arcana (5,5 s) | Meteorito (13 s) |
 | Hacha | Tajo (1,6 A/s fijos; solo suben con guantes) | Hacha arrojadiza (5,5 s) | Golpe sísmico (13 s) |
 
 - La selección aparece antes de iniciar; **Reintentar** conserva el arma.

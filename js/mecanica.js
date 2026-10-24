@@ -275,6 +275,7 @@ var AFFIX = {
   regen:    { label: "Regen",     color: "#9affd0", fmt: v => "+" + v + "/s" },
   ashBonus: { label: "Brasas",    color: "#ffb347", fmt: v => "+" + v + "%" },
   crit:     { label: "Crítico",   color: "#ffd84d", fmt: v => "+" + v + "%" },
+  poder:    { label: "Poder",     color: "#d7a5ff", fmt: v => "+" + v + "%" },
   block:    { label: "Bloqueo",   color: "#9bb4d6", fmt: v => "+" + v + "%" },
   cdr:      { label: "Recarga",   color: "#c58aff", fmt: v => "+" + v + "%" },
 };
@@ -290,6 +291,13 @@ var WEAPONS = {
   },
   staff: {
     id: "staff", name: "Bastón de mago", icon: "🪄", color: "#bd8cff",
+    baseDmg: 15,         // base Daño at level 1 (others use 12)
+    statSteps: { cdr: 8, fireRate: 0.3, speed: 0.5 }, // per stat point bought with this weapon: Recarga % (default 5), Cadencia A/s (default 0.2) and Velocidad (boots, default 1)
+    // weapon piece stats: Poder (base 0%, +0.5% per point) replaces Crítico for the mage. Poder agranda el
+    // Meteorito (+% de radio) y añade orbes a la Salva arcana (1 orbe extra cada 10 % hasta cerrar el circulo).
+    weaponStats: [
+      { key: "dmg",   base: 8, step: 0.5 },
+      { key: "poder", base: 0, step: 0.5 } ],
     skills: [
       { name: "Orbe arcano", icon: "🔮", cooldown: 0.58 },
       { name: "Salva arcana", icon: "✨", cooldown: 5.5 },
@@ -300,7 +308,7 @@ var WEAPONS = {
     id: "axe", name: "Hacha", icon: "🪓", color: "#ff7659",
     baseRate: 1.6,       // basic attack A/s at level 1
     baseDmg: 30,         // base Daño at level 1 (others use 12); level-ups still add +2.5
-    baseSpeed: 110,      // base Velocidad at level 1 (others use 150); level-ups still add +4
+    baseSpeed: 125,      // base Velocidad at level 1 (others use 150); level-ups still add +4
     baseHp: 200,         // base Vida at level 1 (others use 100); level-ups still add +12
     fireRateStep: 0.1,   // gloves: A/s per Cadencia point with this weapon (default 0.2)
     // weapon piece stats: Bloqueo (base 10%, +0.5% per point) replaces Crítico for the axe.
@@ -333,8 +341,11 @@ var SLOTS = [
 ];
 
 // value of one stat of a piece: (base + points * step) * RARITY_MULT[rarity level]
-// Step per stat point; Cadencia depends on the weapon in use (weapon.fireRateStep overrides the slot default)
+// Step per stat point; some stats depend on the weapon in use: weapon.statSteps[key] (e.g. Recarga for the mage)
+// and weapon.fireRateStep (Cadencia) override the slot default
 function statStep(st) {
+  const w = getWeapon((typeof state !== "undefined" && state && state.weaponId) || selectedWeaponId);
+  if (w.statSteps && w.statSteps[st.key] != null) return w.statSteps[st.key];
   if (st.key === "fireRate") {
     const weapon = getWeapon((typeof state !== "undefined" && state && state.weaponId) || selectedWeaponId);
     if (weapon.fireRateStep) return weapon.fireRateStep;
@@ -385,6 +396,11 @@ function blockDamage(dmg) {
   return dmg * (1 - Math.min(1, layers * 0.5));
 }
 
+// Radio del iman de orbes: 150 px al nivel 1, +15 px por cada nivel del personaje.
+var MAGNET_BASE = 150;
+var MAGNET_PER_LEVEL = 15;
+function magnetRadius(p) { return MAGNET_BASE + MAGNET_PER_LEVEL * Math.max(0, p.level - 1); }
+
 // Basic attack rate (A/s) coming from weapon + level, before equipment
 function weaponLevelRate(p, weapon) {
   const base = weapon.baseRate || 1 / weapon.skills[0].cooldown;
@@ -410,6 +426,7 @@ function recalcStats(p) {
   p.ashBonus = equipSum(p, "ashBonus") / 100;
   p.block = Math.max(0, equipSum(p, "block") / 100);               // block chance; >1 = extra guaranteed layers (no cap)
   p.crit = clamp(equipSum(p, "crit") / 100, 0, 1);                 // crit chance 0..1 (crit = x2 damage)
+  p.poder = Math.max(0, equipSum(p, "poder") / 100);               // Poder (mago): 1 = +100 % de radio del meteorito; sin tope
   p.cdr = equipSum(p, "cdr") / 100;                                // Recarga: no cap; cooldowns tick (1 + cdr) times faster
   p.hp = Math.min(p.maxHp, Math.max(1, Math.round(hpRatio * p.maxHp)));
   let power = 0;
@@ -492,7 +509,7 @@ function newState(weaponId) {
       // base stats (raised by level-ups); effective stats are derived in recalcStats()
       base: { speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: 0.5 },
       // effective stats after equipment (filled by recalcStats)
-      speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: 0.5, ashBonus: 0, crit: 0, block: 0, cdr: 0,
+      speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: 0.5, ashBonus: 0, crit: 0, poder: 0, block: 0, cdr: 0,
       // equipment: slotKey -> item (or null)
       equipped: makeBaseEquipment(weapon.id), // start with the 6 base pieces
       power: 0,          // total gear score
@@ -829,6 +846,7 @@ function update(dt) {
 
   // bullets (arrows). Walls stop normal arrows; the big ultimate smashes through.
   for (const b of state.bullets) {
+    if (b.homing > 0 && b.life > 0) steerHomingBullet(b, dt);
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
     if (!b.big && b.life > 0 && pointInObstacle(b.x, b.y)) b.life = 0;
   }
@@ -1123,7 +1141,7 @@ function update(dt) {
     o.vx *= 0.9; o.vy *= 0.9;
     o.x += o.vx * dt; o.y += o.vy * dt;
     const d2 = dist2(o.x, o.y, p.x, p.y);
-    const magnet = 150;
+    const magnet = magnetRadius(p); // 150 px + 15 px por nivel (desde el nivel 2)
     if (d2 < magnet * magnet) {
       const d = Math.sqrt(d2) || 1;
       const pull = (1 - d / magnet) * 520;
@@ -1598,7 +1616,9 @@ function renderStatsPanel(p) {
     { label: "Brasas",    color: AFFIX.ashBonus.color, lvl: 0,            eq: equipSum(p, "ashBonus"), fmt: v => f1(v) + "%" },
     state.weaponId === "axe"
       ? { label: "Bloqueo", color: AFFIX.block.color,    lvl: 0,            eq: equipSum(p, "block"),    fmt: v => f1(v) + "%" }
-      : { label: "Crítico", color: AFFIX.crit.color,     lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%", cap: 100 },
+      : state.weaponId === "staff"
+        ? { label: "Poder", color: AFFIX.poder.color,    lvl: 0,            eq: equipSum(p, "poder"),    fmt: v => f1(v) + "%" }
+        : { label: "Crítico", color: AFFIX.crit.color,   lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%", cap: 100 },
     { label: "Recarga",   color: AFFIX.cdr.color,      lvl: 0,            eq: equipSum(p, "cdr"),      fmt: v => f1(v) + "%" },
   ];
   const fmtV = (r, v) => r.dec ? (Math.round(v * 100) / 100) + " A/s" : r.fmt(v);
@@ -1626,7 +1646,9 @@ function renderInventory() {
     + "  ·  Vida " + Math.round(p.maxHp)
     + "  ·  Vel " + Math.round(p.speed)
     + "  ·  Brasas +" + Math.round(p.ashBonus * 100) + "%"
-    + (state.weaponId === "axe" ? "  ·  Bloqueo " + Math.round(p.block * 100) + "%" : "  ·  Crit " + Math.round(p.crit * 100) + "%")
+    + (state.weaponId === "axe" ? "  ·  Bloqueo " + Math.round(p.block * 100) + "%"
+      : state.weaponId === "staff" ? "  ·  Poder " + Math.round(p.poder * 100) + "%"
+      : "  ·  Crit " + Math.round(p.crit * 100) + "%")
     + "  ·  Recarga " + Math.round(p.cdr * 100) + "%";
   const equipList = el("equip-list");
   equipList.innerHTML = "";

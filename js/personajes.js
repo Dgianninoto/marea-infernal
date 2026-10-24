@@ -15,7 +15,8 @@ var AXE_THROW_ANGLE = 0.5;
 
 // ---------------------------------------------------------------- Combat / loot
 // Spawn a projectile heading at angle `ang`.
-// opts: {dmg, r, spd, pierce, big, color, kind, splashRadius, splashDamage}
+// opts: {dmg, r, spd, pierce, big, color, kind, splashRadius, splashDamage, homing}
+// homing = velocidad maxima de giro (rad/s) para guiar el proyectil hacia el enemigo mas cercano.
 function spawnArrow(ang, opts) {
   const p = state.player;
   const o = opts || {};
@@ -27,7 +28,46 @@ function spawnArrow(ang, opts) {
     r: o.r || 5, dmg: (o.dmg || p.dmg) * (crit ? 2 : 1), life: o.life || 0.55, crit,
     pierce: o.pierce || 0, big: !!o.big, color: o.color || null,
     kind: o.kind || "arrow", splashRadius: o.splashRadius || 0, splashDamage: o.splashDamage || 0,
+    homing: o.homing || 0, target: null,
   });
+}
+
+// Elige blanco para un proyectil guiado: entre los enemigos (y el jefe) vivos dentro de `range`,
+// el que tiene MENOS proyectiles guiados activos apuntandole; a igualdad, el mas cercano.
+// Asi cada proyectil nuevo se reparte hacia un enemigo distinto en vez de amontonarse en uno.
+function findHomingTarget(b, range) {
+  const claims = new Map();                       // blanco -> proyectiles activos que lo persiguen
+  for (const o of state.bullets) {
+    if (o !== b && o.homing > 0 && o.life > 0 && o.target && o.target.hp > 0) {
+      claims.set(o.target, (claims.get(o.target) || 0) + 1);
+    }
+  }
+  let best = null, bestClaims = Infinity, bestD = Infinity;
+  const consider = t => {
+    if (!t || t.hp <= 0 || (b.hitSet && b.hitSet.has(t))) return;
+    const d = dist2(b.x, b.y, t.x, t.y);
+    if (d > range * range) return;
+    const c = claims.get(t) || 0;
+    if (c < bestClaims || (c === bestClaims && d < bestD)) { best = t; bestClaims = c; bestD = d; }
+  };
+  for (const e of state.enemies) consider(e);
+  consider(state.boss);
+  return best;
+}
+
+// Gira la velocidad del proyectil hacia su blanco (ver findHomingTarget), sin cambiar su rapidez.
+// Si el blanco muere, busca otro; si no hay ninguno en rango, sigue recto.
+function steerHomingBullet(b, dt) {
+  let t = b.target;
+  if (!t || t.hp <= 0 || (b.hitSet && b.hitSet.has(t))) t = b.target = findHomingTarget(b, 520);
+  if (!t) return;
+  const spd = Math.hypot(b.vx, b.vy);
+  const cur = Math.atan2(b.vy, b.vx), want = Math.atan2(t.y - b.y, t.x - b.x);
+  let diff = want - cur;
+  diff = Math.atan2(Math.sin(diff), Math.cos(diff));            // diferencia en [-PI, PI]
+  const maxStep = b.homing * dt;
+  const a = cur + Math.max(-maxStep, Math.min(maxStep, diff));
+  b.vx = Math.cos(a) * spd; b.vy = Math.sin(a) * spd;
 }
 
 function weaponBurst(x, y, radius, color, count) {
@@ -50,6 +90,18 @@ function showWeaponArea(x, y, radius, color, duration, kind, angle, range, halfA
   });
 }
 
+// Salva arcana: abanico de 5 orbes (separados SALVO_SPACING rad). Cada 10 % de Poder agrega un orbe,
+// asi el abanico cubre mas angulo hasta cerrar un circulo completo (SALVO_MAX_ORBS orbes).
+var SALVO_BASE_ORBS = 5;
+var SALVO_SPACING = 0.155;
+var SALVO_MAX_ORBS = Math.round(Math.PI * 2 / SALVO_SPACING); // 40
+function salvoOrbCount(poder) {
+  return Math.min(SALVO_MAX_ORBS, SALVO_BASE_ORBS + Math.floor(poder * 10 + 1e-6));
+}
+
+// Radio del Meteorito: 145 px base, +% igual al Poder.
+function meteorRadius(poder) { return 145 * (1 + poder); }
+
 function castArcaneMeteor() {
   const p = state.player;
   const distance = 320;
@@ -57,7 +109,7 @@ function castArcaneMeteor() {
     kind: "meteor",
     x: p.x + p.aimX * distance,
     y: p.y + p.aimY * distance,
-    radius: 145,
+    radius: meteorRadius(p.poder || 0),
     color: "#bd8cff",
     phase: "falling",
     fallDuration: 0.85,
@@ -246,12 +298,15 @@ function useSkill(i) {
     }
   } else if (weaponId === "staff") {
     if (i === 0) {
-      spawnArrow(base, { dmg: p.dmg, r: 9, spd: 430, life: 1.25, color: "#bd8cff", kind: "orb" });
+      // Orbe guiado: sale hacia la mira y gira (hasta 6 rad/s) hacia el enemigo con menos orbes encima (a igualdad, el mas cercano).
+      spawnArrow(base, { dmg: p.dmg, r: 9, spd: 430, life: 1.25, color: "#bd8cff", kind: "orb", homing: 6 });
       Sound.shoot();
     } else if (i === 1) {
-      const count = 5, spread = 0.62;
+      const count = salvoOrbCount(p.poder || 0);
+      const full = count >= SALVO_MAX_ORBS;                       // circulo completo: reparte los orbes en 360 grados
+      const step = full ? Math.PI * 2 / count : SALVO_SPACING;
       for (let k = 0; k < count; k++) {
-        const angle = base + (k - (count - 1) / 2) * (spread / (count - 1));
+        const angle = full ? base + k * step : base + (k - (count - 1) / 2) * step;
         spawnArrow(angle, {
           dmg: p.dmg * 0.75, r: 9, spd: 390, life: 1.35,
           color: "#d7a5ff", kind: "orb", splashRadius: 46, splashDamage: p.dmg * 0.35,
