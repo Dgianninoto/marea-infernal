@@ -70,7 +70,7 @@
     box-shadow: 0 0 20px rgba(0,0,0,0.6);
   }
 
-  .hud-top .stat-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .stat-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
   .stat-label { color: var(--muted); min-width: 64px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 
   .bar {
