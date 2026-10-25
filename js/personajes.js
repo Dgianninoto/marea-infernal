@@ -38,6 +38,20 @@ function logDamage(skill, hpBefore, dealt) {
   state.dmgStats[skill] += Math.max(0, Math.min(dealt, hpBefore));
 }
 
+// Multiplicador de critico (solo el Arquero tiene Critico). Hasta 100 % es el critico de siempre: x2 con esa
+// probabilidad. Por encima de 100 % el critico se acumula ("super critico"): la parte entera es el multiplicador
+// GARANTIZADO y el resto es la probabilidad de aplicar el siguiente. Ej.: 550 % -> x5 garantizado + 50 % de x6;
+// 300 % -> x3 siempre. Entre 100 % y 200 % el multiplicador garantizado es x2 (minimo de un critico).
+function critMultiplier(chance) {
+  if (!(chance > 0)) return 1;
+  if (chance < 1) return Math.random() < chance ? 2 : 1;
+  if (chance < 2) return 2;
+  const whole = Math.floor(chance + 1e-6);
+  const frac = Math.max(0, chance - whole);
+  return whole + (frac > 0 && Math.random() < frac ? 1 : 0);
+}
+function critMark(mult) { return mult >= 3 ? "!!" : mult > 1 ? "!" : ""; }
+
 // Spawn a projectile heading at angle `ang`.
 // opts: {dmg, r, spd, pierce, big, color, kind, splashRadius, splashDamage, homing, bleed}
 // bleed = dano por tick del sangrado que el proyectil aplica a lo que golpea (0 = sin sangrado).
@@ -46,11 +60,12 @@ function spawnArrow(ang, opts) {
   const p = state.player;
   const o = opts || {};
   const spd = o.spd || 620;
-  const crit = Math.random() < p.crit; // each skill arrow rolls its own crit: damage x2
+  const critMult = critMultiplier(p.crit); // each skill arrow rolls its own crit (x2, o super critico mayor)
+  const crit = critMult > 1;
   state.bullets.push({
     x: p.x + Math.cos(ang) * p.r, y: p.y + Math.sin(ang) * p.r,
     vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-    r: o.r || 5, dmg: (o.dmg || p.dmg) * (crit ? 2 : 1), life: o.life || 0.55, crit,
+    r: o.r || 5, dmg: (o.dmg || p.dmg) * critMult, life: o.life || 0.55, crit, critMult,
     pierce: o.pierce || 0, big: !!o.big, color: o.color || null,
     kind: o.kind || "arrow", splashRadius: o.splashRadius || 0, splashDamage: o.splashDamage || 0,
     homing: o.homing || 0, target: null, bleed: o.bleed || 0,
@@ -337,24 +352,26 @@ function drawWeaponEffects() {
 
 function damageWeaponEnemy(enemy, damage) {
   if (!enemy || enemy.hp <= 0) return;
-  const critical = Math.random() < state.player.crit;
-  const dealt = damage * (critical ? 2 : 1);
+  const critMult = critMultiplier(state.player.crit);
+  const critical = critMult > 1;
+  const dealt = damage * critMult;
   logDamage(dmgSkill, enemy.hp, dealt);
   enemy.hp -= dealt;
   enemy.flash = 0.08;
-  floatText(enemy.x, enemy.y - enemy.r - 4, "-" + Math.round(dealt) + (critical ? "!" : ""), critical ? "#ff9d2e" : "#ffe08a");
+  floatText(enemy.x, enemy.y - enemy.r - 4, "-" + Math.round(dealt) + critMark(critMult), critical ? "#ff9d2e" : "#ffe08a");
   if (enemy.type === "goblin" && typeof onGoblinHit === "function") onGoblinHit(enemy);
   if (enemy.hp <= 0) killEnemy(enemy);
 }
 
 function damageWeaponBoss(boss, damage) {
   if (!boss || boss.hp <= 0) return;
-  const critical = Math.random() < state.player.crit;
-  const dealt = damage * (critical ? 2 : 1);
+  const critMult = critMultiplier(state.player.crit);
+  const critical = critMult > 1;
+  const dealt = damage * critMult;
   logDamage(dmgSkill, boss.hp, dealt);
   boss.hp -= dealt;
   boss.flash = 0.08;
-  floatText(boss.x, boss.y - boss.r - 4, "-" + Math.round(dealt) + (critical ? "!" : ""), critical ? "#ff9d2e" : "#ffe08a");
+  floatText(boss.x, boss.y - boss.r - 4, "-" + Math.round(dealt) + critMark(critMult), critical ? "#ff9d2e" : "#ffe08a");
   if (boss.hp <= 0) killBoss(boss);
 }
 

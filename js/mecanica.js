@@ -459,7 +459,7 @@ function recalcStats(p) {
   p.regen = p.base.regen + equipSum(p, "regen");
   p.ashBonus = equipSum(p, "ashBonus") / 100;
   p.block = Math.max(0, equipSum(p, "block") / 100);               // block chance; >1 = extra guaranteed layers (no cap)
-  p.crit = clamp(equipSum(p, "crit") / 100, 0, 1);                 // crit chance 0..1 (crit = x2 damage)
+  p.crit = Math.max(0, equipSum(p, "crit") / 100);   // Critico (Arquero): 1 = 100 %; sin tope. Por encima de 100 % es super critico (ver critMultiplier)
   p.poder = Math.max(0, equipSum(p, "poder") / 100);               // Poder (mago): 1 = +100 % de radio del meteorito; sin tope
   p.cdr = equipSum(p, "cdr") / 100;                                // Recarga: no cap; cooldowns tick (1 + cdr) times faster
   p.hp = Math.min(p.maxHp, Math.max(1, Math.round(hpRatio * p.maxHp)));
@@ -1195,7 +1195,7 @@ function update(dt) {
         logDamage(b.skill, e.hp, b.dmg);
         e.hp -= b.dmg; e.flash = 0.08;
         Sound.hit();
-        floatText(e.x, e.y - e.r - 4, "-" + Math.round(b.dmg) + (b.crit ? "!" : ""), b.crit ? "#ff9d2e" : "#ffe08a");
+        floatText(e.x, e.y - e.r - 4, "-" + Math.round(b.dmg) + critMark(b.critMult || (b.crit ? 2 : 1)), b.crit ? "#ff9d2e" : "#ffe08a");
         for (let i = 0; i < 3; i++) {
           const a = Math.atan2(b.vy, b.vx) + rand(-0.8, 0.8), s = rand(40, 140);
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
@@ -1217,7 +1217,7 @@ function update(dt) {
       if (!(b.hitSet && b.hitSet.has(boss))) {
         logDamage(b.skill, boss.hp, b.dmg);
         boss.hp -= b.dmg; boss.flash = 0.06;
-        floatText(boss.x + rand(-20, 20), boss.y - boss.r - 4, "-" + Math.round(b.dmg) + (b.crit ? "!" : ""), b.crit ? "#ff9d2e" : "#ffe08a");
+        floatText(boss.x + rand(-20, 20), boss.y - boss.r - 4, "-" + Math.round(b.dmg) + critMark(b.critMult || (b.crit ? 2 : 1)), b.crit ? "#ff9d2e" : "#ffe08a");
         for (let i = 0; i < 3; i++) {
           const a = Math.atan2(b.vy, b.vx) + rand(-0.8, 0.8), s = rand(40, 140);
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
@@ -1775,7 +1775,7 @@ function renderStatsPanel(p) {
       ? { label: "Bloqueo", color: AFFIX.block.color,    lvl: 0,            eq: equipSum(p, "block"),    fmt: v => f1(v) + "%" }
       : state.weaponId === "staff"
         ? { label: "Poder", color: AFFIX.poder.color,    lvl: 0,            eq: equipSum(p, "poder"),    fmt: v => f1(v) + "%" }
-        : { label: "Crítico", color: AFFIX.crit.color,   lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%", cap: 100 },
+        : { label: "Crítico", color: AFFIX.crit.color,   lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%" },
     { label: "Recarga",   color: AFFIX.cdr.color,      lvl: 0,            eq: equipSum(p, "cdr"),      fmt: v => f1(v) + "%" },
   ];
   const fmtV = (r, v) => r.dec ? (Math.round(v * 100) / 100) + " A/s" : r.fmt(v);
@@ -1799,14 +1799,7 @@ function renderInventory() {
   const p = state.player;
   renderStatsPanel(p);
   el("inv-power").textContent = "Brasas 🔥 " + state.ash
-    + "  ·  Daño " + Math.round(p.dmg)
-    + "  ·  Vida " + Math.round(p.maxHp)
-    + "  ·  Vel " + Math.round(p.speed)
-    + "  ·  Brasas +" + Math.round(p.ashBonus * 100) + "%"
-    + (state.weaponId === "axe" ? "  ·  Bloqueo " + Math.round(p.block * 100) + "%"
-      : state.weaponId === "staff" ? "  ·  Poder " + Math.round(p.poder * 100) + "%"
-      : "  ·  Crit " + Math.round(p.crit * 100) + "%")
-    + "  ·  Recarga " + Math.round(p.cdr * 100) + "%";
+    + "  ·  Oleada " + (state.finalChallenge ? "FINAL" : state.wave);
   const equipList = el("equip-list");
   equipList.innerHTML = "";
   for (const slot of SLOTS) {

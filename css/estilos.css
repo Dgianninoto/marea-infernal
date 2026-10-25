@@ -50,14 +50,16 @@
     font-size: 14px;
   }
 
-  /* Solo queda el panel central (oleada actual + brasas), centrado en la pantalla. Los demas paneles del HUD
-     superior llevan .hud-hidden: siguen en el HTML porque el JS les escribe datos, pero no se muestran. */
+  /* 3 columnas: los laterales ocupan el mismo ancho (1fr) y el panel central (auto) queda siempre
+     en el centro de la pantalla, aunque los paneles de los lados midan distinto */
   .hud-top {
-    display: flex;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: flex-start;
+    gap: 12px;
   }
-  .hud-hidden { display: none !important; }
+  .hud-top > :first-child { justify-self: start; }
+  .hud-top > :last-child { justify-self: end; }
 
   .panel {
     background: var(--panel-hud);
@@ -426,7 +428,7 @@
   .item .item-stat { display: flex; align-items: center; justify-content: space-between; gap: 4px 8px; flex-wrap: wrap; }
   .item .item-affixes { flex: 1 1 auto; min-width: 0; }
   .item .item-affixes > span { white-space: nowrap; } /* el valor, la flecha y "(N pts)" no se parten a mitad */
-  .item .item-actions { display: flex; gap: 6px; margin-top: 4px; }
+  .item .item-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; } /* boton de rareza justo debajo de los botones +1 / +N */
   .item .item-btns { display: flex; gap: 4px; flex-shrink: 0; }
   .item .mini {
     pointer-events: auto; font-size: 11px; border: 1px solid var(--border); border-radius: 5px;
