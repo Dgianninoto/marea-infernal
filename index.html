@@ -14,10 +14,10 @@
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 187 -> la proxima entrega 188,
-         luego 189, 190, etc. (se muestra como 0.187, 0.188, 0.189...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 188 -> la proxima entrega 189,
+         luego 190, 191, etc. (se muestra como 0.188, 0.189, 0.190...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.187</div>
+    <div id="build-tag">Build 0.188</div>
 
     <div id="float-layer"></div>
 
@@ -42,7 +42,7 @@
     <!-- HUD -->
     <div id="hud">
       <div class="hud-top">
-        <div class="panel">
+        <div class="panel hud-hidden">
           <div class="stat-row">
             <span class="stat-label">Nivel</span>
             <span id="level-txt" style="font-size:18px;font-weight:bold;color:var(--ember-glow)">1</span>
@@ -65,14 +65,14 @@
 
         <div class="panel tide-panel">
           <div id="tide-timer">OLEADA 1</div>
-          <div id="wave-progress" style="font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">0 / 0
+          <div id="wave-progress" class="hud-hidden" style="font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">0 / 0
           </div>
           <div class="ash"><span>🔥</span><span id="ash-txt">0</span><span
               style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">cenizas</span></div>
-          <button id="inv-btn">🎒 Inventario (I)</button>
+          <button id="inv-btn" class="hud-hidden">🎒 Inventario (I)</button>
         </div>
 
-        <div class="panel" style="text-align:right">
+        <div class="panel hud-hidden" style="text-align:right">
           <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Oleada</span><b id="wave-txt"
               style="color:var(--ember-glow)">1</b></div>
           <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Bajas</span><b

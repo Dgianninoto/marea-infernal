@@ -326,11 +326,11 @@ var WEAPONS = {
     dashRecharge: 1.75, dashLength: 1.25, dashFx: "blink",
     baseSpeed: 120,      // base Velocidad at level 1 (others use 150)
     statSteps: { cdr: 16, fireRate: 0.6, speed: 1 }, // per stat point bought with this weapon: Recarga % (default 10), Cadencia A/s (default 0.4) and Velocidad (boots, default 2)
-    // weapon piece stats: Poder (base 0%, +1% per point) replaces Crítico for the mage. Poder agranda el
+    // weapon piece stats: Poder (base 0%, +2% per point) replaces Crítico for the mage. Poder agranda el
     // Meteorito (+% de radio) y añade orbes a la Salva arcana (1 orbe extra cada 10 % hasta cerrar el circulo).
     weaponStats: [
       { key: "dmg",   base: 8, step: 1.5 },
-      { key: "poder", base: 0, step: 1 } ],
+      { key: "poder", base: 0, step: 2 } ],
     skills: [
       { name: "Orbe arcano", icon: "🔮", cooldown: 0.58 },
       { name: "Salva arcana", icon: "✨", cooldown: 5.5 },
@@ -864,6 +864,7 @@ function update(dt) {
   let ax = aimWorldX - p.x, ay = aimWorldY - p.y;
   const al = Math.hypot(ax, ay) || 1;
   p.aimX = ax / al; p.aimY = ay / al;
+  p.aimDist = al; // distancia del jugador a la mira (la usa el Meteorito para decidir donde cae)
 
   // regen
   if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
@@ -878,7 +879,7 @@ function update(dt) {
   // so they never delay or interleave with the basic attack.
   if (state.phase !== "intermission") {
     const weapon = getWeapon(state.weaponId);
-    const range = 700; // alcance de disparo automatico, igual para todas las armas
+    const range = 800; // alcance de disparo automatico, igual para todas las armas
     const rangeSq = range * range;
     let threat = state.bosses.some(bs => dist2(p.x, p.y, bs.x, bs.y) < rangeSq);
     if (!threat) {
@@ -1095,7 +1096,7 @@ function update(dt) {
       if (bd > 180) { boss.x += (bdx / bd) * boss.speed * dt; boss.y += (bdy / bd) * boss.speed * dt; }
       boss.x = clamp(boss.x, WALL + boss.r, WORLD.w - WALL - boss.r);
       boss.y = clamp(boss.y, WALL + boss.r, WORLD.h - WALL - boss.r);
-      const rb = resolveObstacles(boss.x, boss.y, boss.r); boss.x = rb.x; boss.y = rb.y;
+      // los jefes NO colisionan con los objetos del mapa (solo con los muros del borde): atraviesan los obstaculos
     }
 
     // contact damage

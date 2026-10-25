@@ -50,12 +50,14 @@
     font-size: 14px;
   }
 
+  /* Solo queda el panel central (oleada actual + brasas), centrado en la pantalla. Los demas paneles del HUD
+     superior llevan .hud-hidden: siguen en el HTML porque el JS les escribe datos, pero no se muestran. */
   .hud-top {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: flex-start;
-    gap: 12px;
   }
+  .hud-hidden { display: none !important; }
 
   .panel {
     background: var(--panel-hud);
@@ -97,7 +99,10 @@
     color: var(--ember-glow); font-weight: bold; font-size: 16px;
   }
 
-  .hud-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+  /* mismo esquema que .hud-top: la barra de habilidades queda centrada en la pantalla */
+  .hud-bottom { display: grid; grid-template-columns: 1fr auto 1fr; align-items: flex-end; gap: 12px; }
+  .hud-bottom > :first-child { justify-self: start; }
+  .hud-bottom > :last-child { justify-self: end; }
 
   #loot-feed {
     display: flex; flex-direction: column-reverse; gap: 3px;
@@ -391,14 +396,14 @@
   #inv-btn:hover { background: rgba(58,26,14,0.75); }
 
   /* inventory panel */
-  .inv-card { max-width: 820px; }
+  .inv-card { max-width: 940px; }
   #inv-power { color: #ffd84d; font-size: 16px; margin-bottom: 14px; }
   .inv-cols { display: grid; grid-template-columns: 1fr; gap: 20px; text-align: left; }
   .inv-sub {
     font-size: 13px; text-transform: uppercase; letter-spacing: 2px;
     color: var(--ember-glow); margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
   }
-  @media (min-width: 760px) { .inv-cols { grid-template-columns: 5fr 6fr; align-items: start; } }
+  @media (min-width: 760px) { .inv-cols { grid-template-columns: 4fr 6fr; align-items: start; } }
   .stat-row { margin-bottom: 9px; font-size: 12px; }
   .stat-row .sr-head { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 3px; }
   .stat-row .sr-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(0,0,0,0.5); border: 1px solid #3a1f14; }
@@ -418,7 +423,9 @@
   .item .item-head .pw { margin-left: auto; color: #ffd84d; font-size: 12px; }
   .item .item-affixes { color: var(--muted); font-size: 12px; line-height: 1.4; }
   .item .item-affixes span { margin-right: 10px; }
-  .item .item-stat { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .item .item-stat { display: flex; align-items: center; justify-content: space-between; gap: 4px 8px; flex-wrap: wrap; }
+  .item .item-affixes { flex: 1 1 auto; min-width: 0; }
+  .item .item-affixes > span { white-space: nowrap; } /* el valor, la flecha y "(N pts)" no se parten a mitad */
   .item .item-actions { display: flex; gap: 6px; margin-top: 4px; }
   .item .item-btns { display: flex; gap: 4px; flex-shrink: 0; }
   .item .mini {

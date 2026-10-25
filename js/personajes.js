@@ -125,13 +125,21 @@ function salvoOrbCount(poder) {
   return Math.min(SALVO_MAX_ORBS, SALVO_BASE_ORBS + Math.floor(poder * 10 + 1e-6));
 }
 
-// Meteorito: dano = base * multiplicador segun la distancia al centro. x15 en el centro (d = 0), baja
-// linealmente hasta x3 en el borde del area. Los enemigos dentro del 1/3 central se empujan un poco hacia el centro.
-var METEOR_MULT_CENTER = 15;
-var METEOR_MULT_EDGE = 3;
+// Meteorito: dano = base * multiplicador segun la distancia al centro. x100 en el centro (d = 0) y cae de forma
+// EXPONENCIAL (decaimiento rapido) hasta x2 en el borde del area, asi el dano grande queda concentrado en el
+// centro. Los enemigos y jefes dentro del 1/3 central se empujan un poco hacia el centro ANTES de recibir el dano
+// (el multiplicador usa la posicion en la que quedan).
+var METEOR_MULT_CENTER = 100;
+var METEOR_MULT_EDGE = 2;
+var METEOR_DECAY_K = 4;         // rapidez de la caida: mayor = mas concentrado en el centro
 var METEOR_PULL_ZONE = 1 / 3;   // fraccion del radio donde se aplica el empuje
 var METEOR_PULL_STRENGTH = 0.35; // fraccion de la distancia al centro que se recorre (empuje ligero)
-function meteorMult(frac) { return METEOR_MULT_CENTER + (METEOR_MULT_EDGE - METEOR_MULT_CENTER) * clamp(frac, 0, 1); }
+// Forma de la caida normalizada: 1 en el centro (frac = 0), 0 en el borde (frac = 1), decaimiento exponencial.
+function meteorFalloff(frac) {
+  const t = clamp(frac, 0, 1), eK = Math.exp(-METEOR_DECAY_K);
+  return (Math.exp(-METEOR_DECAY_K * t) - eK) / (1 - eK);
+}
+function meteorMult(frac) { return METEOR_MULT_EDGE + (METEOR_MULT_CENTER - METEOR_MULT_EDGE) * meteorFalloff(frac); }
 function meteorHit(x, y, radius, baseDamage) {
   const prevSkill = dmgSkill;
   dmgSkill = 2; // el meteorito es el ataque definitivo del Mago
@@ -143,37 +151,49 @@ function meteorHitInner(x, y, radius, baseDamage) {
   for (const b of state.bosses) targets.push([b, true]);
   for (const [t, isBoss] of targets) {
     if (t.hp <= 0) continue;
-    const d = Math.sqrt(dist2(x, y, t.x, t.y));
+    let d = Math.sqrt(dist2(x, y, t.x, t.y));
     if (d > radius + t.r) continue;
-    // la distancia se mide al centro del objetivo; dentro del area visible siempre queda entre x15 y x3
-    const mult = meteorMult(Math.min(d, radius) / radius);
-    if (isBoss) damageWeaponBoss(t, baseDamage * mult); else damageWeaponEnemy(t, baseDamage * mult);
-    // empuje ligero hacia el centro (solo enemigos normales; los jefes no se mueven por efectos)
-    if (!isBoss && t.hp > 0 && d <= radius * METEOR_PULL_ZONE && d > 0) {
+    // 1) empuje ligero hacia el centro (enemigos normales y jefes), ANTES de calcular el dano
+    if (d <= radius * METEOR_PULL_ZONE && d > 0) {
       const k = 1 - METEOR_PULL_STRENGTH;
       t.x = x + (t.x - x) * k;
       t.y = y + (t.y - y) * k;
+      if (isBoss) {
+        t.x = clamp(t.x, WALL + t.r, WORLD.w - WALL - t.r);
+        t.y = clamp(t.y, WALL + t.r, WORLD.h - WALL - t.r);
+      }
+      d = Math.sqrt(dist2(x, y, t.x, t.y)); // posicion final tras el empuje
     }
+    // 2) dano segun la posicion en la que queda el objetivo (siempre entre x100 y x2 dentro del area visible)
+    const mult = meteorMult(Math.min(d, radius) / radius);
+    if (isBoss) damageWeaponBoss(t, baseDamage * mult); else damageWeaponEnemy(t, baseDamage * mult);
   }
 }
 
-// Gradiente del area del Meteorito: intenso y claro en el centro (x15) y tenue en el borde (x3), para que se
-// vea que el dano aumenta hacia el centro. Los colores intermedios siguen la misma recta que meteorMult.
+// Gradiente del area del Meteorito: intenso y claro en el centro (x100) y tenue en el borde (x2). Las paradas
+// siguen la misma curva exponencial que meteorMult, asi lo que se ve coincide con el dano real.
 function meteorGradient(x, y, radius) {
   const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
-  g.addColorStop(0,    "rgba(255,240,255,0.95)");
-  g.addColorStop(0.33, "rgba(215,165,255,0.70)");
-  g.addColorStop(0.66, "rgba(160,100,230,0.40)");
-  g.addColorStop(1,    "rgba(110,60,170,0.14)");
+  const c0 = [255, 240, 255], c1 = [110, 60, 170];   // color del centro y del borde
+  const stops = [0, 0.04, 0.08, 0.12, 0.17, 0.23, 0.3, 0.4, 0.55, 0.75, 1];
+  for (const t of stops) {
+    const f = meteorFalloff(t);
+    const c = c0.map((v, i) => Math.round(c1[i] + (v - c1[i]) * f));
+    g.addColorStop(t, "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + (0.14 + 0.81 * f).toFixed(3) + ")");
+  }
   return g;
 }
 
 // Radio del Meteorito: 145 px base, +% igual al Poder.
 function meteorRadius(poder) { return 145 * (1 + poder); }
 
+// Distancia de casteo del Meteorito: cae donde apunta la mira, limitado entre un minimo y un maximo.
+// (Antes caia siempre a 320 px: minimo 160 = la mitad, maximo 640 = el doble.)
+var METEOR_MIN_RANGE = 160;
+var METEOR_MAX_RANGE = 640;
 function castArcaneMeteor() {
   const p = state.player;
-  const distance = 320;
+  const distance = clamp(p.aimDist != null ? p.aimDist : 320, METEOR_MIN_RANGE, METEOR_MAX_RANGE);
   state.weaponEffects.push({
     kind: "meteor",
     x: p.x + p.aimX * distance,
@@ -185,7 +205,7 @@ function castArcaneMeteor() {
     life: 0.85,
     impactDuration: 0.55,
     impactLife: 0,
-    damage: p.dmg, // base: se multiplica x15 (centro) a x3 (borde) al impactar, ver meteorHit
+    damage: p.dmg, // base: se multiplica x100 (centro) a x2 (borde), caida exponencial al impactar, ver meteorHit
   });
   floatText(p.x, p.y - 34, "¡METEORITO!", "#d7a5ff");
   Sound.bossdie();
