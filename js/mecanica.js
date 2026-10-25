@@ -129,6 +129,14 @@ var canvas = document.getElementById("game");
 var ctx = canvas.getContext("2d");
 var wrap = document.getElementById("game-wrap");
 
+// ---- Modo tactil (moviles/tablets). Solo se activa con puntero "grueso" sin hover (pantalla tactil) o con
+// ?touch=1 en la URL (para probarlo en PC). En PC con teclado y raton esta variable es false y nada cambia.
+// TOUCH_MIN_ZOOM: zoom minimo en modo tactil (en un movil la arena entera cabria, pero todo se veria diminuto;
+// con este minimo la camara sigue al jugador). Subelo para ver mas grande, bajalo para ver mas arena.
+var TOUCH_MODE = (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) || /[?&]touch=1\b/.test(location.search);
+var TOUCH_MIN_ZOOM = 0.6;
+if (TOUCH_MODE) document.documentElement.classList.add("touch");
+
 var W = 0, H = 0, DPR = 1;
 // zoom: everything is drawn scaled so the whole arena width always fits the screen.
 // VW/VH = size of the visible area in world units.
@@ -138,6 +146,7 @@ function resize() {
   W = wrap.clientWidth;
   H = wrap.clientHeight;
   zoom = Math.max(0.05, W / WORLD.w);
+  if (TOUCH_MODE) zoom = Math.max(zoom, TOUCH_MIN_ZOOM);
   VW = W / zoom;
   VH = H / zoom;
   canvas.width = Math.floor(W * DPR);
@@ -858,7 +867,8 @@ function update(dt) {
     const rp = resolveObstacles(p.x, p.y, p.r); p.x = rp.x; p.y = rp.y;
   }
 
-  // aim
+  // aim (en modo tactil no hay raton: tactil.js apunta solo al enemigo mas cercano)
+  if (TOUCH_MODE && window.TouchControls) TouchControls.aim(p);
   const aimWorldX = mouse.x / zoom + cam.x;
   const aimWorldY = mouse.y / zoom + cam.y;
   let ax = aimWorldX - p.x, ay = aimWorldY - p.y;
@@ -1572,7 +1582,7 @@ function roundRect(x, y, w, h, r) {
 
 // ---------------------------------------------------------------- HUD binding
 var el = id => document.getElementById(id);
-var hpFill = el("hp-fill"), hpTxt = el("hp-txt");
+var hpFill = el("hp-fill"), hpTxt = el("hp-txt"), hpOrb = el("hp-orb");
 var xpFill = el("xp-fill"), xpTxt = el("xp-txt");
 var skillEls = [el("skill-0"), el("skill-1"), el("skill-2")];
 var skillCdEls = skillEls.map(s => s.querySelector(".skill-cd"));
@@ -1814,7 +1824,9 @@ el("inv-close").addEventListener("click", closeInventory);
 function updateHud() {
   debugTopUpAsh();
   const p = state.player;
-  hpFill.style.width = clamp(p.hp / p.maxHp * 100, 0, 100) + "%";
+  const hpPct = clamp(p.hp / p.maxHp * 100, 0, 100);
+  hpFill.style.height = hpPct + "%"; // el orbe se vacia de arriba hacia abajo, como en Diablo
+  hpOrb.classList.toggle("low", hpPct < 25);
   hpTxt.textContent = Math.max(0, Math.round(p.hp)) + " / " + Math.round(p.maxHp);
   xpFill.style.width = clamp(p.xp / p.xpNext * 100, 0, 100) + "%";
   xpTxt.textContent = Math.round(p.xp) + " / " + p.xpNext;

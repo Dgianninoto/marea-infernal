@@ -69,6 +69,31 @@ Los ataques se activan de forma escalonada para no disparar todas las
 habilidades a la vez. El inventario también pausa la acción para que puedas
 hacer mejoras.
 
+### Móviles y tablets
+
+En pantallas táctiles (detectadas con `(hover: none) and (pointer: coarse)`) el
+juego muestra controles en pantalla; en PC no aparece nada de esto y el juego
+funciona igual que antes. Para probarlo desde el ordenador añade `?touch=1` a la URL.
+
+| Acción | Control táctil |
+| --- | --- |
+| Moverse | Cruceta (abajo a la izquierda, 8 direcciones; se puede deslizar el dedo) |
+| Esquivar (dash) | Botón 💨 (abajo a la derecha, muestra la recarga). Sin cruceta pulsada, esquiva hacia donde ibas |
+| Apuntar | Automático: hacia el enemigo o jefe más cercano (si no hay, hacia donde caminas) |
+| Abrir un cofre | Botón 📦, aparece solo cuando hay un cofre al alcance |
+| Pausar | Botón ⏸ (sobre el botón de esquive) |
+| Inventario | Botón 🎒 del panel superior |
+
+Se juega en **horizontal**: en vertical aparece un aviso para girar el dispositivo
+y la partida se pausa sola. El zoom mínimo en móvil es `TOUCH_MIN_ZOOM` (en
+`js/mecanica.js`): la cámara sigue al jugador en lugar de mostrar toda la arena.
+
+## Interfaz
+
+El HUD inferior (estilo Diablo) agrupa la **vida** (orbe rojo a la izquierda),
+la **experiencia con el nivel** (barra encima de las habilidades) y las tres
+**habilidades** del arma. El orbe late cuando la vida baja del 25 %.
+
 ## Puntuaciones
 
 Al terminar una partida el resultado **solo se guarda si pulsas el botón Guardar** (o Enter en el campo de nombre); si sales sin guardar, o abandonas la partida, no se registra nada. Se guarda: clase, nivel, oleada, bajas, cenizas totales, jefes derrotados, si ganaste o perdiste y el puntaje. La tabla de
@@ -78,8 +103,9 @@ no se sincronizan entre dispositivos o navegadores.
 ## Archivos del proyecto
 
 - `index.html`: estructura del juego y orden de carga de scripts.
-- `css/estilos.css`: estilos, HUD, menús y overlays.
+- `css/estilos.css`: estilos, HUD (dock con orbe de vida), menús, overlays y modo táctil.
 - `js/mecanica.js`: estado, oleadas, combate, inventario y puntuaciones.
 - `js/personajes.js`: movimiento, disparo, habilidades y progresión del jugador.
 - `js/jefes.js`: jefes, sus ataques y el Desafío final.
 - `js/enemigos.js`: enemigos, cofres, jefes y renderizado asociado.
+- `js/tactil.js`: controles táctiles (cruceta, esquive, cofre, pausa y apuntado automático). Solo actúa en modo táctil.

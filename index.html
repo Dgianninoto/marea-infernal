@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Marea Infernal</title>
   <link rel="stylesheet" href="css/estilos.css" />
 </head>
@@ -14,10 +14,10 @@
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 191 -> la proxima entrega 192,
-         luego 193, 194, etc. (se muestra como 0.191, 0.192, 0.193...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 192 -> la proxima entrega 193,
+         luego 194, 195, etc. (se muestra como 0.192, 0.193, 0.194...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.191</div>
+    <div id="build-tag">Build 0.192</div>
 
     <div id="float-layer"></div>
 
@@ -42,26 +42,7 @@
     <!-- HUD -->
     <div id="hud">
       <div class="hud-top">
-        <div class="panel">
-          <div class="stat-row">
-            <span class="stat-label">Nivel</span>
-            <span id="level-txt" style="font-size:18px;font-weight:bold;color:var(--ember-glow)">1</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Vida</span>
-            <div class="bar">
-              <div class="fill" id="hp-fill"></div>
-              <div class="label" id="hp-txt"></div>
-            </div>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Exp</span>
-            <div class="bar">
-              <div class="fill" id="xp-fill"></div>
-              <div class="label" id="xp-txt"></div>
-            </div>
-          </div>
-        </div>
+        <div></div><!-- hueco: Nivel/Vida/Exp ahora estan abajo (#dock), junto a las habilidades -->
 
         <div class="panel tide-panel">
           <div id="tide-timer">OLEADA 1</div>
@@ -86,21 +67,39 @@
 
       <div class="hud-bottom">
         <div id="loot-feed"></div>
-        <div id="skills-bar">
-          <div class="skill" id="skill-0">
-            <div class="skill-icon"></div>
-            <div class="skill-cd"></div>
-            <div class="skill-name"></div>
+        <!-- Dock inferior estilo Diablo: orbe de vida a la izquierda; a la derecha, barra de experiencia
+             (con el nivel) encima de las habilidades. Los ids hp-fill/hp-txt/xp-fill/xp-txt/level-txt los usa updateHud(). -->
+        <div id="dock">
+          <div id="hp-orb" title="Vida">
+            <div id="hp-fill"></div>
+            <div class="orb-shine"></div>
+            <div id="hp-txt" class="orb-label"></div>
           </div>
-          <div class="skill" id="skill-1">
-            <div class="skill-icon"></div>
-            <div class="skill-cd"></div>
-            <div class="skill-name"></div>
-          </div>
-          <div class="skill" id="skill-2">
-            <div class="skill-icon"></div>
-            <div class="skill-cd"></div>
-            <div class="skill-name"></div>
+          <div id="dock-main">
+            <div id="xp-row">
+              <div id="level-badge" title="Nivel"><small>Nv</small><b id="level-txt">1</b></div>
+              <div class="bar" id="xp-bar" title="Experiencia">
+                <div class="fill" id="xp-fill"></div>
+                <div class="label" id="xp-txt"></div>
+              </div>
+            </div>
+            <div id="skills-bar">
+              <div class="skill" id="skill-0">
+                <div class="skill-icon"></div>
+                <div class="skill-cd"></div>
+                <div class="skill-name"></div>
+              </div>
+              <div class="skill" id="skill-1">
+                <div class="skill-icon"></div>
+                <div class="skill-cd"></div>
+                <div class="skill-name"></div>
+              </div>
+              <div class="skill" id="skill-2">
+                <div class="skill-icon"></div>
+                <div class="skill-cd"></div>
+                <div class="skill-name"></div>
+              </div>
+            </div>
           </div>
         </div>
         <div id="hud-br">
@@ -110,10 +109,25 @@
             <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br />
             <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
           </div>
+          <button id="pause-btn" title="Pausa" aria-label="Pausa">⏸</button>
           <button id="sound-btn" title="Sonido" aria-label="Sonido">🔊</button>
         </div>
       </div>
     </div>
+
+    <!-- Controles tactiles: solo se muestran en moviles/tablets (clase .touch en <html>, ver mecanica.js y tactil.js) -->
+    <div id="touch-ui">
+      <div id="dpad" aria-label="Cruceta">
+        <span class="dp dp-up">▲</span>
+        <span class="dp dp-left">◀</span>
+        <span class="dp dp-mid"></span>
+        <span class="dp dp-right">▶</span>
+        <span class="dp dp-down">▼</span>
+      </div>
+      <button id="touch-chest" hidden>📦<small>Abrir</small></button>
+      <button id="touch-dash" aria-label="Esquive">💨<small>Esquive</small></button>
+    </div>
+    <div id="rotate-hint"><div>📱↻<p>Gira el dispositivo en horizontal para jugar</p></div></div>
 
     <!-- Main menu overlay -->
     <div class="overlay" id="menu-screen">
@@ -258,6 +272,14 @@
                 <div class="ctrl-row"><kbd>I</kbd><span>inventario (pausa)</span></div>
                 <div class="ctrl-row"><kbd>Esc</kbd><span>pausar / volver al menú</span></div>
               </div>
+              <div class="ctrl-col touch-only">
+                <div class="ctrl-title">Pantalla táctil</div>
+                <div class="ctrl-row"><kbd>cruceta</kbd><span>moverse (8 direcciones)</span></div>
+                <div class="ctrl-row"><kbd>💨</kbd><span>esquive (dash)</span></div>
+                <div class="ctrl-row"><kbd>auto</kbd><span>apunta solo al enemigo más cercano</span></div>
+                <div class="ctrl-row"><kbd>📦</kbd><span>aparece junto a un cofre para abrirlo</span></div>
+                <div class="ctrl-row"><kbd>⏸</kbd><span>pausar / volver al menú</span></div>
+              </div>
             </div>
           </div>
           <button class="btn btn-sec menu-back" data-back>← Volver</button>
@@ -351,6 +373,7 @@
   <script src="js/personajes.js"></script>
   <script src="js/jefes.js"></script>
   <script src="js/enemigos.js"></script>
+  <script src="js/tactil.js"></script>
 </body>
 
 </html>

@@ -88,7 +88,6 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: bold; text-shadow: 0 1px 2px #000;
   }
-  #hp-fill { background: linear-gradient(90deg, #7a0d0d, #e0241c); }
   #xp-fill { background: linear-gradient(90deg, #6a4a00, #ffd24d); }
 
   .tide-panel { text-align: center; min-width: 190px; }
@@ -453,3 +452,207 @@
 /* La pantalla final ahora es mas alta (resumen de dano): permite desplazarse si no cabe */
 #over-screen { overflow-y: auto; }
 #over-screen .card { margin: auto; }
+
+
+/* =====================================================================
+   Dock inferior estilo Diablo: orbe de vida + experiencia sobre las habilidades
+   ===================================================================== */
+#dock { display: flex; align-items: flex-end; gap: 14px; pointer-events: none; }
+#dock-main { display: flex; flex-direction: column; gap: 7px; align-items: stretch; }
+
+#hp-orb {
+  position: relative; flex-shrink: 0; width: 104px; height: 104px; border-radius: 50%; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #2a0808 0%, #0b0303 80%);
+  border: 3px solid #6b2d12;
+  box-shadow: 0 0 0 2px #1a0905, 0 0 22px rgba(224, 36, 28, 0.45), inset 0 0 18px rgba(0, 0, 0, 0.9);
+}
+/* liquido: sube y baja con la vida (height lo pone updateHud) */
+#hp-fill {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+  background: linear-gradient(180deg, #ff4d3d 0%, #d91f18 30%, #8a0e0e 70%, #4a0505 100%);
+  transition: height 0.2s ease;
+}
+/* ola animada en la superficie del liquido */
+#hp-fill::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 8px;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M0 4 Q12 -1 24 4 T48 4 V8 H0Z' fill='%23ff4d3d'/></svg>") repeat-x;
+  background-size: 48px 8px;
+  animation: orbWave 2.4s linear infinite;
+}
+@keyframes orbWave { to { background-position-x: 48px; } }
+/* brillo de cristal */
+.orb-shine {
+  position: absolute; top: 7%; left: 14%; width: 44%; height: 28%; border-radius: 50%;
+  background: radial-gradient(ellipse at 40% 35%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 70%);
+  transform: rotate(-22deg); pointer-events: none;
+}
+.orb-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: bold; white-space: nowrap; font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px #000, 0 0 6px #000;
+}
+/* vida baja: el orbe late */
+#hp-orb.low { animation: orbLow 0.8s ease-in-out infinite; }
+@keyframes orbLow { 50% { box-shadow: 0 0 0 2px #1a0905, 0 0 34px rgba(255, 40, 30, 0.95), inset 0 0 18px rgba(0, 0, 0, 0.9); } }
+
+#xp-row { display: flex; align-items: center; gap: 6px; }
+#level-badge {
+  min-width: 42px; height: 22px; padding: 0 7px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  background: var(--panel-hud); border: 1px solid var(--border); color: var(--ember-glow);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+#level-badge small { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+#level-badge b { font-size: 14px; }
+#xp-bar { flex: 1; width: auto; height: 14px; }
+#xp-bar .label { font-size: 10px; }
+
+#dock .skill { width: 60px; height: 60px; }
+
+/* =====================================================================
+   MODO TACTIL (html.touch). Todo lo de aqui es inofensivo en PC: los elementos
+   estan ocultos por defecto y las reglas con .touch no se aplican sin pantalla tactil.
+   ===================================================================== */
+#touch-ui, #rotate-hint, #pause-btn, .touch-only { display: none; }
+
+.touch { touch-action: manipulation; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+.touch #game-wrap { height: 100vh; height: 100dvh; }
+.touch #game { touch-action: none; }
+.touch #controls-hint { display: none; }
+.touch .touch-only { display: block; }
+.touch #touch-ui { display: block; position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+.touch #hud { padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+
+/* cruceta */
+#dpad {
+  position: absolute; width: 150px; height: 150px;
+  left: calc(18px + env(safe-area-inset-left)); bottom: calc(16px + env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+  pointer-events: auto; touch-action: none; opacity: 0.85;
+}
+.dp {
+  display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--ember-glow);
+  background: rgba(40, 16, 8, 0.55); border: 1px solid rgba(255, 140, 60, 0.45);
+  pointer-events: none; transition: background 0.05s;
+}
+.dp-up { grid-area: 1 / 2; border-radius: 14px 14px 0 0; }
+.dp-left { grid-area: 2 / 1; border-radius: 14px 0 0 14px; }
+.dp-mid { grid-area: 2 / 2; }
+.dp-right { grid-area: 2 / 3; border-radius: 0 14px 14px 0; }
+.dp-down { grid-area: 3 / 2; border-radius: 0 0 14px 14px; }
+.dp.on { background: rgba(255, 106, 26, 0.6); color: #fff; box-shadow: 0 0 14px rgba(255, 120, 30, 0.7); }
+
+/* boton de esquive */
+#touch-dash, #touch-chest {
+  position: absolute; pointer-events: auto; touch-action: none; border-radius: 50%; color: #fff; font-size: 30px; line-height: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 2px solid rgba(255, 140, 60, 0.7); text-shadow: 0 1px 3px #000;
+}
+#touch-dash small, #touch-chest small { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--ember-glow); }
+#touch-dash {
+  width: 90px; height: 90px; right: calc(22px + env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom));
+  background: radial-gradient(circle at 50% 35%, rgba(255, 122, 42, 0.55), rgba(110, 30, 6, 0.65));
+  overflow: hidden;
+}
+/* recarga: cortina circular que se vacia al recargar (--cd = 1 recien usado .. 0 listo) */
+#touch-dash::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(rgba(0, 0, 0, 0.72) calc(var(--cd, 0) * 1turn), transparent 0);
+}
+#touch-dash.ready { box-shadow: 0 0 18px rgba(255, 120, 30, 0.7); }
+#touch-dash.down { transform: scale(0.94); }
+#touch-chest {
+  width: 66px; height: 66px; right: calc(128px + env(safe-area-inset-right)); bottom: calc(34px + env(safe-area-inset-bottom));
+  font-size: 24px; background: radial-gradient(circle at 50% 35%, rgba(255, 216, 77, 0.6), rgba(110, 80, 6, 0.7));
+  border-color: #ffd84d; animation: chestPulse 0.9s ease-in-out infinite;
+}
+#touch-chest[hidden] { display: none; }
+@keyframes chestPulse { 50% { box-shadow: 0 0 22px rgba(255, 216, 77, 0.9); } }
+
+/* sonido + pausa: encima del boton de esquive */
+.touch #hud-br { margin-bottom: 120px; flex-direction: column; align-items: flex-end; }
+.touch #pause-btn, .touch #sound-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 34px; font-size: 16px; opacity: 0.8; pointer-events: auto;
+  background: rgba(42, 20, 12, 0.5); border: 1px solid rgba(90, 36, 16, 0.8); color: var(--ember-glow); border-radius: 8px; padding: 0;
+}
+.touch #loot-feed { margin-bottom: 160px; } /* sube el registro de botin para no quedar bajo la cruceta */
+.touch #inv-btn { padding: 8px 10px; font-size: 13px; }
+
+/* debug: columna en la esquina superior izquierda (el HUD ya no tiene panel ahi) */
+.touch #debug-panel { left: 10px; top: 12px; bottom: auto; flex-direction: column; align-items: flex-start; }
+
+/* pantallas bajas (moviles en horizontal): HUD mas compacto */
+@media (max-height: 460px) {
+  .touch #hud { font-size: 12px; }
+  .touch .panel { padding: 6px 10px; }
+  .touch #tide-timer { font-size: 22px; }
+  .touch #boss-wrap { top: 92px; }
+  .touch #inter-panel { top: 92px; }
+  .touch #hp-orb { width: 78px; height: 78px; border-width: 2px; }
+  .touch .orb-label { font-size: 10px; }
+  .touch #dock { gap: 10px; }
+  .touch #dock .skill { width: 48px; height: 48px; }
+  .touch #dock .skill .skill-icon { font-size: 22px; }
+  .touch #dock .skill-name { display: none; }
+  .touch #skills-bar { gap: 8px; }
+  .touch #dpad { width: 124px; height: 124px; }
+  .touch #touch-dash { width: 76px; height: 76px; font-size: 26px; bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .touch #touch-chest { width: 58px; height: 58px; right: calc(112px + env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom)); }
+  .touch #hud-br { margin-bottom: 100px; }
+  .touch #loot-feed { margin-bottom: 130px; max-height: 110px; }
+  .touch .inv-card, .touch .menu-card { padding: 16px 18px; }
+}
+
+/* en vertical se pide girar el dispositivo (el juego se pausa solo, ver tactil.js) */
+@media (orientation: portrait) {
+  .touch #rotate-hint {
+    display: flex; position: absolute; inset: 0; z-index: 200; align-items: center; justify-content: center;
+    text-align: center; padding: 30px; background: radial-gradient(circle at center, rgba(60, 10, 2, 0.96), rgba(5, 2, 1, 0.99));
+    color: var(--ember-glow); font-size: 56px; line-height: 1.2;
+  }
+  .touch #rotate-hint p { font-size: 18px; margin-top: 14px; color: var(--text); }
+}
+
+/* menus y paneles en moviles: que se puedan desplazar si no caben en pantalla */
+.touch .overlay { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.touch .overlay > .card { margin: auto; }
+.touch .howto-body, .touch .weapon-grid, .touch #scores-table, .touch #equip-list { touch-action: pan-y; }
+
+/* nombres de habilidad un poco mas compactos para que "Devastacion" quepa en el recuadro */
+#dock .skill .skill-name { font-size: 8px; letter-spacing: 0; }
+
+/* panel de debug: ahora arriba a la izquierda (hueco que dejo el panel de Nivel/Vida/Exp) para no pisar el orbe */
+#debug-panel { left: 10px; top: 12px; bottom: auto; flex-direction: column; align-items: flex-start; }
+
+/* menus en moviles horizontales (pantallas bajas): todo mas compacto para que quepa sin tanto scroll.
+   Va con .touch: en PC no se aplica nunca. */
+@media (max-height: 460px) {
+  .touch .overlay { padding: 8px; }
+  .touch .menu-card { min-height: 0; padding: 12px 20px; border-radius: 14px; }
+  .touch .menu-card > h1 { font-size: 30px; margin-bottom: 0; }
+  .touch .menu-card h2 { font-size: 20px; margin-bottom: 6px; }
+  .touch .card p { margin-bottom: 6px; font-size: 13px; line-height: 1.4; }
+  .touch .card .big { font-size: 16px; }
+  .touch .btn { font-size: 14px; padding: 10px 22px; margin-top: 10px; }
+  .touch .menu-buttons { gap: 8px; margin-top: 8px; }
+  .touch .home-grid { gap: 14px; margin-top: 6px; }
+  .touch .best-box { padding: 8px 14px; }
+  .touch .best-box .best-val { font-size: 26px; }
+  .touch .weapon-intro { font-size: 12px; margin: 0; }
+  .touch .weapon-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); max-height: none; overflow: visible; gap: 8px; margin-top: 6px; padding: 0; }
+  .touch .weapon-card { padding: 8px; }
+  .touch .weapon-card .weapon-icon { font-size: 26px; }
+  .touch .weapon-card h3 { font-size: 15px; margin: 2px 0; }
+  .touch .weapon-card p { font-size: 11px; line-height: 1.3; min-height: 0; margin-bottom: 4px; }
+  .touch .weapon-card ul { font-size: 11px; line-height: 1.35; min-height: 0; margin: 2px 0 6px; }
+  .touch .weapon-card .weapon-start { padding: 9px 4px; font-size: 12px; }
+  .touch .menu-back { margin-top: 8px; }
+  .touch .howto-body { max-height: 62vh; }
+  .touch .howto-body p { font-size: 12px; margin-bottom: 8px; }
+  .touch #scores-table { max-height: 52vh; }
+  .touch .stats-grid { margin: 8px auto; gap: 6px 18px; }
+  .touch .name-row { margin: 8px 0; }
+  .touch #debug-panel button { font-size: 10px; padding: 4px 7px; }
+  .touch #debug-panel { gap: 4px; }
+}
