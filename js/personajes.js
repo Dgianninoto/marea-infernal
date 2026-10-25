@@ -125,9 +125,9 @@ function salvoOrbCount(poder) {
   return Math.min(SALVO_MAX_ORBS, SALVO_BASE_ORBS + Math.floor(poder * 10 + 1e-6));
 }
 
-// Meteorito: dano = base * multiplicador segun la distancia al centro. x7 en el centro (d = 0), baja
+// Meteorito: dano = base * multiplicador segun la distancia al centro. x15 en el centro (d = 0), baja
 // linealmente hasta x3 en el borde del area. Los enemigos dentro del 1/3 central se empujan un poco hacia el centro.
-var METEOR_MULT_CENTER = 7;
+var METEOR_MULT_CENTER = 15;
 var METEOR_MULT_EDGE = 3;
 var METEOR_PULL_ZONE = 1 / 3;   // fraccion del radio donde se aplica el empuje
 var METEOR_PULL_STRENGTH = 0.35; // fraccion de la distancia al centro que se recorre (empuje ligero)
@@ -145,7 +145,7 @@ function meteorHitInner(x, y, radius, baseDamage) {
     if (t.hp <= 0) continue;
     const d = Math.sqrt(dist2(x, y, t.x, t.y));
     if (d > radius + t.r) continue;
-    // la distancia se mide al centro del objetivo; dentro del area visible siempre queda entre x7 y x3
+    // la distancia se mide al centro del objetivo; dentro del area visible siempre queda entre x15 y x3
     const mult = meteorMult(Math.min(d, radius) / radius);
     if (isBoss) damageWeaponBoss(t, baseDamage * mult); else damageWeaponEnemy(t, baseDamage * mult);
     // empuje ligero hacia el centro (solo enemigos normales; los jefes no se mueven por efectos)
@@ -157,7 +157,7 @@ function meteorHitInner(x, y, radius, baseDamage) {
   }
 }
 
-// Gradiente del area del Meteorito: intenso y claro en el centro (x7) y tenue en el borde (x3), para que se
+// Gradiente del area del Meteorito: intenso y claro en el centro (x15) y tenue en el borde (x3), para que se
 // vea que el dano aumenta hacia el centro. Los colores intermedios siguen la misma recta que meteorMult.
 function meteorGradient(x, y, radius) {
   const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
@@ -185,7 +185,7 @@ function castArcaneMeteor() {
     life: 0.85,
     impactDuration: 0.55,
     impactLife: 0,
-    damage: p.dmg, // base: se multiplica x7 (centro) a x3 (borde) al impactar, ver meteorHit
+    damage: p.dmg, // base: se multiplica x15 (centro) a x3 (borde) al impactar, ver meteorHit
   });
   floatText(p.x, p.y - 34, "¡METEORITO!", "#d7a5ff");
   Sound.bossdie();
