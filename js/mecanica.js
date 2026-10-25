@@ -319,7 +319,7 @@ var WEAPONS = {
   },
   staff: {
     id: "staff", name: "Bastón de mago", icon: "🪄", color: "#bd8cff",
-    baseDmg: 15,         // base Daño at level 1 (others use 12)
+    baseDmg: 25,         // base Daño at level 1 (others use 12)
     baseHp: 80,          // base Vida at level 1 (default 100); level-ups still add +12
     // Esquiva especial (parpadeo arcano): recarga 75 % mas rapida (cooldown / 1.75) y 25 % mas larga
     // (distancia x1.25), con efecto violeta similar al teletransporte de los enemigos.
@@ -329,7 +329,7 @@ var WEAPONS = {
     // weapon piece stats: Poder (base 0%, +1% per point) replaces Crítico for the mage. Poder agranda el
     // Meteorito (+% de radio) y añade orbes a la Salva arcana (1 orbe extra cada 10 % hasta cerrar el circulo).
     weaponStats: [
-      { key: "dmg",   base: 8, step: 1 },
+      { key: "dmg",   base: 8, step: 1.5 },
       { key: "poder", base: 0, step: 1 } ],
     skills: [
       { name: "Orbe arcano", icon: "🔮", cooldown: 0.58 },
