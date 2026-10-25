@@ -70,7 +70,7 @@
     box-shadow: 0 0 20px rgba(0,0,0,0.6);
   }
 
-  .stat-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .hud-top .stat-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
   .stat-label { color: var(--muted); min-width: 64px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 
   .bar {
@@ -284,7 +284,7 @@
   }
 
   /* TEMP DEBUG panel (remove together with the DEBUG block in the script) */
-  #debug-panel { position: absolute; left: 10px; bottom: 20px; z-index: 95; display: flex; gap: 6px; }
+  #debug-panel { position: absolute; left: 10px; bottom: 20px; z-index: 40; display: flex; gap: 6px; }
   #debug-panel button {
     font: bold 11px sans-serif; padding: 5px 9px; border-radius: 6px; cursor: pointer;
     background: rgba(20,8,4,0.85); color: #ffb347; border: 1px solid #7a3a12;
@@ -656,3 +656,72 @@
   .touch #debug-panel button { font-size: 10px; padding: 4px 7px; }
   .touch #debug-panel { gap: 4px; }
 }
+
+
+/* =====================================================================
+   Build 194 - HUD tactil compacto en CUALQUIER tamano de pantalla (antes dependia de
+   max-height:460px y no se aplicaba en pantallas mas altas). Mas mapa visible.
+   Todo con .touch: en PC no cambia nada.
+   ===================================================================== */
+.touch #hud { padding: max(5px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); font-size: 11px; }
+.touch .hud-top { gap: 6px; }
+.touch .panel { padding: 3px 8px; border-radius: 8px; box-shadow: none; backdrop-filter: none; background: rgba(20,10,8,0.25); }
+
+/* oleada: una sola fila fina */
+.touch .tide-panel { min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 2px 8px; }
+.touch #tide-timer { font-size: 13px; line-height: 1.1; white-space: nowrap; }
+.touch #wave-progress { font-size: 10px !important; margin: 0 !important; white-space: nowrap; }
+.touch .ash { font-size: 12px; gap: 3px; }
+.touch .ash span[style] { display: none; }
+.touch #inv-btn { width: auto; margin: 0; padding: 3px 8px; font-size: 10px; letter-spacing: 0; white-space: nowrap; }
+
+/* stats de la derecha: 2 columnas, mini */
+.touch .hud-top > :last-child { display: grid; grid-template-columns: auto auto; column-gap: 10px; padding: 2px 6px; }
+.touch .hud-top .stat-row { margin: 0; gap: 4px; }
+.touch .stat-label { min-width: 0; font-size: 8px; letter-spacing: 0.3px; }
+.touch .hud-top .stat-row b { font-size: 10px; }
+.touch #boss-wrap { top: 40px; }
+.touch #inter-panel { top: 40px; padding: 8px 14px; }
+
+/* dock: orbe, nivel/exp y habilidades chicos */
+.touch #hp-orb { width: 56px; height: 56px; border-width: 2px; }
+.touch .orb-label { font-size: 8px; }
+.touch #dock { gap: 6px; }
+.touch #dock-main { gap: 3px; }
+.touch #dock .skill { width: 34px; height: 34px; border-radius: 7px; }
+.touch #dock .skill .skill-icon { font-size: 16px; }
+.touch #dock .skill-name { display: none; }
+.touch #skills-bar { gap: 5px; }
+.touch #level-badge { min-width: 30px; height: 16px; padding: 0 4px; }
+.touch #level-badge small { display: none; }
+.touch #level-badge b { font-size: 11px; }
+.touch #xp-bar { height: 11px; width: 130px; flex: 0 0 auto; }
+.touch #xp-bar .label { font-size: 8px; }
+
+/* controles */
+.touch #dpad { width: 100px; height: 100px; left: calc(10px + env(safe-area-inset-left)); bottom: calc(8px + env(safe-area-inset-bottom)); opacity: 0.65; }
+.touch #touch-dash { width: 62px; height: 62px; font-size: 22px; right: calc(12px + env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom)); }
+.touch #touch-dash small { font-size: 8px; }
+.touch #touch-chest { width: 50px; height: 50px; right: calc(86px + env(safe-area-inset-right)); bottom: calc(14px + env(safe-area-inset-bottom)); }
+.touch #hud-br { margin-bottom: 76px; gap: 4px; }
+.touch #pause-btn, .touch #sound-btn { width: 30px; height: 26px; font-size: 13px; }
+.touch #loot-feed { margin-bottom: 110px; max-height: 70px; }
+.touch .loot-line { font-size: 10px; padding: 1px 6px; }
+.touch #debug-panel { left: 6px; top: 6px; gap: 3px; }
+.touch #debug-panel button { font-size: 8px; padding: 2px 5px; }
+.touch #build-tag { font-size: 9px; bottom: 1px; left: 6px; }
+
+/* inventario: ocupa la pantalla; titulo y Cerrar fijos, cada columna con su scroll */
+.touch .overlay#inv-screen { padding: 6px; overflow: hidden; }
+.touch .inv-card { max-height: calc(100dvh - 12px); height: calc(100dvh - 12px); display: flex; flex-direction: column; padding: 8px 14px; border-radius: 12px; }
+.touch .inv-card h2 { font-size: 16px; margin-bottom: 0; letter-spacing: 1px; }
+.touch #inv-power { font-size: 12px; margin-bottom: 4px; }
+.touch .inv-cols { flex: 1 1 auto; min-height: 0; grid-template-columns: 4fr 6fr; grid-template-rows: minmax(0, 1fr); gap: 14px; align-items: stretch; }
+.touch .inv-cols > div { min-height: 0; display: flex; flex-direction: column; }
+.touch .inv-sub { font-size: 11px; margin-bottom: 4px; flex-shrink: 0; }
+.touch .stat-legend { margin-bottom: 4px; flex-shrink: 0; }
+.touch #stats-panel, .touch #equip-list { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; touch-action: pan-y; padding-right: 4px; }
+.touch #stats-panel .stat-row { margin-bottom: 5px; }
+.touch .stat-row .sr-head { margin-bottom: 1px; }
+.touch .item { padding: 4px 8px; font-size: 12px; }
+.touch .inv-card > .btn { flex-shrink: 0; align-self: center; margin-top: 6px; padding: 7px 22px; font-size: 13px; }

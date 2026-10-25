@@ -133,8 +133,9 @@ var wrap = document.getElementById("game-wrap");
 // ?touch=1 en la URL (para probarlo en PC). En PC con teclado y raton esta variable es false y nada cambia.
 // TOUCH_MIN_ZOOM: zoom minimo en modo tactil (en un movil la arena entera cabria, pero todo se veria diminuto;
 // con este minimo la camara sigue al jugador). Subelo para ver mas grande, bajalo para ver mas arena.
+// (Build 193: bajado de 0.6 a 0.45 para ver bastante mas mapa en el celular.)
 var TOUCH_MODE = (window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches) || /[?&]touch=1\b/.test(location.search);
-var TOUCH_MIN_ZOOM = 0.6;
+var TOUCH_MIN_ZOOM = 0.45;
 if (TOUCH_MODE) document.documentElement.classList.add("touch");
 
 var W = 0, H = 0, DPR = 1;
