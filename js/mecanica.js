@@ -276,7 +276,7 @@ buildAllTextures();
 // The hero starts with 6 base pieces (one per slot, one stat each). Pieces never drop:
 // they are upgraded with brasas (ash) in two independent ways:
 //  - Stat points: +1 point at a time, each adds `step` to the piece's stat (flat cost).
-//  - Rarity (level 0..4): multiplies the whole stat by RARITY_MULT[level]. Cost grows x1.5 per level.
+//  - Rarity (level 0..4): multiplies the whole stat by RARITY_MULT[level]. Costs are set by hand in RARITY_COSTS.
 var RARITY = [
   { name: "Común",      color: "#d9d2c6" },
   { name: "Mágico",     color: "#5aa0ff" },
@@ -289,10 +289,10 @@ var MAX_PLUS = 5;             // an item holds at most +5 (each stat point = +1)
 var ASH_SCORE_MULT = 2;        // puntos de puntaje final por cada ceniza (en mano + gastada)
 var itemPlus = it => it.plus; // upgrade indicator 0..5 (stat points themselves are permanent)
 // Costos de mejora por rareza actual de la pieza (nivel 0..4: Comun, Magico, Raro, Legendario, Unico).
-var POINT_COSTS = [30, 40, 50, 70, 90];   // brasas por cada +1 de una pieza
+var POINT_COSTS = [30, 50, 100, 250, 2500];   // brasas por cada +1 de una pieza
 function pointCost(it) { return POINT_COSTS[it.level]; }
 var RARITY_MULT = [1, 1.5, 2, 3, 5]; // stat multiplier per rarity: Común, Mágico, Raro, Legendario, Único
-var RARITY_COSTS = [200, 350, 575, 1000]; // brasas para subir de rareza desde el nivel n (Unico es el maximo)
+var RARITY_COSTS = [200, 350, 750, 2000]; // brasas para subir de rareza desde el nivel n (Unico es el maximo)
 function rarityCost(level) { return RARITY_COSTS[level]; }
 
 var AFFIX = {
