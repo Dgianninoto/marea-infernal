@@ -184,7 +184,7 @@ function startFinalChallenge() {
   state.finalBossList = [];
   const a0 = rand(0, Math.PI * 2);
   defs.forEach((d, i) => spawnBoss(d, i + 1, defs.length, a0 + i * (Math.PI * 2 / defs.length)));
-  showWarning("\u00a1DESAF\u00cdO FINAL!<br><span style='color:#ff3a1a;font-size:20px'>" + defs.map(d => d.name).join(" \u00b7 ") + "</span><br><span style='font-size:16px'>doble de vida</span>");
+  showWarning("\u00a1DESAF\u00cdO FINAL!<br><span style='color:#ff3a1a;font-size:20px'>" + defs.map(d => d.name).join(" \u00b7 ") + "</span><br><span style='font-size:16px'>300.000 de vida cada uno</span>");
   floatText(state.player.x, state.player.y - 56, "DESAF\u00cdO FINAL", "#ff5050");
   state.shake = 24;
   updateHud();
@@ -202,9 +202,9 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
 
   const isFinal = !!forcedDef;
   const def = forcedDef || bossForWave(w);
-  const hpMult = isFinal ? BOSS_FINAL_HP_MULT : 1;
+  const bossHp = isFinal ? BOSS_FINAL_HP : def.hp;
   let title = "\u00a1" + def.name + "<br>ha despertado!";
-  if (isFinal) title = "\u00a1DESAFÍO FINAL " + finalIdx + "/" + finalTotal + "!<br><span style='color:#ff3a1a;font-size:20px'>" + def.name + " \u2014 doble de vida</span>";
+  if (isFinal) title = "\u00a1DESAFÍO FINAL " + finalIdx + "/" + finalTotal + "!<br><span style='color:#ff3a1a;font-size:20px'>" + def.name + " \u2014 300.000 de vida</span>";
   else if (hasLeap && hasBombs) title = "\u00a1" + def.name + "<br><span style='color:#ff9d4d;font-size:18px'>\u2014 Salto y lluvia de fuego \u2014</span>";
   else if (hasLeap)             title = "\u00a1" + def.name + "<br><span style='color:#6affa0;font-size:18px'>\u2014 Salto aplastante \u2014</span>";
 
@@ -214,7 +214,7 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
     type: "boss", def, isFinal, finalIdx, finalTotal,
     name: def.name,
     speed: 85 + Math.min(40, w),
-    hp: def.hp * hpMult, maxHp: def.hp * hpMult, // vida propia de cada jefe (ver BOSS_ROSTER en jefes.js)
+    hp: bossHp, maxHp: bossHp, // vida propia de cada jefe (ver BOSS_ROSTER en jefes.js)
     dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT,
     xp: 600 + w * 20, flash: 0,
     color: (hasLeap && hasBombs) ? "#6a0a3a" : (hasBombs ? "#7a1a08" : "#8a0f2a"),

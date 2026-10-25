@@ -820,7 +820,7 @@ function startIntermission() {
   else showWarning("Pausa<br><span style='font-size:20px'>Revisa tu equipo (I) y continúa cuando estés listo</span>");
   interPanel.querySelector(".inter-title").textContent = preFinal ? "¡Prepárate para el Desafío final!" : "Intermedio";
   interPanel.querySelector(".inter-sub").innerHTML = preFinal
-    ? "Has derrotado al Señor de la Marea. Ahora te esperan <b>tres jefes al azar, todos a la vez y con el doble de vida</b>. Revisa tu equipo con <kbd>I</kbd> y empieza cuando estés listo."
+    ? "Has derrotado al Señor de la Marea. Ahora te esperan <b>tres jefes al azar, todos a la vez y con 300.000 de vida cada uno</b>. Revisa tu equipo con <kbd>I</kbd> y empieza cuando estés listo."
     : "Oleada superada. Revisa tu equipo con <kbd>I</kbd> y continúa cuando estés listo.";
   el("inter-continue").textContent = preFinal ? "Comenzar desafío ▶" : "Continuar ▶";
   interPanel.style.display = "block";
@@ -878,7 +878,7 @@ function update(dt) {
   // so they never delay or interleave with the basic attack.
   if (state.phase !== "intermission") {
     const weapon = getWeapon(state.weaponId);
-    const range = weapon.id === "axe" ? 210 : 450;
+    const range = 700; // alcance de disparo automatico, igual para todas las armas
     const rangeSq = range * range;
     let threat = state.bosses.some(bs => dist2(p.x, p.y, bs.x, bs.y) < rangeSq);
     if (!threat) {
@@ -1114,7 +1114,7 @@ function update(dt) {
       const n = 7;
       for (let i = 0; i < n; i++) {
         const a = base + (i - (n - 1) / 2) * 0.22;
-        state.bossBullets.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, r: 9, dmg: 16 * ENEMY_DMG_MULT, life: 3 });
+        state.bossBullets.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * 300, vy: Math.sin(a) * 300, r: 9, dmg: boss.dmg * (16 / 26), life: 3 }); // escala con la oleada igual que el resto de ataques del jefe
       }
       Sound.boss();
     }

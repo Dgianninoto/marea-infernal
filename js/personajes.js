@@ -25,6 +25,7 @@ var SEISMIC_RINGS = [
 var BLEED_TICK_INTERVAL = 0.5;
 var BLEED_TICKS = 16;
 var BLEED_TICK_RATIO = 0.5;
+var BLEED_REAPPLY_RATIO = 0.5; // al reaplicar sobre un objetivo que ya sangra: fraccion del sangrado restante que se inflige de golpe
 
 // ---------------------------------------------------------------- Combat / loot
 // Registro de dano por ataque (0 = basico, 1 = intermedio, 2 = definitivo) para el resumen de fin de partida.
@@ -468,14 +469,14 @@ function useSkillInner(i) {
       Sound.hit();
     } else if (i === 1) {
       // Hacha arrojadiza: 2 hachas giratorias (circulos de 50 px) lanzadas en abanico a +-0,5 rad
-      // de la mira, mas una hacha central del doble de tamano (100 px) que viaja el doble (600 px).
+      // de la mira, mas una hacha central del doble de tamano (100 px) que viaja 450 px.
       // Recorren su trayecto atravesando enemigos; dano = 25 % del dano base, pero cada impacto
       // deja sangrado (50 % del dano del Barbaro cada 0,5 s durante 8 s, ver applyBleed).
       const spd = 500, bleed = p.dmg * BLEED_TICK_RATIO;
       const throws = [
         { angle: base - AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
         { angle: base + AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
-        { angle: base,                   diameter: 100, travel: 600 },
+        { angle: base,                   diameter: 100, travel: 450 },
       ];
       for (const t of throws) {
         spawnArrow(t.angle, {
@@ -824,12 +825,23 @@ function drawPlayer(p) {
 
 // ---------------------------------------------------------------- Sangrado
 // Aplica (o renueva) el sangrado a un enemigo o jefe: BLEED_TICKS ticks, uno cada
-// BLEED_TICK_INTERVAL s, de `tickDmg` cada uno. Volver a golpear renueva la duracion con el
-// dano del ultimo impacto, sin acumular (no se apila).
+// BLEED_TICK_INTERVAL s, de `tickDmg` cada uno. Si el objetivo YA sangraba, al renovar se le
+// inflige de golpe BLEED_REAPPLY_RATIO (50 %) del dano que le quedaba por sangrar (ticks restantes x
+// dano por tick del sangrado anterior) y despues empieza un sangrado nuevo completo. No se apila.
+// Ej.: con 4 s restantes (8 ticks de 50 % del dano) quedaban 400 % -> el golpe extra es 200 %.
+// La muerte por este dano instantaneo la resuelve quien llama (killEnemy / killBoss).
 function applyBleed(target, tickDmg, skill) {
   if (!target || target.hp <= 0 || !(tickDmg > 0)) return;
   const b = target.bleed;
-  if (b) { b.ticks = BLEED_TICKS; b.dmg = tickDmg; b.skill = skill; }
+  if (b) {
+    const burst = b.ticks * b.dmg * BLEED_REAPPLY_RATIO;
+    if (burst > 0) {
+      logDamage(b.skill, target.hp, burst);
+      target.hp -= burst;
+      floatText(target.x + rand(-8, 8), target.y - target.r - 14, "-" + Math.round(burst) + " \u{1FA78}", "#ff3a4a");
+    }
+    b.ticks = BLEED_TICKS; b.dmg = tickDmg; b.skill = skill;
+  }
   else target.bleed = { ticks: BLEED_TICKS, next: BLEED_TICK_INTERVAL, dmg: tickDmg, skill };
 }
 

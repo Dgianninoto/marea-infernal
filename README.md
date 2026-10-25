@@ -44,7 +44,7 @@ dependencias ni servidor web.
   Desde la oleada 20 saltan para aplastar y desde la 30 invocan lluvia de fuego.
 - **Desafío final:** tras vencer al Señor de la Marea (oleada 50) hay una última pausa
   ("Prepárate para el Desafío final"). Al continuar aparecen **tres jefes al azar de los cinco, a la
-  vez**, con el doble de vida y sin enemigos normales. Al derrotar a los tres ganas: hay fuegos
+  vez**, con 300.000 de vida cada uno y sin enemigos normales. Al derrotar a los tres ganas: hay fuegos
   artificiales y puedes escribir tu nombre para el registro de puntuaciones.
 - **Descansa entre ciclos:** cada cinco oleadas, elimina a todos los enemigos
   para entrar en un intermedio. No aparecerán nuevos enemigos hasta que pulses
