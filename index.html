@@ -14,10 +14,10 @@
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 185 -> la proxima entrega 186,
-         luego 187, 188, etc. (se muestra como 0.185, 0.186, 0.187...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 186 -> la proxima entrega 187,
+         luego 188, 189, etc. (se muestra como 0.186, 0.187, 0.188...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.185</div>
+    <div id="build-tag">Build 0.186</div>
 
     <div id="float-layer"></div>
 
@@ -214,7 +214,7 @@
               <p><b style="color:#ff7659">🪓 Bárbaro.</b> Cuerpo a cuerpo y muy resistente: 200 de vida, 30 de daño y
                 regeneración de 1/s, pero más lento. Su <b>Bloqueo</b> (en lugar de Crítico) da probabilidad de reducir
                 a la mitad el daño recibido. El tajo golpea en arco frontal, el hacha arrojadiza lanza tres hachas que
-                atraviesan y hacen sangrar (120 % de su daño en 5 s) y el golpe sísmico daña en tres anillos
+                atraviesan y hacen sangrar (50 % de su daño cada 0,5 s durante 8 s) y el golpe sísmico daña en tres anillos
                 (×2 exterior, ×4 central, ×7 interior).</p>
               <p><b style="color:var(--ember-glow)">Esquiva.</b> Pulsa <kbd>Espacio</kbd> para hacer un dash con una
                 breve invulnerabilidad. Tiene tiempo de recarga.</p>
@@ -328,6 +328,7 @@
           <div>Cenizas totales <b id="final-ash">0</b></div>
           <div>Puntuación <b id="final-score">0</b></div>
         </div>
+        <div id="dmg-breakdown"></div>
         <p id="best-score" style="color:var(--ember-glow)"></p>
         <div class="name-row" id="name-row">
           <label for="name-input">Tu nombre:</label>

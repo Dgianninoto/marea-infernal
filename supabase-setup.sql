@@ -26,6 +26,14 @@ create table if not exists public.scores (
 
 -- tablas ya creadas antes de existir `victory`: agrega la columna (no toca los datos existentes)
 alter table public.scores add column if not exists victory boolean not null default false;
+-- jefes derrotados en la partida
+alter table public.scores add column if not exists bosses integer not null default 0;
+-- clase jugada (id del arma: bow, staff o axe)
+alter table public.scores add column if not exists weapon text not null default '';
+alter table public.scores drop constraint if exists scores_weapon_len;
+alter table public.scores add constraint scores_weapon_len check (char_length(weapon) <= 10);
+alter table public.scores drop constraint if exists scores_bosses_rng;
+alter table public.scores add constraint scores_bosses_rng check (bosses between 0 and 1000);
 
 create index if not exists scores_score_idx on public.scores (score desc);
 

@@ -100,6 +100,14 @@ function separateEnemies() {
   }
 }
 
+// +20 % a las brasas que sueltan los enemigos normales. Como cada drop es un entero pequeno (1-2),
+// el valor se redondea al azar (p. ej. 1,2 = 1 con 80 % y 2 con 20 %), asi el promedio sube exactamente lo indicado.
+var ENEMY_ASH_MULT = 1.2;
+function scaledAshDrop(n) {
+  const v = n * ENEMY_ASH_MULT, base = Math.floor(v);
+  return base + (Math.random() < v - base ? 1 : 0);
+}
+
 var ENEMY_DMG_MULT = 1.3; // +30% to every damage source of the enemies (contact, projectiles, bombs, boss)
 
 function spawnEnemy() {
@@ -125,8 +133,9 @@ function spawnEnemy() {
   pool.push(["hound", 22 + Math.min(14, w)]);
   if (w >= 3) pool.push(["brute", Math.min(22, 4 + w)]);
   if (w >= 4) pool.push(["leaper", Math.min(20, 3 + w)]);
-  if (w >= 6) pool.push(["caster", Math.min(18, 2 + w)]);
-  if (w >= 8) pool.push(["bomber", Math.min(16, 2 + w)]);
+  // El dorado (bomber, areas) aparece desde la oleada 6 y el azul (caster, proyectiles) desde la 8.
+  if (w >= 6) pool.push(["bomber", Math.min(18, 2 + w)]);
+  if (w >= 8) pool.push(["caster", Math.min(16, 2 + w)]);
   let total = 0; for (const t of pool) total += t[1];
   let r = Math.random() * total, type = "imp";
   for (const t of pool) { r -= t[1]; if (r <= 0) { type = t[0]; break; } }
@@ -243,7 +252,7 @@ function killEnemy(e) {
   // drop an XP/ash orb and sometimes loot
   state.orbs.push({ x: e.x, y: e.y, r: 7, kind: "xp", val: Math.round(e.xp * 0.4), vx: rand(-40, 40), vy: rand(-40, 40) });
   if (Math.random() < e.ashChance) {
-    const amt = e.type === "brute" ? randInt(3, 6) : randInt(1, 2);
+    const amt = scaledAshDrop(e.type === "brute" ? randInt(3, 6) : randInt(1, 3));
     state.orbs.push({ x: e.x + rand(-10, 10), y: e.y + rand(-10, 10), r: 8, kind: "ash", val: amt, vx: rand(-40, 40), vy: rand(-40, 40) });
   }
 }
@@ -658,7 +667,7 @@ function updateGoblin(e, dt, p, dx, dy, d) {
   e.ashTimer -= dt;
   if (!channeling && e.ashTimer <= 0) {
     e.ashTimer = rand(1.1, 1.7);
-    const ashVal = randInt(1, 2);
+    const ashVal = randInt(1, 3);
     state.orbs.push({
       x: e.x + rand(-8, 8),
       y: e.y + rand(-8, 8),

@@ -37,9 +37,8 @@ dependencias ni servidor web.
   anillo—. Cada pieza tiene atributos mejorables; al llegar a +5 puedes subir
   su rareza y continuar mejorándola.
 - **Abre cofres:** acércate y pulsa `E` antes de que desaparezcan. Pueden
-  aparecer durante las tandas de enemigos y siempre aparecen al derrotar al
-  jefe. En los intermedios hay un cofre de bonificación: ábrelo con `E` o
-  continúa para recibir la recompensa automáticamente.
+  aparecer durante las tandas de enemigos (5 % por tanda; si pasan más de 35 tandas
+  sin ninguno, aparece uno de inmediato) y siempre aparecen al derrotar al jefe.
 - **Prepárate para los jefes:** aparece un jefe distinto cada 10 oleadas:
   Kraken Abisal (10), Cangrejo Acorazado (20), Medusa de Magma (30) e Ídolo Rúnico (40).
   Desde la oleada 20 saltan para aplastar y desde la 30 invocan lluvia de fuego.
@@ -49,8 +48,7 @@ dependencias ni servidor web.
   artificiales y puedes escribir tu nombre para el registro de puntuaciones.
 - **Descansa entre ciclos:** cada cinco oleadas, elimina a todos los enemigos
   para entrar en un intermedio. No aparecerán nuevos enemigos hasta que pulses
-  **Continuar**; puedes revisar el inventario y reclamar el cofre de
-  bonificación antes de seguir.
+  **Continuar**; puedes revisar el inventario antes de seguir.
 - **Observa los escenarios:** el entorno cambia cada 10 oleadas.
 
 ## Controles
@@ -71,7 +69,7 @@ hacer mejoras.
 
 ## Puntuaciones
 
-Al terminar una partida puedes guardar el resultado con un nombre. La tabla de
+Al terminar una partida el resultado **solo se guarda si pulsas el botón Guardar** (o Enter en el campo de nombre); si sales sin guardar, o abandonas la partida, no se registra nada. Se guarda: clase, nivel, oleada, bajas, cenizas totales, jefes derrotados, si ganaste o perdiste y el puntaje. La tabla de
 puntuaciones y el récord se almacenan localmente en el navegador (`localStorage`);
 no se sincronizan entre dispositivos o navegadores.
 

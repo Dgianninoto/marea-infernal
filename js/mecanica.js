@@ -287,16 +287,13 @@ var RARITY = [
 var MAX_LEVEL = RARITY.length - 1;
 var MAX_PLUS = 5;             // an item holds at most +5 (each stat point = +1); rarity can only be raised at +5
 var ASH_SCORE_MULT = 2;        // puntos de puntaje final por cada ceniza (en mano + gastada)
-var POINT_BASE_COST = 40;     // brasas per +1: 40 + 5 * rarity index of the item
-var POINT_RARITY_COST = 5;
 var itemPlus = it => it.plus; // upgrade indicator 0..5 (stat points themselves are permanent)
-function pointCost(it) { return POINT_BASE_COST + it.level * POINT_RARITY_COST; }
-var RARITY_BASE_COST = 250;   // brasas for the first rarity level
-var RARITY_GROWTH = 1.5;      // each rarity level costs 150% of the previous one
+// Costos de mejora por rareza actual de la pieza (nivel 0..4: Comun, Magico, Raro, Legendario, Unico).
+var POINT_COSTS = [30, 40, 50, 70, 90];   // brasas por cada +1 de una pieza
+function pointCost(it) { return POINT_COSTS[it.level]; }
 var RARITY_MULT = [1, 1.5, 2, 3, 5]; // stat multiplier per rarity: Común, Mágico, Raro, Legendario, Único
-var roundTo25 = v => Math.round(v / 25) * 25;
-// brasas to go from rarity level n to n+1: 250, 375, 575, 850...
-function rarityCost(level) { return roundTo25(RARITY_BASE_COST * Math.pow(RARITY_GROWTH, level)); }
+var RARITY_COSTS = [200, 350, 575, 1000]; // brasas para subir de rareza desde el nivel n (Unico es el maximo)
+function rarityCost(level) { return RARITY_COSTS[level]; }
 
 var AFFIX = {
   dmg:      { label: "Daño",      color: "#ff8a5a", fmt: v => "+" + v },
@@ -327,6 +324,7 @@ var WEAPONS = {
     // Esquiva especial (parpadeo arcano): recarga 75 % mas rapida (cooldown / 1.75) y 25 % mas larga
     // (distancia x1.25), con efecto violeta similar al teletransporte de los enemigos.
     dashRecharge: 1.75, dashLength: 1.25, dashFx: "blink",
+    baseSpeed: 120,      // base Velocidad at level 1 (others use 150)
     statSteps: { cdr: 16, fireRate: 0.6, speed: 1 }, // per stat point bought with this weapon: Recarga % (default 10), Cadencia A/s (default 0.4) and Velocidad (boots, default 2)
     // weapon piece stats: Poder (base 0%, +1% per point) replaces Crítico for the mage. Poder agranda el
     // Meteorito (+% de radio) y añade orbes a la Salva arcana (1 orbe extra cada 10 % hasta cerrar el circulo).
@@ -343,7 +341,7 @@ var WEAPONS = {
     id: "axe", name: "Hacha", icon: "🪓", color: "#ff7659",
     baseRate: 1.6,       // basic attack A/s at level 1
     baseDmg: 30,         // base Daño at level 1 (others use 12); level-ups still add +2.5
-    baseSpeed: 125,      // base Velocidad at level 1 (others use 150); level-ups still add +4
+    baseSpeed: 135,      // base Velocidad at level 1 (others use 150); level-ups still add +4
     baseHp: 200,         // base Vida at level 1 (others use 100); level-ups still add +12
     baseRegen: 1,        // base Regen at level 1 (others use 0.5) in HP/s
     fireRateStep: 0.2,   // gloves: A/s per Cadencia point with this weapon (default 0.4)
@@ -602,7 +600,9 @@ function newState(weaponId) {
     weaponEffects: [],
     enemies: [],
     orbs: [],
+    dmgStats: [0, 0, 0], // dano real hecho por cada ataque (basico, intermedio, definitivo)
     chests: [],
+    batchesSinceChest: 0, // tandas de enemigos aparecidas desde el ultimo cofre
     obstacles: [],      // walls/columns for cover
     particles: [],
     floaters: [],
@@ -699,10 +699,11 @@ function pointInObstacle(x, y) {
 }
 
 // Temporary free chests: they live CHEST_LIFE seconds, open with E, and pay (100 + level*50) brasas, boosted by the Brasas bonus.
-// They appear with a 5% chance per batch of enemies and always when the boss dies.
+// They appear with a 5% chance per batch of enemies, always when the boss dies, and guaranteed after more than 35 batches without one.
 var CHEST_LIFE = 5;
 var chestReward = p => Math.round((100 + p.level * 50) * (1 + p.ashBonus));
 var CHEST_CHANCE = 0.05;
+var CHEST_PITY_BATCHES = 35; // si pasan MAS de 35 tandas (1 tanda = 1/5 de oleada) sin cofre, sale uno de inmediato
 var GOBLIN_CHANCE = 0.02; // 2% por tanda de enemigos
 function spawnChest(x, y) {
   state.chests.push({
@@ -713,6 +714,7 @@ function spawnChest(x, y) {
   Sound.chest();
 }
 function spawnChestNearPlayer() {
+  state.batchesSinceChest = 0; // solo los cofres de tanda (azar o garantizado) reinician el contador; el del jefe no
   const p = state.player;
   let x = p.x, y = p.y + 140;
   for (let i = 0; i < 30; i++) {
@@ -739,15 +741,14 @@ function tryOpenChest() {
       Sound.chest();
       const reward = c.reward || chestReward(p);
       state.ash += reward;
-      const label = c.isBonus ? "¡BONO DE OLEADA! +" : "¡COFRE ABIERTO! +";
-      floatText(c.x, c.y - 30, label + reward + "🔥", "#ffd84d");
+      floatText(c.x, c.y - 30, "¡COFRE ABIERTO! +" + reward + "🔥", "#ffd84d");
       for (let i = 0; i < 35; i++) {
         const a = rand(0, Math.PI * 2), s = rand(80, 320);
         state.particles.push({
           x: c.x, y: c.y,
           vx: Math.cos(a) * s, vy: Math.sin(a) * s,
           life: rand(0.4, 0.9), r: rand(2, 5),
-          color: c.isBonus ? pick(["#ffd84d", "#ffffff", "#ff9d4d"]) : (Math.random() < 0.5 ? "#ffd84d" : "#ff7a2a")
+          color: Math.random() < 0.5 ? "#ffd84d" : "#ff7a2a"
         });
       }
       return;
@@ -924,7 +925,9 @@ function update(dt) {
       const batch = Math.min(state.toSpawn, state.batchSize);
       for (let i = 0; i < batch; i++) { spawnEnemy(); state.toSpawn--; state.alive++; }
       state.batchesSpawned++;
-      if (Math.random() < CHEST_CHANCE) spawnChestNearPlayer();
+      state.batchesSinceChest++;
+      // cofre al azar (5 %) o garantizado si ya pasaron mas de CHEST_PITY_BATCHES tandas sin ninguno
+      if (state.batchesSinceChest > CHEST_PITY_BATCHES || Math.random() < CHEST_CHANCE) spawnChestNearPlayer();
       if (Math.random() < GOBLIN_CHANCE && typeof spawnGoblinNearPlayer === "function") spawnGoblinNearPlayer();
     }
     // Waves that end in a pause (every 5th, incl. boss waves) are cleared only when the LAST enemy dies.
@@ -1188,6 +1191,7 @@ function update(dt) {
       if (e.hp <= 0) continue;
       if (b.hitSet && b.hitSet.has(e)) continue; // already pierced this one
       if (dist2(b.x, b.y, e.x, e.y) < (b.r + e.r) ** 2) {
+        logDamage(b.skill, e.hp, b.dmg);
         e.hp -= b.dmg; e.flash = 0.08;
         Sound.hit();
         floatText(e.x, e.y - e.r - 4, "-" + Math.round(b.dmg) + (b.crit ? "!" : ""), b.crit ? "#ff9d2e" : "#ffe08a");
@@ -1196,10 +1200,10 @@ function update(dt) {
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
         }
         if (e.type === "goblin" && typeof onGoblinHit === "function") onGoblinHit(e);
-        if (b.bleed > 0 && e.hp > 0) applyBleed(e, b.bleed);
+        if (b.bleed > 0 && e.hp > 0) applyBleed(e, b.bleed, b.skill);
         if (e.hp <= 0) killEnemy(e);
         if (b.splashRadius > 0) {
-          damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, e);
+          dmgSkill = b.skill; damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, e); dmgSkill = -1; // salpicadura: cuenta para el ataque del proyectil
           weaponBurst(b.x, b.y, b.splashRadius, b.color || "#bd8cff", 8);
         }
         if (b.pierce > 0) { b.pierce--; (b.hitSet || (b.hitSet = new Set())).add(e); }
@@ -1210,16 +1214,17 @@ function update(dt) {
     for (const boss of state.bosses.slice()) {
     if (b.life > 0 && dist2(b.x, b.y, boss.x, boss.y) < (b.r + boss.r) ** 2) {
       if (!(b.hitSet && b.hitSet.has(boss))) {
+        logDamage(b.skill, boss.hp, b.dmg);
         boss.hp -= b.dmg; boss.flash = 0.06;
         floatText(boss.x + rand(-20, 20), boss.y - boss.r - 4, "-" + Math.round(b.dmg) + (b.crit ? "!" : ""), b.crit ? "#ff9d2e" : "#ffe08a");
         for (let i = 0; i < 3; i++) {
           const a = Math.atan2(b.vy, b.vx) + rand(-0.8, 0.8), s = rand(40, 140);
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
         }
-        if (b.bleed > 0 && boss.hp > 0) applyBleed(boss, b.bleed);
+        if (b.bleed > 0 && boss.hp > 0) applyBleed(boss, b.bleed, b.skill);
         if (boss.hp <= 0) killBoss(boss);
         if (b.splashRadius > 0) {
-          damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, boss);
+          dmgSkill = b.skill; damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, boss); dmgSkill = -1;
           weaponBurst(b.x, b.y, b.splashRadius, b.color || "#bd8cff", 8);
         }
         if (b.pierce > 0) { b.pierce--; (b.hitSet || (b.hitSet = new Set())).add(boss); }
@@ -1270,7 +1275,7 @@ function update(dt) {
 
   // chest glow + lifetime
   for (const c of state.chests) {
-    if (!c.isBonus || c.opened) c.life -= dt;
+    c.life -= dt;
     if (!c.opened) {
       const near = dist2(p.x, p.y, c.x, c.y) < (c.r + p.r + 24) ** 2;
       c.glow = clamp(c.glow + (near ? 1 : -1) * dt * 4, 0, 1);
@@ -1484,7 +1489,7 @@ function drawObstacle(o) {
 function drawChest(c) {
   ctx.save();
   if (c.opened) ctx.globalAlpha = clamp(c.life / 0.8, 0, 1);
-  else if (!c.isBonus && c.life < 1.5 && Math.floor(performance.now() / 120) % 2 === 0) ctx.globalAlpha = 0.35; // blink before vanishing (solo cofres normales)
+  else if (c.life < 1.5 && Math.floor(performance.now() / 120) % 2 === 0) ctx.globalAlpha = 0.35; // blink before vanishing
   drawChestBody(c);
   ctx.restore();
 }
@@ -1501,20 +1506,20 @@ function drawChestBody(c) {
   }
   const pulse = 0.5 + Math.sin(t) * 0.3 + c.glow * 0.4;
   ctx.save();
-  ctx.shadowBlur = (c.isBonus ? 26 : 20) + c.glow * 20;
-  ctx.shadowColor = c.isBonus ? "#ffd84d" : "#ffb347";
+  ctx.shadowBlur = 20 + c.glow * 20;
+  ctx.shadowColor = "#ffb347";
   // body
-  ctx.fillStyle = c.isBonus ? "#7a2a08" : "#6a3a12";
+  ctx.fillStyle = "#6a3a12";
   roundRect(c.x - c.r, c.y - c.r * 0.6, c.r * 2, c.r * 1.4, 5); ctx.fill();
   // lid
-  ctx.fillStyle = c.isBonus ? "#a84310" : "#8a5020";
+  ctx.fillStyle = "#8a5020";
   roundRect(c.x - c.r, c.y - c.r * 0.9, c.r * 2, c.r * 0.5, 5); ctx.fill();
   // lock & trim
   ctx.fillStyle = "#ffd84d";
   ctx.globalAlpha = pulse;
-  ctx.beginPath(); ctx.arc(c.x, c.y - c.r * 0.25, c.isBonus ? 6.5 : 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(c.x, c.y - c.r * 0.25, 5, 0, Math.PI * 2); ctx.fill();
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = c.isBonus ? "#d4af37" : "#3a2010"; ctx.lineWidth = c.isBonus ? 3.5 : 3;
+  ctx.strokeStyle = "#3a2010"; ctx.lineWidth = 3;
   roundRect(c.x - c.r, c.y - c.r * 0.9, c.r * 2, c.r * 1.4, 5); ctx.stroke();
   ctx.restore();
 
@@ -1522,11 +1527,7 @@ function drawChestBody(c) {
   const rewardVal = c.reward || chestReward(state.player);
   ctx.fillStyle = "#ffd84d";
   ctx.font = "bold " + Math.round(13 / zoom) + "px sans-serif"; ctx.textAlign = "center";
-  if (c.isBonus) {
-    ctx.fillText("🎁 BONO 🔥 " + rewardVal, c.x, c.y + c.r + 18 / zoom);
-  } else {
-    ctx.fillText("🔥 " + rewardVal + "  ·  " + Math.max(0, c.life).toFixed(1) + "s", c.x, c.y + c.r + 18 / zoom);
-  }
+  ctx.fillText("🔥 " + rewardVal + "  ·  " + Math.max(0, c.life).toFixed(1) + "s", c.x, c.y + c.r + 18 / zoom);
   ctx.fillStyle = "#fff0c2";
   ctx.font = "bold " + Math.round(12 / zoom) + "px sans-serif";
   ctx.fillText("[E]", c.x, c.y + c.r + 34 / zoom);
@@ -1891,26 +1892,38 @@ function sbRequest(path, opts) {
   })).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r; })
     .finally(() => clearTimeout(timer));
 }
+// Clase jugada, segun el arma elegida (se guarda el id del arma: bow / staff / axe)
+var CLASS_LABELS = { bow: "🏹 Arquero", staff: "🪄 Mago", axe: "🪓 Bárbaro" };
+
 function sbInsertScore(entry) {
   const row = {
     name: String(entry.name || "Anónimo").slice(0, 14), score: entry.score | 0, wave: entry.wave | 0,
-    level: entry.level | 0, kills: entry.kills | 0, loot: entry.loot | 0, ash: entry.ash | 0, boss: !!entry.boss,
-    victory: !!entry.victory, // partida ganada (Desafio final superado); columna `victory` en supabase-setup.sql
+    level: entry.level | 0, kills: entry.kills | 0, ash: entry.ash | 0,
+    weapon: String(entry.weapon || "").slice(0, 10), // clase jugada (bow / staff / axe); columna `weapon` en supabase-setup.sql
+    bosses: entry.bosses | 0,           // jefes derrotados; columna `bosses` en supabase-setup.sql
+    boss: (entry.bosses | 0) > 0,
+    victory: !!entry.victory,           // partida ganada (Desafio final superado); columna `victory` en supabase-setup.sql
   };
   const post = body => sbRequest("scores", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
   sbPending = sbPending
-    // si la columna `victory` aun no existe en la tabla, reintenta sin ella para no perder la partida
-    .then(() => post(row).catch(err => { const { victory, ...legacy } = row; return post(legacy); }))
+    // si faltan columnas nuevas en la tabla, reintenta sin ellas para no perder la partida:
+    // completo -> sin `weapon` -> sin `weapon`, `bosses` ni `victory`
+    .then(() => post(row)
+      .catch(() => { const { weapon, ...r2 } = row; return post(r2); })
+      .catch(() => { const { weapon, bosses, victory, ...legacy } = row; return post(legacy); }))
     .catch(() => {}); // sin conexion: la partida igual queda en el ranking local
 }
 async function fetchGlobalScores() {
   await sbPending;
-  const base = "name,score,wave,level,kills,loot,ash,boss";
+  const base = "name,score,wave,level,kills,ash,boss";
   const q = cols => "scores?select=" + cols + ",created_at&order=score.desc&limit=" + MAX_SCORES;
   try {
     let r;
-    try { r = await sbRequest(q(base + ",victory")); }
-    catch (e) { r = await sbRequest(q(base)); } // la columna `victory` aun no existe: ranking sin 🏆
+    try { r = await sbRequest(q(base + ",bosses,victory,weapon")); }
+    catch (e) {
+      try { r = await sbRequest(q(base + ",bosses,victory")); }
+      catch (e2) { r = await sbRequest(q(base)); } // las columnas nuevas aun no existen: ranking sin ellas
+    }
     const rows = await r.json();
     globalScores = rows.map(x => Object.assign({}, x, { date: Date.parse(x.created_at) }));
   } catch (e) { globalScores = null; }
@@ -1963,7 +1976,7 @@ function renderScores(highlightId) {
       `<div class="rank">${rank}</div>
        <div class="nm">${escapeHtml(s.name || "Anónimo")}</div>
        <div class="sc">${(s.score || 0).toLocaleString()}</div>
-       <div class="meta">Nv ${s.level || 1} · ${s.kills || 0} bajas · ${s.loot || 0} loot${s.victory ? " · 🏆 victoria" : (s.boss ? " · 👹 jefe" : "")} · ${date}</div>`;
+       <div class="meta">${CLASS_LABELS[s.weapon] ? CLASS_LABELS[s.weapon] + " · " : ""}Nv ${s.level || 1} · Oleada ${s.wave || 0} · ${s.kills || 0} bajas · ${(s.ash || 0).toLocaleString()} cenizas · ${s.bosses != null ? s.bosses : (s.boss ? 1 : 0)} jefes · ${s.victory ? "🏆 Victoria" : "💀 Derrota"} · ${date}</div>`;
     table.appendChild(row);
   });
 }
@@ -2020,6 +2033,7 @@ function resumeGame() {
 
 // ---------------------------------------------------------------- Start / end
 function startGame(weaponId) {
+  pendingRun = null; // una partida anterior sin guardar se descarta
   Sound.resume(); // unlock audio on user gesture
   if (typeof weaponId === "string") selectedWeaponId = getWeapon(weaponId).id;
   state = newState(selectedWeaponId);
@@ -2047,6 +2061,22 @@ function startGame(weaponId) {
   updateHud();
 }
 
+// Resumen de dano por ataque en la pantalla final: cantidad y barra con el porcentaje del total.
+function renderDmgBreakdown() {
+  const box = el("dmg-breakdown");
+  const weapon = getWeapon(state.weaponId);
+  const stats = state.dmgStats || [0, 0, 0];
+  const total = stats[0] + stats[1] + stats[2];
+  box.innerHTML = `<div class="dmg-title">Daño por ataque <span>${Math.round(total).toLocaleString()} en total</span></div>` +
+    weapon.skills.map((sk, i) => {
+      const pct = total > 0 ? stats[i] / total * 100 : 0;
+      return `<div class="dmg-row">
+        <div class="dmg-head"><span>${sk.icon} ${escapeHtml(sk.name)}</span><span>${Math.round(stats[i]).toLocaleString()} · ${pct.toFixed(1)}%</span></div>
+        <div class="dmg-bar"><div class="dmg-fill" style="width:${pct}%;background:${weapon.color}"></div></div>
+      </div>`;
+    }).join("");
+}
+
 function endGame(victory) {
   if (state.over) return;
   victory = victory === true;
@@ -2069,12 +2099,13 @@ function endGame(victory) {
   el("final-loot").textContent = state.lootCount;
   el("final-ash").textContent = ashTotal().toLocaleString() + " (+" + (ashTotal() * ASH_SCORE_MULT).toLocaleString() + " pts)";
   el("final-score").textContent = finalScore.toLocaleString();
+  renderDmgBreakdown();
 
   // stash this run so the player can name & save it
   pendingRun = {
     score: finalScore, level: p.level, wave: state.wave,
-    kills: state.kills, loot: state.lootCount, ash: ashTotal(),
-    boss: state.bossesDown > 0, victory, date: Date.now(),
+    kills: state.kills, ash: ashTotal(),
+    weapon: state.weaponId, bosses: state.bossesDown, boss: state.bossesDown > 0, victory, date: Date.now(),
   };
   if (state.debugUsed) pendingRun = null; // partida con debug: no se guarda ni en local ni en global
 
@@ -2133,21 +2164,11 @@ el("btn-clear-scores").addEventListener("click", () => {
 el("btn-resume").addEventListener("click", resumeGame);
 el("btn-pause-menu").addEventListener("click", () => { endGameToMenu(); });
 
-// leaving to the menu mid-run saves the current progress as a run, then returns home
+// leaving to the menu mid-run: la partida se descarta, no se guarda ningun puntaje
 function endGameToMenu() {
   if (state.running && !state.over) {
     state.running = false;
     state.over = true;
-    const p = state.player;
-    const finalScore = state.score + state.wave * 150 + p.level * 100 + ashTotal() * ASH_SCORE_MULT + state.bossesDown * 1500;
-    if (!state.debugUsed) { // con debug no se guarda el abandono ni en local ni en global
-      addScore({
-        id: "r" + Date.now() + Math.random().toString(36).slice(2, 6),
-        name: "Abandono", score: finalScore, level: p.level, wave: state.wave,
-        kills: state.kills, loot: state.lootCount, ash: ashTotal(),
-        boss: state.bossesDown > 0, date: Date.now(),
-      }, true); // abandono: solo ranking local, nunca se envia al global
-    }
     pendingRun = null;
   }
   openMenu();
@@ -2156,14 +2177,14 @@ function endGameToMenu() {
 // ---- game over buttons
 el("restart-btn").addEventListener("click", startGame);
 el("over-scores-btn").addEventListener("click", () => {
-  // auto-save unsaved run under "Anónimo" so it shows up, then view board
-  if (pendingRun) saveCurrentScore();
+  // el puntaje solo se guarda si el jugador pulsa "Guardar"; aqui la partida sin guardar se descarta
+  pendingRun = null;
   overScreen.classList.add("hidden");
   menuScreen.classList.remove("hidden");
   showMenuView("scores");
 });
 el("over-menu-btn").addEventListener("click", () => {
-  if (pendingRun) saveCurrentScore();
+  pendingRun = null; // sin guardar: se descarta
   openMenu();
 });
 el("save-score-btn").addEventListener("click", saveCurrentScore);

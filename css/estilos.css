@@ -431,3 +431,16 @@
   .item .mini:disabled { opacity: 0.4; cursor: not-allowed; }
   .item.empty { color: var(--muted); font-style: italic; opacity: 0.7; }
   .bag-empty { color: var(--muted); font-style: italic; padding: 8px; }
+
+/* Resumen de dano por ataque (pantalla final) */
+#dmg-breakdown { margin: 12px 0 8px; text-align: left; }
+#dmg-breakdown .dmg-title { display: flex; justify-content: space-between; font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--ember-glow); border-bottom: 1px solid var(--border); padding-bottom: 4px; margin-bottom: 8px; }
+#dmg-breakdown .dmg-title span { text-transform: none; letter-spacing: 0; color: var(--muted); }
+#dmg-breakdown .dmg-row { margin-bottom: 7px; }
+#dmg-breakdown .dmg-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--text); margin-bottom: 3px; }
+#dmg-breakdown .dmg-head span:last-child { color: var(--muted); white-space: nowrap; }
+#dmg-breakdown .dmg-bar { height: 8px; border-radius: 4px; overflow: hidden; background: rgba(0,0,0,0.5); border: 1px solid #3a1f14; }
+#dmg-breakdown .dmg-fill { height: 100%; border-radius: 3px; }
+/* La pantalla final ahora es mas alta (resumen de dano): permite desplazarse si no cabe */
+#over-screen { overflow-y: auto; }
+#over-screen .card { margin: auto; }

@@ -21,12 +21,22 @@ var SEISMIC_RINGS = [
   { r: 2 / 3, mult: 4 },
   { r: 1,     mult: 2 },
 ];
-// Sangrado de la Hacha arrojadiza: 10 ticks (cada 0,5 s) de 12 % del dano del Barbaro = 120 % en 5 s.
+// Sangrado de la Hacha arrojadiza: 16 ticks (cada 0,5 s) de 50 % del dano del Barbaro = 800 % en 8 s.
 var BLEED_TICK_INTERVAL = 0.5;
-var BLEED_TICKS = 10;
-var BLEED_TICK_RATIO = 0.12;
+var BLEED_TICKS = 16;
+var BLEED_TICK_RATIO = 0.5;
 
 // ---------------------------------------------------------------- Combat / loot
+// Registro de dano por ataque (0 = basico, 1 = intermedio, 2 = definitivo) para el resumen de fin de partida.
+// `dmgSkill` es el ataque al que se atribuye el dano que ocurre ahora mismo (-1 = ninguno). Se fija mientras
+// se lanza una habilidad (useSkill), al golpear un proyectil (b.skill) y en el impacto del meteorito.
+// Se cuenta el dano REAL: lo que sobra al rematar a un enemigo (sobreataque) no suma.
+var dmgSkill = -1;
+function logDamage(skill, hpBefore, dealt) {
+  if (skill < 0 || !state || !state.dmgStats) return;
+  state.dmgStats[skill] += Math.max(0, Math.min(dealt, hpBefore));
+}
+
 // Spawn a projectile heading at angle `ang`.
 // opts: {dmg, r, spd, pierce, big, color, kind, splashRadius, splashDamage, homing, bleed}
 // bleed = dano por tick del sangrado que el proyectil aplica a lo que golpea (0 = sin sangrado).
@@ -43,6 +53,7 @@ function spawnArrow(ang, opts) {
     pierce: o.pierce || 0, big: !!o.big, color: o.color || null,
     kind: o.kind || "arrow", splashRadius: o.splashRadius || 0, splashDamage: o.splashDamage || 0,
     homing: o.homing || 0, target: null, bleed: o.bleed || 0,
+    skill: dmgSkill, // ataque que lo disparo (para el resumen de dano)
   });
 }
 
@@ -113,6 +124,49 @@ function salvoOrbCount(poder) {
   return Math.min(SALVO_MAX_ORBS, SALVO_BASE_ORBS + Math.floor(poder * 10 + 1e-6));
 }
 
+// Meteorito: dano = base * multiplicador segun la distancia al centro. x7 en el centro (d = 0), baja
+// linealmente hasta x3 en el borde del area. Los enemigos dentro del 1/3 central se empujan un poco hacia el centro.
+var METEOR_MULT_CENTER = 7;
+var METEOR_MULT_EDGE = 3;
+var METEOR_PULL_ZONE = 1 / 3;   // fraccion del radio donde se aplica el empuje
+var METEOR_PULL_STRENGTH = 0.35; // fraccion de la distancia al centro que se recorre (empuje ligero)
+function meteorMult(frac) { return METEOR_MULT_CENTER + (METEOR_MULT_EDGE - METEOR_MULT_CENTER) * clamp(frac, 0, 1); }
+function meteorHit(x, y, radius, baseDamage) {
+  const prevSkill = dmgSkill;
+  dmgSkill = 2; // el meteorito es el ataque definitivo del Mago
+  try { meteorHitInner(x, y, radius, baseDamage); } finally { dmgSkill = prevSkill; }
+}
+function meteorHitInner(x, y, radius, baseDamage) {
+  const targets = [];
+  for (const e of state.enemies) targets.push([e, false]);
+  for (const b of state.bosses) targets.push([b, true]);
+  for (const [t, isBoss] of targets) {
+    if (t.hp <= 0) continue;
+    const d = Math.sqrt(dist2(x, y, t.x, t.y));
+    if (d > radius + t.r) continue;
+    // la distancia se mide al centro del objetivo; dentro del area visible siempre queda entre x7 y x3
+    const mult = meteorMult(Math.min(d, radius) / radius);
+    if (isBoss) damageWeaponBoss(t, baseDamage * mult); else damageWeaponEnemy(t, baseDamage * mult);
+    // empuje ligero hacia el centro (solo enemigos normales; los jefes no se mueven por efectos)
+    if (!isBoss && t.hp > 0 && d <= radius * METEOR_PULL_ZONE && d > 0) {
+      const k = 1 - METEOR_PULL_STRENGTH;
+      t.x = x + (t.x - x) * k;
+      t.y = y + (t.y - y) * k;
+    }
+  }
+}
+
+// Gradiente del area del Meteorito: intenso y claro en el centro (x7) y tenue en el borde (x3), para que se
+// vea que el dano aumenta hacia el centro. Los colores intermedios siguen la misma recta que meteorMult.
+function meteorGradient(x, y, radius) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  g.addColorStop(0,    "rgba(255,240,255,0.95)");
+  g.addColorStop(0.33, "rgba(215,165,255,0.70)");
+  g.addColorStop(0.66, "rgba(160,100,230,0.40)");
+  g.addColorStop(1,    "rgba(110,60,170,0.14)");
+  return g;
+}
+
 // Radio del Meteorito: 145 px base, +% igual al Poder.
 function meteorRadius(poder) { return 145 * (1 + poder); }
 
@@ -130,7 +184,7 @@ function castArcaneMeteor() {
     life: 0.85,
     impactDuration: 0.55,
     impactLife: 0,
-    damage: p.dmg * 6 + 35,
+    damage: p.dmg, // base: se multiplica x7 (centro) a x3 (borde) al impactar, ver meteorHit
   });
   floatText(p.x, p.y - 34, "¡METEORITO!", "#d7a5ff");
   Sound.bossdie();
@@ -148,7 +202,7 @@ function updateWeaponEffects(dt) {
         effect.phase = "impact";
         effect.impactLife = effect.impactDuration;
         effect.life = effect.impactDuration;
-        damageWeaponArea(effect.x, effect.y, effect.radius, effect.damage);
+        meteorHit(effect.x, effect.y, effect.radius, effect.damage);
         weaponBurst(effect.x, effect.y, effect.radius, "#bd8cff", 42);
         floatText(effect.x, effect.y - 45, "¡IMPACTO!", "#d7a5ff");
         Sound.bossdie();
@@ -168,9 +222,15 @@ function drawWeaponEffects() {
         const progress = clamp(1 - effect.life / effect.fallDuration, 0, 1);
         const pulse = 0.5 + Math.sin(performance.now() / 70) * 0.12;
         ctx.save();
-        ctx.globalAlpha = 0.24 + progress * 0.2;
-        ctx.fillStyle = effect.color;
+        ctx.globalAlpha = 0.55 + progress * 0.45;
+        ctx.fillStyle = meteorGradient(effect.x, effect.y, effect.radius);
         ctx.beginPath(); ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2); ctx.fill();
+        // anillo fino en el tercio central: zona de mayor dano y de empuje hacia el centro
+        ctx.globalAlpha = 0.35 + progress * 0.35;
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath(); ctx.arc(effect.x, effect.y, effect.radius * METEOR_PULL_ZONE, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
         ctx.globalAlpha = 0.65 + pulse * 0.25;
         ctx.strokeStyle = "#f0c7ff"; ctx.lineWidth = 4;
         ctx.setLineDash([12, 8]);
@@ -192,8 +252,8 @@ function drawWeaponEffects() {
       } else {
         const progress = clamp(effect.impactLife / effect.impactDuration, 0, 1);
         ctx.save();
-        ctx.globalAlpha = progress * 0.55;
-        ctx.fillStyle = "#d7a5ff";
+        ctx.globalAlpha = progress;
+        ctx.fillStyle = meteorGradient(effect.x, effect.y, effect.radius);
         ctx.beginPath(); ctx.arc(effect.x, effect.y, effect.radius, 0, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = progress;
         ctx.strokeStyle = "#f4d4ff"; ctx.lineWidth = 7;
@@ -258,6 +318,7 @@ function damageWeaponEnemy(enemy, damage) {
   if (!enemy || enemy.hp <= 0) return;
   const critical = Math.random() < state.player.crit;
   const dealt = damage * (critical ? 2 : 1);
+  logDamage(dmgSkill, enemy.hp, dealt);
   enemy.hp -= dealt;
   enemy.flash = 0.08;
   floatText(enemy.x, enemy.y - enemy.r - 4, "-" + Math.round(dealt) + (critical ? "!" : ""), critical ? "#ff9d2e" : "#ffe08a");
@@ -269,6 +330,7 @@ function damageWeaponBoss(boss, damage) {
   if (!boss || boss.hp <= 0) return;
   const critical = Math.random() < state.player.crit;
   const dealt = damage * (critical ? 2 : 1);
+  logDamage(dmgSkill, boss.hp, dealt);
   boss.hp -= dealt;
   boss.flash = 0.08;
   floatText(boss.x, boss.y - boss.r - 4, "-" + Math.round(dealt) + (critical ? "!" : ""), critical ? "#ff9d2e" : "#ffe08a");
@@ -348,6 +410,10 @@ function damageWeaponCone(angle, range, halfAngle, damage) {
 
 // Automatic weapon kit: basic, intermediate and ultimate attacks share cooldown UI.
 function useSkill(i) {
+  dmgSkill = i;
+  try { useSkillInner(i); } finally { dmgSkill = -1; }
+}
+function useSkillInner(i) {
   if (!state || !state.running || state.over || paused || invOpen) return;
   const p = state.player;
   if (p.skillCd[i] > 0) return;
@@ -404,7 +470,7 @@ function useSkill(i) {
       // Hacha arrojadiza: 2 hachas giratorias (circulos de 50 px) lanzadas en abanico a +-0,5 rad
       // de la mira, mas una hacha central del doble de tamano (100 px) que viaja el doble (600 px).
       // Recorren su trayecto atravesando enemigos; dano = 25 % del dano base, pero cada impacto
-      // deja sangrado (120 % del dano del Barbaro en 5 s, ver applyBleed).
+      // deja sangrado (50 % del dano del Barbaro cada 0,5 s durante 8 s, ver applyBleed).
       const spd = 500, bleed = p.dmg * BLEED_TICK_RATIO;
       const throws = [
         { angle: base - AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
@@ -760,11 +826,11 @@ function drawPlayer(p) {
 // Aplica (o renueva) el sangrado a un enemigo o jefe: BLEED_TICKS ticks, uno cada
 // BLEED_TICK_INTERVAL s, de `tickDmg` cada uno. Volver a golpear renueva la duracion con el
 // dano del ultimo impacto, sin acumular (no se apila).
-function applyBleed(target, tickDmg) {
+function applyBleed(target, tickDmg, skill) {
   if (!target || target.hp <= 0 || !(tickDmg > 0)) return;
   const b = target.bleed;
-  if (b) { b.ticks = BLEED_TICKS; b.dmg = tickDmg; }
-  else target.bleed = { ticks: BLEED_TICKS, next: BLEED_TICK_INTERVAL, dmg: tickDmg };
+  if (b) { b.ticks = BLEED_TICKS; b.dmg = tickDmg; b.skill = skill; }
+  else target.bleed = { ticks: BLEED_TICKS, next: BLEED_TICK_INTERVAL, dmg: tickDmg, skill };
 }
 
 // Avanza el sangrado de todos los enemigos y del jefe. Los ticks no hacen critico.
@@ -777,6 +843,7 @@ function updateBleeding(dt) {
     while (b.next <= 0 && b.ticks > 0 && t.hp > 0) {
       b.next += BLEED_TICK_INTERVAL;
       b.ticks--;
+      logDamage(b.skill, t.hp, b.dmg);
       t.hp -= b.dmg;
       floatText(t.x + rand(-8, 8), t.y - t.r - 4, "-" + Math.round(b.dmg), "#ff3a4a");
       if (t.hp <= 0) { if (isBoss) killBoss(t); else killEnemy(t); }
