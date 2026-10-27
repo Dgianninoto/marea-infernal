@@ -301,6 +301,14 @@
   .menu-card > h1 { font-size: clamp(44px, 6.2vw, 88px); line-height: 1; margin-bottom: 4px; }
   .menu-card h2 { font-size: 30px; margin-bottom: 18px; }
   .weapon-intro { text-align: center; }
+  .diff-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px 0 2px; flex-wrap: wrap; }
+  .diff-label { color: var(--muted); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; margin-right: 6px; }
+  .diff-btn {
+    font: inherit; font-size: 14px; padding: 8px 20px; cursor: pointer; border-radius: 8px;
+    color: var(--text); background: rgba(0,0,0,0.35); border: 1px solid var(--border);
+  }
+  .diff-btn:hover { border-color: var(--ember-glow); }
+  .diff-btn.active { color: #1a0d05; background: var(--ember-glow); border-color: var(--ember-glow); font-weight: bold; }
   .weapon-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 14px; }
   .weapon-card {
     min-width: 0; padding: 18px 16px; text-align: center;
@@ -640,6 +648,9 @@
   .touch .best-box { padding: 8px 14px; }
   .touch .best-box .best-val { font-size: 26px; }
   .touch .weapon-intro { font-size: 12px; margin: 0; }
+.touch .diff-row { margin: 4px 0 0; gap: 6px; }
+.touch .diff-label { font-size: 10px; letter-spacing: 2px; }
+.touch .diff-btn { font-size: 12px; padding: 5px 14px; }
   .touch .weapon-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); max-height: none; overflow: visible; gap: 8px; margin-top: 6px; padding: 0; }
   .touch .weapon-card { padding: 8px; }
   .touch .weapon-card .weapon-icon { font-size: 26px; }

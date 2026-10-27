@@ -266,7 +266,7 @@ function meteorRadius(poder) { return 145 * (1 + poder); }
 // Distancia de casteo del Meteorito: cae donde apunta la mira, limitado entre un minimo y un maximo.
 // (Antes caia siempre a 320 px: minimo 160 = la mitad, maximo 640 = el doble.)
 var METEOR_MIN_RANGE = 160;
-var METEOR_MAX_RANGE = 640;
+var METEOR_MAX_RANGE = 500;
 function castArcaneMeteor() {
   const p = state.player;
   const distance = clamp(p.aimDist != null ? p.aimDist : 320, METEOR_MIN_RANGE, METEOR_MAX_RANGE);
@@ -637,14 +637,14 @@ function useSkillInner(i) {
       Sound.swing();
     } else if (i === 1) {
       // Hacha arrojadiza: 2 hachas giratorias (circulos de 50 px) lanzadas en abanico a +-0,5 rad
-      // de la mira, mas una hacha central del doble de tamano (100 px) que viaja 450 px.
+      // de la mira, mas una hacha central del doble de tamano (100 px) que viaja 375 px (las laterales 250 px).
       // Recorren su trayecto atravesando enemigos; dano = 25 % del dano base, pero cada impacto
       // deja sangrado (50 % del dano del Barbaro cada 0,5 s durante 8 s, ver applyBleed).
       const spd = 500, bleed = p.dmg * BLEED_TICK_RATIO, attackId = ++bleedAttackSeq; // las 3 hachas comparten attackId
       const throws = [
-        { angle: base - AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
-        { angle: base + AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
-        { angle: base,                   diameter: 100, travel: 450 },
+        { angle: base - AXE_THROW_ANGLE, diameter: 50,  travel: 250 },
+        { angle: base + AXE_THROW_ANGLE, diameter: 50,  travel: 250 },
+        { angle: base,                   diameter: 100, travel: 375 },
       ];
       for (const t of throws) {
         spawnArrow(t.angle, {

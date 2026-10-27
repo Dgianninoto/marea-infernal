@@ -54,7 +54,7 @@ dependencias ni servidor web.
   Desde la oleada 20 saltan para aplastar y desde la 30 invocan lluvia de fuego.
 - **Desafío final:** tras vencer al Señor de la Marea (oleada 50) hay una última pausa
   ("Prepárate para el Desafío final"). Al continuar aparecen **tres jefes a la
-  vez** (variantes del Señor de la Marea: Dagh'Nuul, Yth'Korra y Zul'Gathor), con 300.000 de vida cada uno y sin enemigos
+  vez** (variantes del Señor de la Marea: Dagh'Nuul, Yth'Korra y Zul'Gathor), con 300.000 de vida cada uno (en Difícil; ver Dificultades) y sin enemigos
   normales. Si se juntan, hacen el **trío abisal** (como el de los demonios dorados/azules, ver `BOSS_TRIO_*` en
   `js/jefes.js`): avisan con un aura y dos de ellos recorren 120° alrededor del personaje mientras el tercero se queda, para rodearte.
   Durante el trío no atacan ni avanzan. Al derrotar a los tres ganas: hay fuegos
@@ -121,3 +121,30 @@ no se sincronizan entre dispositivos o navegadores.
 - `js/jefes.js`: jefes, sus ataques y el Desafío final.
 - `js/enemigos.js`: enemigos, cofres, jefes y renderizado asociado.
 - `js/tactil.js`: controles táctiles (cruceta, esquive, cofre, pausa y apuntado automático). Solo actúa en modo táctil.
+
+## Dificultades
+
+Se eligen en la pantalla de selección de arma (por defecto **Difícil**, la dificultad original). La tabla `DIFFICULTIES`
+está en `js/enemigos.js`:
+
+| Dificultad | Bichos: vida (oleada 50) | Bichos: daño (oleada 50) | Vida de los jefes | Multiplicador de daño de los jefes |
+|---|---|---|---|---|
+| Fácil | x1 (sin multiplicador) | x1 (sin multiplicador) | -50 % | ninguno (x1) |
+| Normal | x5 | x3 | -30 % | la mitad |
+| Difícil | x15 | x5 | sin cambio | entero |
+
+El escalado de los bichos es lineal desde x1 en la oleada 1 hasta el valor de la tabla en la oleada `ENEMY_SCALE_END` (50);
+después sigue con la misma pendiente. El daño de los bichos además lleva siempre el `ENEMY_DMG_MULT` (x1,3). La vida reducida
+de los jefes aplica a los de oleada y a los del Desafío final. El multiplicador de daño de cada jefe (`BOSS_DMG_MULT`,
+`BOSS_FINAL_DMG_MULT`) se aplica entero en Difícil, a la mitad en Normal y no se aplica (x1) en Fácil.
+
+### Puntuaciones por dificultad
+
+Cada partida se guarda con su dificultad (`difficulty`: `easy`, `normal` o `hard`), tanto en el ranking local como en el global
+(Supabase). La pantalla **Puntuaciones** tiene un selector Fácil / Normal / Difícil y abre en la última dificultad elegida; cada
+dificultad tiene su propio top 10 (local y global). El récord de la pantalla final se compara dentro de la misma dificultad.
+Las partidas guardadas antes de existir las dificultades cuentan como **Difícil**.
+
+**Importante:** hay que volver a correr `supabase-setup.sql` en el SQL Editor de Supabase para crear la columna `difficulty`
+(se puede correr más de una vez). Mientras no exista, el juego sigue funcionando: el ranking global solo muestra Difícil y las
+partidas Fácil/Normal no se envían al global (quedan en el ranking local).

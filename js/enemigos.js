@@ -43,12 +43,12 @@ var TP_MIN_DIST = 100;    // si esta mas cerca que esto no se teletransporta (se
 // (TRIO_CHARGE s) y despues 2 de ellos recorren una circunferencia con el jugador como centro: uno 120 grados en sentido
 // horario y el otro 120 grados en sentido antihorario. El tercero se queda en su sitio, asi los tres quedan repartidos
 // a 120 grados alrededor del jugador (cada uno conserva su distancia). Luego tienen TRIO_COOLDOWN s sin volver a hacerlo.
-var TRIO_RADIUS = 50;        // px (centro a centro) para que cuenten como juntos
+var TRIO_RADIUS = 75;        // px (centro a centro) para que cuenten como juntos
 var TRIO_CHARGE = 0.6;       // s de aviso (brillo + sonido) antes de dispersarse
 var TRIO_MOVE = 0.9;         // s que tardan en recorrer el arco
 var TRIO_ARC = Math.PI * 2 / 3; // 120 grados
-var TRIO_COOLDOWN = 8;       // s antes de que esos bichos puedan formar otro trio
-var TRIO_RETREAT = 250;      // px que retroceden (se alejan del jugador) mientras se dispersan
+var TRIO_COOLDOWN = 0;       // s antes de que esos bichos puedan formar otro trio (0 = sin enfriamiento)
+var TRIO_RETREAT = 150;      // px que retroceden (se alejan del jugador) mientras se dispersan
 var TRIO_MIN_R = 110;        // distancia minima al jugador durante el arco (evita que pasen encima de el)
 
 function isTrioType(e) { return e.type === "bomber" || e.type === "caster"; }
@@ -387,6 +387,22 @@ function scaledAshDrop(n) {
 }
 
 var ENEMY_DMG_MULT = 1.3; // +30% to every damage source of the enemies (contact, projectiles, bombs, boss)
+var ENEMY_SCALE_END = 50;    // oleada en la que se alcanzan los multiplicadores finales
+// Dificultades (se elige en el menu antes de jugar). Para los bichos normales, hpEnd / dmgEnd son los multiplicadores
+// totales de vida y dano en la oleada ENEMY_SCALE_END (escala lineal desde x1 en la oleada 1; sin contar ENEMY_DMG_MULT).
+// bossHp multiplica la vida de TODOS los jefes (los de oleada y los del Desafio final).
+// bossDmgK escala el multiplicador de dano propio de cada jefe (BOSS_DMG_MULT / BOSS_FINAL_DMG_MULT en jefes.js):
+// 1 = el multiplicador entero, 0.5 = la mitad de ese multiplicador, 0 = sin multiplicador (x1).
+var DIFFICULTIES = {
+  easy:   { name: "Fácil",   hpEnd: 1,  dmgEnd: 1, bossHp: 0.5, bossDmgK: 0 },    // bichos sin multiplicador; jefes -50 % vida y sin multiplicador de dano
+  normal: { name: "Normal",  hpEnd: 5,  dmgEnd: 3, bossHp: 0.7, bossDmgK: 0.5 },  // bichos x5 vida y x3 dano; jefes -30 % vida y mitad del multiplicador de dano
+  hard:   { name: "Difícil", hpEnd: 15, dmgEnd: 5, bossHp: 1,   bossDmgK: 1 },    // la dificultad original
+};
+function currentDifficulty() {
+  return DIFFICULTIES[(typeof state !== "undefined" && state && state.difficulty) || "hard"] || DIFFICULTIES.hard;
+}
+function bossHpFor(baseHp) { return Math.round(baseHp * currentDifficulty().bossHp); }
+function bossDmgMultFor(m) { const k = currentDifficulty().bossDmgK; return k === 0 ? 1 : m * k; }
 
 function spawnEnemy() {
   const p = state.player;
@@ -400,8 +416,11 @@ function spawnEnemy() {
 
   // never-ending ramp: hp scales fastest; damage and speed more gently (speed capped so it stays fair)
   const w = state.wave;
-  const hpScale = 1 + (w - 1) * 0.20;
-  const dmgScale = (1 + (w - 1) * 0.10) * ENEMY_DMG_MULT;
+  // Escalado lineal: x1 en la oleada 1 y x(ENEMY_*_END) en la oleada ENEMY_SCALE_END (despues sigue con la misma pendiente).
+  const lin = (w - 1) / (ENEMY_SCALE_END - 1);
+  const diff = currentDifficulty();
+  const hpScale = 1 + (diff.hpEnd - 1) * lin;
+  const dmgScale = (1 + (diff.dmgEnd - 1) * lin) * ENEMY_DMG_MULT;
   const spdScale = 1 + Math.min(1.1, (w - 1) * 0.03);
 
   // Weighted type pool. New types unlock progressively so early waves stay simple:
@@ -462,7 +481,7 @@ function startFinalChallenge() {
   state.finalBossList = [];
   const a0 = rand(0, Math.PI * 2);
   defs.forEach((d, i) => spawnBoss(d, i + 1, defs.length, a0 + i * (Math.PI * 2 / defs.length)));
-  showWarning("\u00a1DESAF\u00cdO FINAL!<br><span style='color:#ff3a1a;font-size:20px'>" + defs.map(d => d.name).join(" \u00b7 ") + "</span><br><span style='font-size:16px'>300.000 de vida cada uno</span>");
+  showWarning("\u00a1DESAF\u00cdO FINAL!<br><span style='color:#ff3a1a;font-size:20px'>" + defs.map(d => d.name).join(" \u00b7 ") + "</span><br><span style='font-size:16px'>" + bossHpFor(BOSS_FINAL_HP).toLocaleString("es") + " de vida cada uno</span>");
   floatText(state.player.x, state.player.y - 56, "DESAF\u00cdO FINAL", "#ff5050");
   state.shake = 24;
   updateHud();
@@ -481,9 +500,9 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
 
   const isFinal = !!forcedDef;
   const def = forcedDef || bossForWave(w);
-  const bossHp = isFinal ? BOSS_FINAL_HP : def.hp;
+  const bossHp = bossHpFor(isFinal ? BOSS_FINAL_HP : def.hp);
   let title = "\u00a1" + def.name + "<br>ha despertado!";
-  if (isFinal) title = "\u00a1DESAFÍO FINAL " + finalIdx + "/" + finalTotal + "!<br><span style='color:" + (def.glow || "#ff3a1a") + ";font-size:20px'>" + def.name + " \u2014 300.000 de vida</span>";
+  if (isFinal) title = "\u00a1DESAFÍO FINAL " + finalIdx + "/" + finalTotal + "!<br><span style='color:" + (def.glow || "#ff3a1a") + ";font-size:20px'>" + def.name + " \u2014 " + bossHp.toLocaleString("es") + " de vida</span>";
   else if (hasLeap && hasBombs) title = "\u00a1" + def.name + "<br><span style='color:#ff9d4d;font-size:18px'>\u2014 Salto, lluvia de fuego y rayo \u2014</span>";
   else if (hasLeap)             title = "\u00a1" + def.name + "<br><span style='color:#6affa0;font-size:18px'>\u2014 Salto aplastante \u2014</span>";
 
@@ -494,7 +513,7 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
     name: def.name,
     speed: 85 + Math.min(40, w),
     hp: bossHp, maxHp: bossHp, // vida propia de cada jefe (ver BOSS_ROSTER en jefes.js)
-    dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT * (isFinal ? BOSS_FINAL_DMG_MULT : (BOSS_DMG_MULT[def.id] || 1)),
+    dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT * bossDmgMultFor(isFinal ? BOSS_FINAL_DMG_MULT : (BOSS_DMG_MULT[def.id] || 1)),
     xp: 600 + w * 20, flash: 0,
     color: (hasLeap && hasBombs) ? "#6a0a3a" : (hasBombs ? "#7a1a08" : "#8a0f2a"),
     shootCd: 2, phase: 0,

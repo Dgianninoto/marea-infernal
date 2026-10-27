@@ -14,6 +14,18 @@ var BOSS_BEAM_DMG_MULT = 2.7;   // dano = dmg del jefe x este valor (~50 % mas q
 // (contacto, abanico, salto, lluvia de fuego y rayo). El jefe de la oleada 10 (B1) no lleva multiplicador.
 var BOSS_DMG_MULT = { B1: 1, B2: 1.2, B3: 1.5, C1: 2, C2: 3 };  // B2=oleada 20, B3=30, C1=40, C2=50
 var BOSS_FINAL_DMG_MULT = 3.5;     // cada jefe del Desafio final, sea cual sea
+// Desafio final: cuando cae un jefe, a los que quedan se les reduce el enfriamiento de sus habilidades
+// (salto, abanico, lluvia de fuego y rayo): -25 % si ya murio uno y -50 % cuando solo queda uno.
+var BOSS_FINAL_CD_RED_ONE_DEAD = 0.25;
+var BOSS_FINAL_CD_RED_LAST = 0.50;
+function bossCdRate(boss) {
+  if (!boss.isFinal) return 1;
+  const alive = state.bosses.length;
+  const total = boss.finalTotal || 3;
+  if (alive >= total) return 1;
+  const red = alive <= 1 ? BOSS_FINAL_CD_RED_LAST : BOSS_FINAL_CD_RED_ONE_DEAD;
+  return 1 / (1 - red); // los enfriamientos corren mas rapido: -25 % = x1,33; -50 % = x2
+}
 // Trio de jefes (Desafio final): misma habilidad que el trio dorado/azul (ver TRIO_* en enemigos.js).
 // Si los 3 jefes se juntan, avisan y luego 2 recorren 120 grados (horario / antihorario) alrededor del jugador y el
 // tercero se queda: los tres quedan repartidos a 120 grados. Mientras dura, ninguno ataca ni avanza.

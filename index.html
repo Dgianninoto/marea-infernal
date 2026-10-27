@@ -14,10 +14,10 @@
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
         tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button><button id="dbg-level" tabindex="-1">DEBUG ⬆ +Nivel</button></div>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 195 -> la proxima entrega 196,
-         luego 197, 198, etc. (se muestra como 0.195, 0.196, 0.197...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 206 -> la proxima entrega 207,
+         luego 208, 209, etc. (se muestra como 0.206, 0.207, 0.208...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.195</div>
+    <div id="build-tag">Build 0.206</div>
 
     <div id="float-layer"></div>
 
@@ -167,6 +167,12 @@
         <div class="menu-view hidden" id="menu-weapons">
           <h2>Elige tu arma</h2>
           <p class="weapon-intro">Elige con cuidado: tu héroe define tu estilo de combate y no se puede cambiar durante la partida.</p>
+          <div class="diff-row" role="group" aria-label="Dificultad">
+            <span class="diff-label">Dificultad</span>
+            <button type="button" class="diff-btn" data-diff="easy" title="Bichos sin multiplicador de vida ni daño; jefes con 50 % menos de vida">Fácil</button>
+            <button type="button" class="diff-btn" data-diff="normal" title="Bichos x5 de vida y x3 de daño; jefes con 30 % menos de vida">Normal</button>
+            <button type="button" class="diff-btn active" data-diff="hard" title="La dificultad original: bichos x15 de vida y x5 de daño">Difícil</button>
+          </div>
           <div class="weapon-grid">
             <article class="weapon-card">
               <div class="weapon-icon">🏹</div>
@@ -291,6 +297,12 @@
           <div class="scores-tabs">
             <button class="btn btn-small" id="scores-tab-global">🌐 Global</button>
             <button class="btn btn-small btn-sec" id="scores-tab-local">💾 Local</button>
+          </div>
+          <div class="diff-row" role="group" aria-label="Dificultad del ranking">
+            <span class="diff-label">Dificultad</span>
+            <button type="button" class="diff-btn" data-sdiff="easy">Fácil</button>
+            <button type="button" class="diff-btn" data-sdiff="normal">Normal</button>
+            <button type="button" class="diff-btn active" data-sdiff="hard">Difícil</button>
           </div>
           <div id="scores-status" class="scores-empty"></div>
           <div id="scores-table"></div>

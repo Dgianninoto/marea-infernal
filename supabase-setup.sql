@@ -35,7 +35,14 @@ alter table public.scores add constraint scores_weapon_len check (char_length(we
 alter table public.scores drop constraint if exists scores_bosses_rng;
 alter table public.scores add constraint scores_bosses_rng check (bosses between 0 and 1000);
 
+-- dificultad de la partida: easy, normal o hard. Las partidas anteriores a las dificultades quedan como 'hard' (la original)
+alter table public.scores add column if not exists difficulty text not null default 'hard';
+alter table public.scores drop constraint if exists scores_difficulty_chk;
+alter table public.scores add constraint scores_difficulty_chk check (difficulty in ('easy', 'normal', 'hard'));
+
 create index if not exists scores_score_idx on public.scores (score desc);
+-- el ranking se lee por dificultad: indice para "top por dificultad"
+create index if not exists scores_diff_score_idx on public.scores (difficulty, score desc);
 
 alter table public.scores enable row level security;
 

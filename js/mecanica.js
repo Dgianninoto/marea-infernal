@@ -387,6 +387,7 @@ var WEAPONS = {
   },
 };
 var selectedWeaponId = "bow";
+var selectedDifficulty = "hard"; // "easy" | "normal" | "hard" (ver DIFFICULTIES en enemigos.js)
 function getWeapon(id) { return WEAPONS[id] || WEAPONS.bow; }
 
 // each piece has one or more stats; every stat has its own base value and its own stat points
@@ -573,6 +574,7 @@ function newState(weaponId) {
   const weapon = getWeapon(weaponId || selectedWeaponId);
   return {
     weaponId: weapon.id,
+    difficulty: selectedDifficulty,
     running: false,
     over: false,
     time: 0,
@@ -850,7 +852,7 @@ function startIntermission() {
   else showWarning("Pausa<br><span style='font-size:20px'>Revisa tu equipo (I) y continúa cuando estés listo</span>");
   interPanel.querySelector(".inter-title").textContent = preFinal ? "¡Prepárate para el Desafío final!" : "Intermedio";
   interPanel.querySelector(".inter-sub").innerHTML = preFinal
-    ? "Has derrotado al Señor de la Marea. Ahora te esperan <b>tres jefes al azar, todos a la vez y con 300.000 de vida cada uno</b>. Revisa tu equipo con <kbd>I</kbd> y empieza cuando estés listo."
+    ? "Has derrotado al Señor de la Marea. Ahora te esperan <b>tres jefes al azar, todos a la vez y con " + bossHpFor(BOSS_FINAL_HP).toLocaleString("es") + " de vida cada uno</b>. Revisa tu equipo con <kbd>I</kbd> y empieza cuando estés listo."
     : "Oleada superada. Revisa tu equipo con <kbd>I</kbd> y continúa cuando estés listo.";
   el("inter-continue").textContent = preFinal ? "Comenzar desafío ▶" : "Continuar ▶";
   interPanel.style.display = "block";
@@ -910,7 +912,7 @@ function update(dt) {
   // so they never delay or interleave with the basic attack.
   if (state.phase !== "intermission") {
     const weapon = getWeapon(state.weaponId);
-    const range = 800; // alcance de disparo automatico, igual para todas las armas
+    const range = 700; // alcance de disparo automatico, igual para todas las armas
     const rangeSq = range * range;
     let threat = state.bosses.some(bs => dist2(p.x, p.y, bs.x, bs.y) < rangeSq);
     if (!threat) {
@@ -1089,6 +1091,7 @@ function update(dt) {
   // boss
   for (const boss of state.bosses.slice()) {
     if (boss.flash > 0) boss.flash -= dt;
+    const cdDt = dt * bossCdRate(boss); // tiempo de enfriamiento (acelerado en el Desafio final al caer jefes)
     if (boss.beamLock > 0) boss.beamLock -= dt; // mientras carga/dispara el rayo el jefe se queda quieto
     const bdx = p.x - boss.x, bdy = p.y - boss.y;
     const bd = Math.hypot(bdx, bdy) || 1;
@@ -1117,7 +1120,7 @@ function update(dt) {
           boss.leapCd = rand(5.0, 8.0);
         }
       } else {
-        boss.leapCd -= dt;
+        boss.leapCd -= cdDt;
         if (boss.leapCd <= 0 && bd > 140 && bd < 560 && boss.shootCd > 0.5 && !(boss.beamLock > 0) && !boss.trio) {
           boss.leaping = 0.42;
           const lspd = 820;
@@ -1146,7 +1149,7 @@ function update(dt) {
     }
 
     // Skill 1 (siempre): abanico de proyectiles
-    boss.shootCd -= dt;
+    boss.shootCd -= cdDt;
     if (boss.shootCd <= 0 && (!boss.hasLeap || boss.leaping <= 0) && !boss.trio) {
       boss.shootCd = 2.2;
       const base = Math.atan2(bdy, bdx);
@@ -1160,7 +1163,7 @@ function update(dt) {
 
     // ---- Skill 3: Lluvia de bombas en patron circular (wave 30+) ----
     if (boss.hasBombs) {
-      boss.bombRainCd -= dt;
+      boss.bombRainCd -= cdDt;
       if (boss.bombRainCd <= 0 && (!boss.hasLeap || boss.leaping <= 0) && !boss.trio) {
         boss.bombRainCd = rand(7.0, 11.0);
         floatText(boss.x, boss.y - boss.r - 14, "¡LLUVIA DE FUEGO!", "#ff9d4d");
@@ -1179,7 +1182,7 @@ function update(dt) {
     // ---- Skill 4: Rayo en linea recta (wave 30+) ----
     // Primero marca en el suelo por donde va a salir (la direccion se fija al lanzarlo: se puede esquivar) y luego dispara.
     if (boss.hasBeam) {
-      boss.beamCd -= dt;
+      boss.beamCd -= cdDt;
       if (boss.beamCd <= 0 && boss.leaping <= 0 && !boss.trio && bd < BOSS_BEAM_LEN + 140) {
         boss.beamCd = rand(6.5, 9.5);
         boss.beamLock = BOSS_BEAM_WARN + BOSS_BEAM_ACTIVE;
@@ -1957,9 +1960,13 @@ function loadScores() {
 function saveScores(list) {
   try { localStorage.setItem(SCORE_KEY, JSON.stringify(list)); } catch (e) {}
 }
-function bestScore() {
-  const s = loadScores();
-  return s.length ? s[0].score : 0;
+// Dificultad de una entrada del ranking. Las partidas anteriores a las dificultades no la traen: eran la original (Difícil).
+function scoreDiff(s) { return (s && s.difficulty && DIFFICULTIES[s.difficulty]) ? s.difficulty : "hard"; }
+function diffLabel(id) { return (DIFFICULTIES[id] || DIFFICULTIES.hard).name; }
+// Mejor puntuacion local: de una dificultad (diff = "easy" | "normal" | "hard") o, sin argumento, la mejor de todas.
+function bestScore(diff) {
+  const s = loadScores().filter(x => !diff || scoreDiff(x) === diff);
+  return s.length ? Math.max.apply(null, s.map(x => x.score || 0)) : 0;
 }
 // ---- Ranking global (Supabase). La clave "publishable" es publica por diseno: la
 // seguridad la dan las politicas RLS de la tabla (ver supabase-setup.sql).
@@ -1987,31 +1994,44 @@ function sbInsertScore(entry) {
     bosses: entry.bosses | 0,           // jefes derrotados; columna `bosses` en supabase-setup.sql
     boss: (entry.bosses | 0) > 0,
     victory: !!entry.victory,           // partida ganada (Desafio final superado); columna `victory` en supabase-setup.sql
+    difficulty: scoreDiff(entry),       // easy / normal / hard; columna `difficulty` en supabase-setup.sql
   };
   const post = body => sbRequest("scores", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+  const strip = (r, keys) => { const c = Object.assign({}, r); keys.forEach(k => delete c[k]); return c; };
+  // si faltan columnas nuevas en la tabla, reintenta sin ellas para no perder la partida:
+  // completo -> sin `weapon` -> sin `weapon`, `bosses` ni `victory`. Solo las partidas en Dificil (la dificultad por
+  // defecto de la tabla) pueden enviarse tambien sin `difficulty`: asi una partida Facil/Normal nunca se cuela en el ranking Dificil.
+  const attempts = [row, strip(row, ["weapon"]), strip(row, ["weapon", "bosses", "victory"])];
+  if (row.difficulty === "hard") attempts.push(strip(row, ["difficulty"]), strip(row, ["difficulty", "weapon"]), strip(row, ["difficulty", "weapon", "bosses", "victory"]));
+  const tryPost = i => post(attempts[i]).catch(err => { if (i + 1 < attempts.length) return tryPost(i + 1); throw err; });
   sbPending = sbPending
-    // si faltan columnas nuevas en la tabla, reintenta sin ellas para no perder la partida:
-    // completo -> sin `weapon` -> sin `weapon`, `bosses` ni `victory`
-    .then(() => post(row)
-      .catch(() => { const { weapon, ...r2 } = row; return post(r2); })
-      .catch(() => { const { weapon, bosses, victory, ...legacy } = row; return post(legacy); }))
+    .then(() => tryPost(0))
     .catch(() => {}); // sin conexion: la partida igual queda en el ranking local
 }
-async function fetchGlobalScores() {
+// Top global de UNA dificultad. Devuelve la lista (o null si no hay conexion); no toca la variable globalScores.
+async function fetchGlobalScores(diff) {
   await sbPending;
+  diff = DIFFICULTIES[diff] ? diff : "hard";
   const base = "name,score,wave,level,kills,ash,boss";
-  const q = cols => "scores?select=" + cols + ",created_at&order=score.desc&limit=" + MAX_SCORES;
-  try {
-    let r;
-    try { r = await sbRequest(q(base + ",bosses,victory,weapon")); }
-    catch (e) {
-      try { r = await sbRequest(q(base + ",bosses,victory")); }
-      catch (e2) { r = await sbRequest(q(base)); } // las columnas nuevas aun no existen: ranking sin ellas
-    }
-    const rows = await r.json();
-    globalScores = rows.map(x => Object.assign({}, x, { date: Date.parse(x.created_at) }));
-  } catch (e) { globalScores = null; }
-  return globalScores;
+  const q = (cols, filter) => "scores?select=" + cols + ",created_at" + filter + "&order=score.desc&limit=" + MAX_SCORES;
+  const withDiff = "&difficulty=eq." + diff;
+  // se prueba de la consulta completa a las mas simples (por si faltan columnas nuevas en la tabla)
+  const tries = [
+    [base + ",bosses,victory,weapon,difficulty", withDiff],
+    [base + ",bosses,victory,difficulty", withDiff],
+    [base + ",difficulty", withDiff],
+  ];
+  // sin la columna `difficulty` todas las partidas son de la dificultad original: solo se muestran en Dificil
+  if (diff === "hard") tries.push([base + ",bosses,victory,weapon", ""], [base + ",bosses,victory", ""], [base, ""]);
+  let rows = null, failed = true;
+  for (const [cols, filter] of tries) {
+    try { rows = await (await sbRequest(q(cols, filter))).json(); failed = false; break; } catch (e) { /* siguiente */ }
+  }
+  if (failed) {
+    // si ni la consulta con `difficulty` ni las simples funcionan: sin conexion (Dificil) o columna ausente (Facil/Normal)
+    return diff === "hard" ? null : [];
+  }
+  return rows.map(x => Object.assign({}, x, { date: Date.parse(x.created_at) }));
 }
 
 // Add a run to the board. Returns the saved entry (so we can highlight it).
@@ -2020,17 +2040,21 @@ function addScore(entry, localOnly) {
   const list = loadScores();
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
-  if (list.length > MAX_SCORES) list.length = MAX_SCORES;
-  saveScores(list);
+  // se conservan los MAX_SCORES mejores de CADA dificultad (si no, las partidas en Dificil desplazarian a las de Facil)
+  const counts = {};
+  const kept = list.filter(s => { const d = scoreDiff(s); counts[d] = (counts[d] || 0) + 1; return counts[d] <= MAX_SCORES; });
+  saveScores(kept);
   if (!localOnly) sbInsertScore(entry);
   return entry;
 }
 // Que ranking se muestra: "global" (Supabase) o "local" (este dispositivo). Se recuerda mientras dure la sesion.
 var scoresMode = "global";
+var scoresDiff = "hard";   // dificultad del ranking que se esta viendo
 var globalLoading = false;
 function renderScores(highlightId) {
   const isGlobal = scoresMode === "global";
-  const list = isGlobal ? (globalScores || []) : loadScores();
+  const list = isGlobal ? (globalScores || []) : loadScores().filter(s => scoreDiff(s) === scoresDiff);
+  document.querySelectorAll("[data-sdiff]").forEach(b => b.classList.toggle("active", b.dataset.sdiff === scoresDiff));
   const st = el("scores-status");
   if (st) st.textContent = !isGlobal ? "💾 Solo este dispositivo"
     : globalLoading ? "⏳ Cargando ranking global…"
@@ -2060,7 +2084,7 @@ function renderScores(highlightId) {
       `<div class="rank">${rank}</div>
        <div class="nm">${escapeHtml(s.name || "Anónimo")}</div>
        <div class="sc">${(s.score || 0).toLocaleString()}</div>
-       <div class="meta">${CLASS_LABELS[s.weapon] ? CLASS_LABELS[s.weapon] + " · " : ""}Nv ${s.level || 1} · Oleada ${s.wave || 0} · ${s.kills || 0} bajas · ${(s.ash || 0).toLocaleString()} cenizas · ${s.bosses != null ? s.bosses : (s.boss ? 1 : 0)} jefes · ${s.victory ? "🏆 Victoria" : "💀 Derrota"} · ${date}</div>`;
+       <div class="meta">${diffLabel(scoreDiff(s))} · ${CLASS_LABELS[s.weapon] ? CLASS_LABELS[s.weapon] + " · " : ""}Nv ${s.level || 1} · Oleada ${s.wave || 0} · ${s.kills || 0} bajas · ${(s.ash || 0).toLocaleString()} cenizas · ${s.bosses != null ? s.bosses : (s.boss ? 1 : 0)} jefes · ${s.victory ? "🏆 Victoria" : "💀 Derrota"} · ${date}</div>`;
     table.appendChild(row);
   });
 }
@@ -2077,9 +2101,13 @@ var menuViews = { home: el("menu-home"), weapons: el("menu-weapons"), howto: el(
 function openScoresTab(mode) {
   scoresMode = mode;
   if (mode === "global") {
+    const d = scoresDiff;
     globalLoading = true;
+    globalScores = null;
     renderScores();
-    fetchGlobalScores().then(() => {
+    fetchGlobalScores(d).then(rows => {
+      if (scoresDiff !== d || scoresMode !== "global") return; // el jugador ya cambio de dificultad o de pestaña
+      globalScores = rows;
       globalLoading = false;
       if (!menuViews.scores.classList.contains("hidden")) renderScores();
     });
@@ -2089,7 +2117,7 @@ function openScoresTab(mode) {
 }
 function showMenuView(name) {
   for (const k in menuViews) menuViews[k].classList.toggle("hidden", k !== name);
-  if (name === "scores") openScoresTab(scoresMode);
+  if (name === "scores") { scoresDiff = selectedDifficulty; openScoresTab(scoresMode); } // abre en la ultima dificultad elegida/jugada
   if (name === "home") el("menu-best").textContent = bestScore().toLocaleString();
 }
 function openMenu() {
@@ -2190,15 +2218,17 @@ function endGame(victory) {
     score: finalScore, level: p.level, wave: state.wave,
     kills: state.kills, ash: ashTotal(),
     weapon: state.weaponId, bosses: state.bossesDown, boss: state.bossesDown > 0, victory, date: Date.now(),
+    difficulty: state.difficulty || "hard",
   };
   if (state.debugUsed) pendingRun = null; // partida con debug: no se guarda ni en local ni en global
 
-  const prevBest = bestScore();
+  const runDiff = state.difficulty || "hard";
+  const prevBest = bestScore(runDiff); // el record se compara dentro de la misma dificultad
   el("best-score").textContent = state.debugUsed
     ? "🛠 Debug usado: esta partida no se guarda"
     : finalScore > prevBest && prevBest > 0
-    ? "🏆 ¡Nuevo récord! " + finalScore.toLocaleString()
-    : "Mejor puntuación: " + Math.max(prevBest, finalScore).toLocaleString();
+    ? "🏆 ¡Nuevo récord en " + diffLabel(runDiff) + "! " + finalScore.toLocaleString()
+    : "Mejor puntuación (" + diffLabel(runDiff) + "): " + Math.max(prevBest, finalScore).toLocaleString();
 
   // reset the save row
   const nameRow = el("name-row");
@@ -2231,6 +2261,14 @@ function saveCurrentScore() {
 
 // ---- menu buttons
 el("btn-play").addEventListener("click", () => showMenuView("weapons"));
+// selector de dificultad (vista de armas): por defecto Difícil, la dificultad original
+function setDifficulty(id) {
+  if (typeof DIFFICULTIES === "undefined" || !DIFFICULTIES[id]) id = "hard";
+  selectedDifficulty = id;
+  document.querySelectorAll("[data-diff]").forEach(b => b.classList.toggle("active", b.dataset.diff === id));
+}
+document.querySelectorAll("[data-diff]").forEach(b => b.addEventListener("click", () => setDifficulty(b.dataset.diff)));
+setDifficulty(selectedDifficulty);
 document.querySelectorAll("[data-weapon]").forEach(button => {
   button.addEventListener("click", () => startGame(button.dataset.weapon));
 });
@@ -2238,6 +2276,10 @@ el("btn-how").addEventListener("click", () => showMenuView("howto"));
 el("btn-scores").addEventListener("click", () => showMenuView("scores"));
 el("scores-tab-global").addEventListener("click", () => openScoresTab("global"));
 el("scores-tab-local").addEventListener("click", () => openScoresTab("local"));
+document.querySelectorAll("[data-sdiff]").forEach(b => b.addEventListener("click", () => {
+  scoresDiff = DIFFICULTIES[b.dataset.sdiff] ? b.dataset.sdiff : "hard";
+  openScoresTab(scoresMode);
+}));
 document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => showMenuView("home")));
 el("btn-clear-scores").addEventListener("click", () => {
   saveScores([]);
