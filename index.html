@@ -12,12 +12,12 @@
   <div id="game-wrap">
     <canvas id="game"></canvas>
     <div id="debug-panel"><button id="dbg-wave" tabindex="-1">DEBUG +Oleada</button><button id="dbg-ash"
-        tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button></div>
+        tabindex="-1">DEBUG ∞ Cenizas</button><button id="dbg-god" tabindex="-1">DEBUG 🛡 Invulnerable</button><button id="dbg-goblin" tabindex="-1">DEBUG 💰 Goblin</button><button id="dbg-level" tabindex="-1">DEBUG ⬆ +Nivel</button></div>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 194 -> la proxima entrega 195,
-         luego 196, 197, etc. (se muestra como 0.194, 0.195, 0.196...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 195 -> la proxima entrega 196,
+         luego 197, 198, etc. (se muestra como 0.195, 0.196, 0.197...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.194</div>
+    <div id="build-tag">Build 0.195</div>
 
     <div id="float-layer"></div>
 
@@ -195,7 +195,7 @@
               <h3>Bárbaro</h3>
               <p>Cuerpo a cuerpo y muy resistente, pero más lento.</p>
               <ul>
-                <li>Tajo: golpe en arco frontal</li>
+                <li>Tajo: barrido horario que crece con el daño</li>
                 <li>Hacha arrojadiza: hace sangrar</li>
                 <li>Golpe sísmico: onda de área</li>
               </ul>
@@ -227,7 +227,7 @@
                 más lejos.</p>
               <p><b style="color:#ff7659">🪓 Bárbaro.</b> Cuerpo a cuerpo y muy resistente: 200 de vida, 30 de daño y
                 regeneración de 1/s, pero más lento. Su <b>Bloqueo</b> (en lugar de Crítico) da probabilidad de reducir
-                a la mitad el daño recibido. El tajo golpea en arco frontal, el hacha arrojadiza lanza tres hachas que
+                a la mitad el daño recibido. El tajo es un barrido en sentido horario: su arco crece con el daño hasta cerrar el círculo de 360° (con 100 de daño) y, desde ahí, crece su radio; el hacha arrojadiza lanza tres hachas que
                 atraviesan y hacen sangrar (50 % de su daño cada 0,5 s durante 8 s) y el golpe sísmico daña en tres anillos
                 (×2 exterior, ×4 central, ×7 interior).</p>
               <p><b style="color:var(--ember-glow)">Esquiva.</b> Pulsa <kbd>Espacio</kbd> para hacer un dash con una

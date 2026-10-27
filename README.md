@@ -18,11 +18,19 @@ dependencias ni servidor web.
   lanza hachas giratorias y usa ataques de área visibles. La clase queda fija durante esa partida.
   El Mago no tiene crítico: su stat de arma es **Poder** (+2 % por punto), que agranda el
   radio del Meteorito y suma un orbe a la Salva arcana cada 10 % (hasta formar un círculo completo).
-  El Arquero puede pasar del 100 % de Crítico (**super crítico**): la parte entera es el multiplicador
-  garantizado y el resto la probabilidad del siguiente (550 % = ×5 siempre y 50 % de ×6).
+  El Arquero puede pasar del 100 % de Crítico (**super crítico**): cada 100 % es un crítico asegurado
+  y cada crítico suma +1 al ×1 base; el resto es la probabilidad de uno más (550 % = 5 críticos = ×6 siempre y 50 % de ×7).
 - **Lee las zonas de impacto:** el meteorito marca el área antes de caer y la
-  muestra al impactar. El hacha dibuja el arco frontal del tajo y el radio de
+  muestra al impactar. El hacha dibuja el barrido del tajo y el radio de
   su golpe sísmico.
+- **Barrido del Bárbaro:** el Tajo ya no es un cono fijo sino un barrido en sentido horario que dura 0,22 s.
+  Empieza con el arco de siempre (~66,5°, con los 38 de Daño iniciales) y cada punto de Daño lo abre más hasta cerrar el
+  círculo de 360° cuando el Daño llega a `AXE_SWEEP_FULL_DMG` (100). Con el círculo completo, más Daño agranda su radio
+  de 112 px (100 de Daño) a 200 px (`AXE_SWEEP_MAX_DMG` = 380 de Daño) y ahí se detiene. Todas las variables están en
+  `js/personajes.js`. Cada enemigo recibe un solo golpe por barrido.
+  Un **cono fantasma** transparente muestra hacia dónde saldrá el siguiente barrido (sigue al ratón en vivo, ya que el
+  barrido en curso queda fijo) y desaparece cuando el arco llega a 360°. Al subir la Cadencia el área del barrido se vuelve
+  más transparente (hasta el 10 % de su opacidad, `AXE_SWEEP_MIN_OPACITY`, con `AXE_MAX_RATE` = 25 A/s).
 - **Ataca automáticamente:** cada arma tiene tres ataques —básico, intermedio y
   definitivo— que se activan solos cuando hay enemigos cerca y termina su
   cooldown. Apunta con el ratón para orientar proyectiles y ataques frontales.
@@ -45,12 +53,16 @@ dependencias ni servidor web.
   Kraken Abisal (10), Cangrejo Acorazado (20), Medusa de Magma (30) e Ídolo Rúnico (40).
   Desde la oleada 20 saltan para aplastar y desde la 30 invocan lluvia de fuego.
 - **Desafío final:** tras vencer al Señor de la Marea (oleada 50) hay una última pausa
-  ("Prepárate para el Desafío final"). Al continuar aparecen **tres jefes al azar de los cinco, a la
-  vez**, con 300.000 de vida cada uno y sin enemigos normales. Al derrotar a los tres ganas: hay fuegos
+  ("Prepárate para el Desafío final"). Al continuar aparecen **tres jefes a la
+  vez** (variantes del Señor de la Marea: Dagh'Nuul, Yth'Korra y Zul'Gathor), con 300.000 de vida cada uno y sin enemigos
+  normales. Si se juntan, hacen el **trío abisal** (como el de los demonios dorados/azules, ver `BOSS_TRIO_*` en
+  `js/jefes.js`): avisan con un aura y dos de ellos recorren 120° alrededor del personaje mientras el tercero se queda, para rodearte.
+  Durante el trío no atacan ni avanzan. Al derrotar a los tres ganas: hay fuegos
   artificiales y puedes escribir tu nombre para el registro de puntuaciones.
 - **Descansa entre ciclos:** cada cinco oleadas, elimina a todos los enemigos
   para entrar en un intermedio. No aparecerán nuevos enemigos hasta que pulses
   **Continuar**; puedes revisar el inventario antes de seguir.
+- **Cuidado con los tríos:** si 3 demonios dorados/azules (de área y de rango, en cualquier mezcla) se juntan a menos de 50 px, brillan con un sonido de aviso y se dispersan: uno se queda y los otros dos recorren 120° en sentido horario y antihorario alrededor del personaje, quedando repartidos a su alrededor. Después tienen 8 s de enfriamiento (`TRIO_*` en `js/enemigos.js`).
 - **Observa los escenarios:** el entorno cambia cada 10 oleadas.
 
 ## Controles

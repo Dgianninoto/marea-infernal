@@ -8,8 +8,70 @@
  * Depende de simbolos globales definidos en mecanica.js (var/function).
  */
 
-// Semiangulo del cono del Tajo (rad).
+// Semiangulo del cono del Tajo al empezar la partida (rad). Es el arco inicial del barrido: 2 * 0,58 = 1,16 rad (~66,5 grados).
 var AXE_CONE_HALF_ANGLE = 0.58;
+// Tajo = BARRIDO en sentido horario. Con mas Dano el arco crece de forma lineal desde el arco inicial (con el Dano de
+// inicio del Barbaro) hasta completar el circulo de 360 grados cuando el Dano llega a AXE_SWEEP_FULL_DMG.
+// Pasado ese Dano el circulo ya esta completo y lo que crece es su radio: lineal de AXE_SWEEP_BASE_RANGE (con
+// AXE_SWEEP_FULL_DMG) a AXE_SWEEP_MAX_RANGE (con AXE_SWEEP_MAX_DMG); por encima de ese Dano se queda en el maximo.
+var AXE_SWEEP_FULL_DMG = 100;      // <<< BALANCE: Dano necesario para completar el circulo (360 grados)
+var AXE_SWEEP_BASE_RANGE = 112;    // radio del barrido (px) hasta completar el circulo
+var AXE_SWEEP_MAX_DMG = 380;       // <<< BALANCE: Dano maximo; con este Dano el radio llega a AXE_SWEEP_MAX_RANGE y ya no crece mas
+var AXE_SWEEP_MAX_RANGE = 200;     // <<< BALANCE: radio maximo (px) del circulo
+var AXE_SWEEP_TIME = 0.22;         // s que tarda el barrido en recorrer todo su arco (fijo, no depende de la Cadencia)
+var AXE_SWEEP_FADE = 0.2;          // s que tarda en desvanecerse la estela al terminar
+// Dano con el que el Barbaro EMPIEZA la partida = Dano base del personaje + Dano base de la pieza Arma equipada
+// (30 + 8 = 38). Con ese Dano el barrido mide exactamente el arco inicial (~66,5 grados).
+function axeSweepStartDmg() {
+  const w = getWeapon("axe");
+  const st = (w.weaponStats || []).find(x => x.key === "dmg");
+  return (w.baseDmg || 0) + (st ? st.base : 0);
+}
+// Opacidad del area del barrido segun la Cadencia: a mas ataques por segundo hay mas barridos superpuestos, asi que cada
+// uno se ve mas transparente. 1 (opaco) con la cadencia inicial del Barbaro y AXE_SWEEP_MIN_OPACITY con AXE_MAX_RATE A/s.
+var AXE_MAX_RATE = 25;             // <<< Cadencia maxima (A/s) de referencia
+var AXE_SWEEP_MIN_OPACITY = 0.1;   // <<< BALANCE: fraccion de opacidad que queda a AXE_MAX_RATE A/s
+function axeSweepOpacity() {
+  const p = state.player, base = getWeapon("axe").baseRate || 1.6;
+  const rate = 1 / weaponSkillCooldown(p, 0);                 // A/s actuales (nivel + guantes)
+  const k = clamp((rate - base) / (AXE_MAX_RATE - base), 0, 1);
+  return 1 - k * (1 - AXE_SWEEP_MIN_OPACITY);
+}
+// Cono fantasma: muestra hacia donde saldra el siguiente barrido (el barrido en curso queda fijo y no sigue al raton).
+// Sigue la mira en vivo y desaparece cuando el arco ya es el circulo completo (360 grados).
+function drawAxePreview() {
+  if (state.weaponId !== "axe" || state.over || state.phase === "intermission") return;
+  const p = state.player, arc = axeSweepArc(p.dmg);
+  if (arc >= Math.PI * 2 - 0.001) return;
+  const range = axeSweepRange(p.dmg), aim = Math.atan2(p.aimY, p.aimX);
+  const start = aim - arc / 2, end = aim + arc / 2;
+  ctx.save();
+  ctx.fillStyle = "#ff7659";
+  ctx.globalAlpha = 0.09;
+  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, range, start, end); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.3; ctx.strokeStyle = "#ffd0bd"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, range, start, end); ctx.closePath(); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 0.55; ctx.lineWidth = 3;               // borde de salida (el barrido avanza en sentido horario desde aqui)
+  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(start) * range, p.y + Math.sin(start) * range); ctx.stroke();
+  ctx.restore();
+}
+
+// Arco (rad) del barrido segun el Dano actual.
+function axeSweepArc(dmg) {
+  const base = AXE_CONE_HALF_ANGLE * 2, full = Math.PI * 2;
+  const start = axeSweepStartDmg();
+  if (AXE_SWEEP_FULL_DMG <= start) return full;
+  const k = clamp((dmg - start) / (AXE_SWEEP_FULL_DMG - start), 0, 1);
+  return base + (full - base) * k;
+}
+// Radio (px) del barrido segun el Dano actual: fijo hasta completar el circulo, luego crece lineal hasta el maximo.
+function axeSweepRange(dmg) {
+  if (AXE_SWEEP_MAX_DMG <= AXE_SWEEP_FULL_DMG) return AXE_SWEEP_MAX_RANGE;
+  const k = clamp((dmg - AXE_SWEEP_FULL_DMG) / (AXE_SWEEP_MAX_DMG - AXE_SWEEP_FULL_DMG), 0, 1);
+  return AXE_SWEEP_BASE_RANGE + (AXE_SWEEP_MAX_RANGE - AXE_SWEEP_BASE_RANGE) * k;
+}
+
 // Angulo de cada hacha de la Hacha arrojadiza respecto a la mira (rad); apertura total = el doble.
 var AXE_THROW_ANGLE = 0.5;
 // Golpe sismico: radio total y 3 anillos concentricos, cada uno de 1/3 del radio. Cada anillo
@@ -38,23 +100,22 @@ function logDamage(skill, hpBefore, dealt) {
   state.dmgStats[skill] += Math.max(0, Math.min(dealt, hpBefore));
 }
 
-// Multiplicador de critico (solo el Arquero tiene Critico). Hasta 100 % es el critico de siempre: x2 con esa
-// probabilidad. Por encima de 100 % el critico se acumula ("super critico"): la parte entera es el multiplicador
-// GARANTIZADO y el resto es la probabilidad de aplicar el siguiente. Ej.: 550 % -> x5 garantizado + 50 % de x6;
-// 300 % -> x3 siempre. Entre 100 % y 200 % el multiplicador garantizado es x2 (minimo de un critico).
+// Multiplicador de critico (solo el Arquero tiene Critico). Cada 100 % es un critico ASEGURADO y cada critico suma +1
+// al multiplicador base x1 (el super critico no suma el x2 del critico base aparte). La parte decimal es la
+// probabilidad de un critico extra. Ej.: 40 % -> 40 % de x2; 100 % -> x2 siempre; 150 % -> x2 + 50 % de x3;
+// 550 % -> 5 criticos asegurados = x6 + 50 % de x7; 300 % -> x4 siempre.
 function critMultiplier(chance) {
   if (!(chance > 0)) return 1;
-  if (chance < 1) return Math.random() < chance ? 2 : 1;
-  if (chance < 2) return 2;
-  const whole = Math.floor(chance + 1e-6);
-  const frac = Math.max(0, chance - whole);
-  return whole + (frac > 0 && Math.random() < frac ? 1 : 0);
+  const whole = Math.floor(chance + 1e-6);          // criticos asegurados
+  const frac = Math.max(0, chance - whole);         // probabilidad de uno mas
+  return 1 + whole + (frac > 1e-6 && Math.random() < frac ? 1 : 0);
 }
 function critMark(mult) { return mult >= 3 ? "!!" : mult > 1 ? "!" : ""; }
 
 // Spawn a projectile heading at angle `ang`.
 // opts: {dmg, r, spd, pierce, big, color, kind, splashRadius, splashDamage, homing, bleed}
 // bleed = dano por tick del sangrado que el proyectil aplica a lo que golpea (0 = sin sangrado).
+// attackId = identificador del lanzamiento: las hachas del MISMO ataque no se disparan el golpe instantaneo entre si.
 // homing = velocidad maxima de giro (rad/s) para guiar el proyectil hacia el enemigo mas cercano.
 function spawnArrow(ang, opts) {
   const p = state.player;
@@ -68,7 +129,7 @@ function spawnArrow(ang, opts) {
     r: o.r || 5, dmg: (o.dmg || p.dmg) * critMult, life: o.life || 0.55, crit, critMult,
     pierce: o.pierce || 0, big: !!o.big, color: o.color || null,
     kind: o.kind || "arrow", splashRadius: o.splashRadius || 0, splashDamage: o.splashDamage || 0,
-    homing: o.homing || 0, target: null, bleed: o.bleed || 0,
+    homing: o.homing || 0, target: null, bleed: o.bleed || 0, attackId: o.attackId || 0,
     skill: dmgSkill, // ataque que lo disparo (para el resumen de dano)
   });
 }
@@ -222,12 +283,54 @@ function castArcaneMeteor() {
     impactLife: 0,
     damage: p.dmg, // base: se multiplica x100 (centro) a x2 (borde), caida exponencial al impactar, ver meteorHit
   });
-  floatText(p.x, p.y - 34, "¡METEORITO!", "#d7a5ff");
   Sound.bossdie();
+}
+
+
+// Barrido del Tajo: sigue al jugador y golpea una sola vez a cada objetivo cuando el filo (que gira en sentido
+// horario, o sea angulo creciente en pantalla) pasa por su cuerpo.
+function updateAxeSweep(effect, dt) {
+  const p = state.player;
+  effect.x = p.x; effect.y = p.y;
+  effect.life = Math.max(0, effect.life - dt);
+  const elapsed = effect.duration - effect.life;
+  const k = clamp(elapsed / effect.sweepTime, 0, 1);
+  const a0 = effect.prog, a1 = k;                          // velocidad angular constante
+  effect.prog = a1;
+  const s0 = a0 * effect.arc, s1 = a1 * effect.arc, TAU = Math.PI * 2;
+  const prevSkill = dmgSkill;
+  dmgSkill = 0; // el Tajo es el ataque basico del Barbaro
+  try {
+    const hits = t => {
+      if (t.hp <= 0 || effect.hit.has(t)) return false;
+      const dx = t.x - p.x, dy = t.y - p.y, d = Math.hypot(dx, dy);
+      if (d > effect.range + t.r) return false;
+      if (d <= t.r) return true;                           // el jugador esta dentro del cuerpo: lo golpea ya
+      let rel = (Math.atan2(dy, dx) - effect.start) % TAU; // desplazamiento horario desde el inicio del barrido
+      if (rel < 0) rel += TAU;
+      const w = Math.asin(Math.min(1, t.r / d));           // semiancho angular del cuerpo
+      for (let m = -1; m <= 1; m++) {
+        const lo = rel + m * TAU - w, hi = rel + m * TAU + w;
+        if (hi >= s0 && lo <= s1) return true;
+      }
+      return false;
+    };
+    for (const e of state.enemies.slice()) if (hits(e)) { effect.hit.add(e); damageWeaponEnemy(e, effect.damage); }
+    for (const b of state.bosses.slice()) if (hits(b)) { effect.hit.add(b); damageWeaponBoss(b, effect.damage); }
+  } finally { dmgSkill = prevSkill; }
+  // chispas en el filo mientras gira
+  if (k < 1) {
+    const ang = effect.start + s1;
+    for (let i = 0; i < 2; i++) {
+      const rr = effect.range * rand(0.55, 1);
+      state.particles.push({ x: p.x + Math.cos(ang) * rr, y: p.y + Math.sin(ang) * rr, vx: rand(-30, 30), vy: rand(-30, 30), life: rand(0.15, 0.3), r: rand(2, 4), color: "#ff9a7a" });
+    }
+  }
 }
 
 function updateWeaponEffects(dt) {
   for (const effect of state.weaponEffects) {
+    if (effect.kind === "axe-sweep") { updateAxeSweep(effect, dt); continue; }
     if (effect.kind !== "meteor") {
       effect.life = Math.max(0, effect.life - dt);
       continue;
@@ -252,6 +355,7 @@ function updateWeaponEffects(dt) {
 }
 
 function drawWeaponEffects() {
+  drawAxePreview();
   for (const effect of state.weaponEffects) {
     if (effect.kind === "meteor") {
       if (effect.phase === "falling") {
@@ -302,7 +406,32 @@ function drawWeaponEffects() {
     const alpha = clamp(effect.life / effect.duration, 0, 1);
     ctx.save();
     ctx.globalAlpha = alpha;
-    if (effect.kind === "axe-cone") {
+    if (effect.kind === "axe-sweep") {
+      const fade = clamp(effect.life / AXE_SWEEP_FADE, 0, 1);   // la estela se desvanece al final
+      const op = effect.opacity == null ? 1 : effect.opacity;   // baja con la Cadencia (ver axeSweepOpacity)
+      const lineOp = Math.max(0.25, op);                        // los bordes nunca desaparecen del todo
+      const start = effect.start, cur = start + effect.arc * effect.prog;
+      const full = effect.arc >= Math.PI * 2 - 0.001;
+      ctx.fillStyle = effect.color;
+      ctx.globalAlpha = fade * 0.3 * op;
+      ctx.beginPath();
+      if (!full) ctx.moveTo(effect.x, effect.y);
+      ctx.arc(effect.x, effect.y, effect.range, start, cur);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = fade * lineOp;
+      ctx.strokeStyle = "#ffd0bd"; ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(effect.x, effect.y, effect.range, start, cur);   // borde exterior de la estela
+      ctx.stroke();
+      if (effect.prog < 1) {                                   // filo que va barriendo
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 5;
+        ctx.shadowBlur = 14; ctx.shadowColor = effect.color;
+        ctx.beginPath();
+        ctx.moveTo(effect.x, effect.y);
+        ctx.lineTo(effect.x + Math.cos(cur) * effect.range, effect.y + Math.sin(cur) * effect.range);
+        ctx.stroke();
+      }
+    } else if (effect.kind === "axe-cone") {
       const start = effect.angle - effect.halfAngle;
       const end = effect.angle + effect.halfAngle;
       ctx.fillStyle = effect.color;
@@ -468,12 +597,10 @@ function useSkillInner(i) {
         const angle = base + (k - (count - 1) / 2) * (spread / (count - 1));
         spawnArrow(angle, { dmg: p.dmg * 0.75, spd: 640, life: 1.1, pierce: 1, color: "#ffd84d" }); // pierce 1: atraviesa al primer enemigo y se detiene en el segundo (o al alcanzar su alcance maximo)
       }
-      floatText(p.x, p.y - 34, "¡Abanico!", "#ffd84d");
       Sound.shoot();
     } else {
       spawnArrow(base, { dmg: p.dmg * 6 + 60, r: 16, spd: 760, pierce: 999, big: true, life: 0.8, color: "#ff7a2a" });
       state.shake = Math.max(state.shake, 12);
-      floatText(p.x, p.y - 34, "¡DEVASTACIÓN!", "#ff7a2a");
       Sound.bossdie();
     }
   } else if (weaponId === "staff") {
@@ -492,24 +619,28 @@ function useSkillInner(i) {
           color: "#d7a5ff", kind: "orb", splashRadius: 46, splashDamage: p.dmg * 0.35,
         });
       }
-      floatText(p.x, p.y - 34, "¡Salva arcana!", "#d7a5ff");
       Sound.levelup();
     } else {
       castArcaneMeteor();
     }
   } else {
     if (i === 0) {
-      const range = 112, halfAngle = AXE_CONE_HALF_ANGLE;
-      damageWeaponCone(base, range, halfAngle, p.dmg * 1.4);
-      showWeaponArea(p.x, p.y, 0, "#ff7659", 0.42, "axe-cone", base, range, halfAngle);
-      weaponBurst(p.x + p.aimX * 65, p.y + p.aimY * 65, 50, "#ff7659", 12);
-      Sound.hit();
+      // Barrido horario: arco centrado en la mira (de base - arco/2 a base + arco/2, avanzando en sentido horario).
+      // Arco y radio dependen del Dano (ver axeSweepArc / axeSweepRange). El dano se aplica mientras barre.
+      const arc = axeSweepArc(p.dmg), range = axeSweepRange(p.dmg);
+      const sweepTime = AXE_SWEEP_TIME;              // duracion fija
+      state.weaponEffects.push({
+        kind: "axe-sweep", x: p.x, y: p.y, radius: 0, color: "#ff7659",
+        duration: sweepTime + AXE_SWEEP_FADE, life: sweepTime + AXE_SWEEP_FADE, sweepTime,
+        start: base - arc / 2, arc, range, prog: 0, damage: p.dmg * 1.4, hit: new Set(), opacity: axeSweepOpacity(),
+      });
+      Sound.swing();
     } else if (i === 1) {
       // Hacha arrojadiza: 2 hachas giratorias (circulos de 50 px) lanzadas en abanico a +-0,5 rad
       // de la mira, mas una hacha central del doble de tamano (100 px) que viaja 450 px.
       // Recorren su trayecto atravesando enemigos; dano = 25 % del dano base, pero cada impacto
       // deja sangrado (50 % del dano del Barbaro cada 0,5 s durante 8 s, ver applyBleed).
-      const spd = 500, bleed = p.dmg * BLEED_TICK_RATIO;
+      const spd = 500, bleed = p.dmg * BLEED_TICK_RATIO, attackId = ++bleedAttackSeq; // las 3 hachas comparten attackId
       const throws = [
         { angle: base - AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
         { angle: base + AXE_THROW_ANGLE, diameter: 50,  travel: 300 },
@@ -518,17 +649,15 @@ function useSkillInner(i) {
       for (const t of throws) {
         spawnArrow(t.angle, {
           dmg: p.dmg * 0.25, r: t.diameter / 2, spd, life: t.travel / spd,
-          pierce: 999, color: "#ff7659", kind: "axe", bleed,
+          pierce: 999, color: "#ff7659", kind: "axe", bleed, attackId,
         });
       }
-      floatText(p.x, p.y - 38, "¡Hacha arrojadiza!", "#ff9d4d");
       Sound.shoot();
     } else {
       const radius = SEISMIC_RADIUS;
       damageWeaponRings(p.x, p.y, radius, SEISMIC_RINGS, p.dmg);
       showWeaponArea(p.x, p.y, radius, "#ff3a1a", 0.68, "axe-ring");
       weaponBurst(p.x, p.y, radius, "#ff3a1a", 48);
-      floatText(p.x, p.y - 44, "¡GOLPE SÍSMICO!", "#ff7659");
       Sound.bossdie();
     }
   }
@@ -866,20 +995,25 @@ function drawPlayer(p) {
 // inflige de golpe BLEED_REAPPLY_RATIO (50 %) del dano que le quedaba por sangrar (ticks restantes x
 // dano por tick del sangrado anterior) y despues empieza un sangrado nuevo completo. No se apila.
 // Ej.: con 4 s restantes (8 ticks de 50 % del dano) quedaban 400 % -> el golpe extra es 200 %.
+// Excepcion: si el sangrado que ya tiene viene del MISMO lanzamiento (attackId igual: las 3 hachas de una misma
+// Hacha arrojadiza), no hay golpe instantaneo ni renovacion; solo cuenta entre lanzamientos distintos.
 // La muerte por este dano instantaneo la resuelve quien llama (killEnemy / killBoss).
-function applyBleed(target, tickDmg, skill) {
+var bleedAttackSeq = 0; // contador de lanzamientos de Hacha arrojadiza (cada lanzamiento = un attackId)
+function applyBleed(target, tickDmg, skill, attackId) {
   if (!target || target.hp <= 0 || !(tickDmg > 0)) return;
   const b = target.bleed;
   if (b) {
+    // Otra hacha del MISMO lanzamiento: el sangrado ya esta aplicado por este ataque, sin golpe instantaneo ni renovacion.
+    if (attackId && b.attackId === attackId) return;
     const burst = b.ticks * b.dmg * BLEED_REAPPLY_RATIO;
     if (burst > 0) {
       logDamage(b.skill, target.hp, burst);
       target.hp -= burst;
       floatText(target.x + rand(-8, 8), target.y - target.r - 14, "-" + Math.round(burst) + " \u{1FA78}", "#ff3a4a");
     }
-    b.ticks = BLEED_TICKS; b.dmg = tickDmg; b.skill = skill;
+    b.ticks = BLEED_TICKS; b.dmg = tickDmg; b.skill = skill; b.attackId = attackId || 0;
   }
-  else target.bleed = { ticks: BLEED_TICKS, next: BLEED_TICK_INTERVAL, dmg: tickDmg, skill };
+  else target.bleed = { ticks: BLEED_TICKS, next: BLEED_TICK_INTERVAL, dmg: tickDmg, skill, attackId: attackId || 0 };
 }
 
 // Avanza el sangrado de todos los enemigos y del jefe. Los ticks no hacen critico.

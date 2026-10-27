@@ -38,6 +38,284 @@ var TP_CHARGE_TIME = 0.45; // segundos que brilla en blanco antes de desaparecer
 var TP_ARRIVE_TIME = 0.4;  // segundos que parpadea en blanco al reaparecer, sin hacer dano
 var TP_MIN_DIST = 100;    // si esta mas cerca que esto no se teletransporta (seria inutil)
 
+// ---------------------------------------------------------------- Trio dispersante (dorado = bomber, azul = caster)
+// Si 3 bichos dorados/azules (en cualquier mezcla) se juntan dentro de TRIO_RADIUS px, hacen un efecto con sonido
+// (TRIO_CHARGE s) y despues 2 de ellos recorren una circunferencia con el jugador como centro: uno 120 grados en sentido
+// horario y el otro 120 grados en sentido antihorario. El tercero se queda en su sitio, asi los tres quedan repartidos
+// a 120 grados alrededor del jugador (cada uno conserva su distancia). Luego tienen TRIO_COOLDOWN s sin volver a hacerlo.
+var TRIO_RADIUS = 50;        // px (centro a centro) para que cuenten como juntos
+var TRIO_CHARGE = 0.6;       // s de aviso (brillo + sonido) antes de dispersarse
+var TRIO_MOVE = 0.9;         // s que tardan en recorrer el arco
+var TRIO_ARC = Math.PI * 2 / 3; // 120 grados
+var TRIO_COOLDOWN = 8;       // s antes de que esos bichos puedan formar otro trio
+var TRIO_RETREAT = 250;      // px que retroceden (se alejan del jugador) mientras se dispersan
+var TRIO_MIN_R = 110;        // distancia minima al jugador durante el arco (evita que pasen encima de el)
+
+function isTrioType(e) { return e.type === "bomber" || e.type === "caster"; }
+
+function trioSnd(kind, x, y) {
+  const p = state.player;
+  const v = clamp(1 - Math.hypot(x - p.x, y - p.y) / 900, 0.35, 1);
+  Sound[kind](v);
+}
+
+function updateTrios(dt) {
+  const p = state.player;
+  if (!state.trios) state.trios = [];
+  const alive = (m) => m.hp > 0 && state.enemies.indexOf(m) >= 0;
+
+  // enfriamiento
+  for (const e of state.enemies) if (e.trioCd > 0) e.trioCd -= dt;
+
+  // ---- avanzar los trios activos ----
+  for (const g of state.trios) {
+    if (g.done) continue;
+    if (!g.members.every(alive)) {        // si muere alguno, se cancela
+      g.done = true;
+      for (const m of g.members) { m.trio = null; if (alive(m)) m.trioCd = 2; }
+      continue;
+    }
+    g.t += dt;
+    if (g.phase === "charge") {
+      if (Math.random() < dt * 40) {      // chispas que convergen al centro del trio
+        const m = g.members[(Math.random() * 3) | 0];
+        const a = rand(0, Math.PI * 2), d0 = rand(26, 44);
+        state.particles.push({ x: m.x + Math.cos(a) * d0, y: m.y + Math.sin(a) * d0, vx: -Math.cos(a) * 60, vy: -Math.sin(a) * 60, life: 0.3, r: rand(2, 4), color: Math.random() < 0.5 ? "#ffd24a" : "#7fb3ff" });
+      }
+      if (g.t >= TRIO_CHARGE) {
+        g.phase = "move"; g.t = 0;
+        // el que se queda (stay) fija el angulo de referencia; los otros van a +120 / -120 de el
+        const ref = g.members[0];
+        const aRef = Math.atan2(ref.y - p.y, ref.x - p.x);
+        g.members.forEach((m, i) => {
+          m.trio.a0 = Math.atan2(m.y - p.y, m.x - p.x);
+          m.trio.R = Math.max(Math.hypot(m.x - p.x, m.y - p.y), TRIO_MIN_R);
+          if (i === 0) { m.trio.sweep = 0; return; }
+          const TAU = Math.PI * 2;
+          const target = aRef + (m.trio.dir > 0 ? TRIO_ARC : -TRIO_ARC);
+          let d = (target - m.trio.a0) % TAU;               // diferencia en el sentido pedido
+          if (m.trio.dir > 0) { if (d < 0) d += TAU; } else { if (d > 0) d -= TAU; }
+          m.trio.sweep = d;
+        });
+        g.burst = 0.45;
+        state.shake = Math.max(state.shake, 6);
+        trioSnd("trioBurst", ref.x, ref.y);
+        floatText(ref.x, ref.y - 34, "\u00a1TR\u00cdO!", "#ffd24a");
+      }
+    } else { // move
+      const k = clamp(g.t / TRIO_MOVE, 0, 1);
+      const ease = k * k * (3 - 2 * k);
+      g.members.forEach(m => {
+        const a = m.trio.a0 + m.trio.sweep * ease;       // el que se queda (sweep 0) conserva su angulo
+        const R = m.trio.R + TRIO_RETREAT * ease;        // y todos retroceden TRIO_RETREAT px alejandose del jugador
+        m.x = clamp(p.x + Math.cos(a) * R, WALL + m.r, WORLD.w - WALL - m.r);
+        m.y = clamp(p.y + Math.sin(a) * R, WALL + m.r, WORLD.h - WALL - m.r);
+        state.particles.push({ x: m.x, y: m.y, vx: rand(-25, 25), vy: rand(-25, 25), life: 0.3, r: rand(3, 5), color: m.type === "bomber" ? "#ffd24a" : "#7fb3ff" });
+      });
+      if (g.burst > 0) g.burst -= dt;
+      if (k >= 1) {
+        g.done = true;
+        for (const m of g.members) { m.trio = null; m.trioCd = TRIO_COOLDOWN; }
+      }
+    }
+  }
+  state.trios = state.trios.filter(g => !g.done);
+
+  // ---- detectar trios nuevos ----
+  const cand = state.enemies.filter(e => isTrioType(e) && e.hp > 0 && !e.trio && !(e.trioCd > 0) && !(e.tpCharge > 0));
+  if (cand.length < 3) return;
+  const used = new Set();
+  const r2 = TRIO_RADIUS * TRIO_RADIUS;
+  for (const e of cand) {
+    if (used.has(e)) continue;
+    const near = [];
+    for (const o of cand) {
+      if (o === e || used.has(o)) continue;
+      const dx = o.x - e.x, dy = o.y - e.y, d2 = dx * dx + dy * dy;
+      if (d2 <= r2) near.push({ o, d2 });
+    }
+    if (near.length < 2) continue;
+    near.sort((a, b) => a.d2 - b.d2);
+    const members = [e, near[0].o, near[1].o];
+    const dirs = Math.random() < 0.5 ? [1, -1] : [-1, 1];   // quien va en horario / antihorario
+    members.forEach((m, i) => { used.add(m); m.trio = { dir: i === 0 ? 0 : dirs[i - 1], a0: 0, R: 0, sweep: 0 }; });
+    state.trios.push({ members, phase: "charge", t: 0, burst: 0, done: false });
+    trioSnd("trioCharge", e.x, e.y);
+  }
+}
+
+// Efectos del trio por debajo de los bichos: lineas de union durante la carga, onda y guia del arco al dispersarse
+function drawTrios() {
+  if (!state.trios || !state.trios.length) return;
+  const p = state.player;
+  for (const g of state.trios) {
+    if (g.done) continue;
+    const [A, B, C] = g.members;
+    ctx.save();
+    if (g.phase === "charge") {
+      const k = clamp(g.t / TRIO_CHARGE, 0, 1);
+      const pulse = 0.5 + 0.5 * Math.sin(g.t * 30);
+      ctx.lineWidth = 2 + k * 2;
+      ctx.strokeStyle = "rgba(255,230,140," + (0.35 + 0.4 * pulse) + ")";
+      ctx.shadowBlur = 14; ctx.shadowColor = "#ffd24a";
+      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.closePath(); ctx.stroke();
+      for (const m of g.members) {
+        ctx.strokeStyle = m.type === "bomber" ? "rgba(255,210,74,0.9)" : "rgba(127,179,255,0.9)";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 6 + (1 - k) * 16, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else {
+      // guia del arco que recorre cada uno (horario / antihorario) con el jugador de centro
+      const k = clamp(g.t / TRIO_MOVE, 0, 1);
+      ctx.globalAlpha = 0.55 * (1 - k * 0.6);
+      ctx.lineWidth = 3; ctx.setLineDash([10, 8]);
+      for (const m of g.members) {
+        if (!m.trio || !m.trio.sweep) continue;
+        ctx.strokeStyle = m.trio.dir > 0 ? "#ffd24a" : "#7fb3ff";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, m.trio.R + TRIO_RETREAT * k * k * (3 - 2 * k), m.trio.a0, m.trio.a0 + m.trio.sweep, m.trio.sweep < 0);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      // onda de choque en el punto de partida
+      if (g.burst > 0) {
+        const b = 1 - g.burst / 0.45;
+        ctx.globalAlpha = 1 - b;
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 4;
+        ctx.shadowBlur = 20; ctx.shadowColor = "#ffd24a";
+        ctx.beginPath(); ctx.arc(A.x, A.y, 20 + b * 110, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+// ---------------------------------------------------------------- Trio de jefes (Desafio final)
+// Misma habilidad que el trio dorado/azul, para los 3 jefes del Desafio final (constantes BOSS_TRIO_* en jefes.js).
+// Si los 3 estan juntos (todos a <= BOSS_TRIO_RADIUS entre si) avisan BOSS_TRIO_CHARGE s y despues 2 de ellos recorren
+// 120 grados con el jugador de centro (uno horario y otro antihorario); el tercero se queda. Quedan repartidos a 120
+// grados alrededor del jugador, cada uno conservando su distancia. Mientras dura (aviso + arco) no atacan ni avanzan.
+function updateBossTrio(dt) {
+  const p = state.player;
+  const alive = (m) => m.hp > 0 && state.bosses.indexOf(m) >= 0;
+  for (const b of state.bosses) if (b.trioCd > 0) b.trioCd -= dt;
+
+  const g = state.bossTrio;
+  if (g) {
+    if (!g.members.every(alive)) {          // si cae alguno, se cancela
+      for (const m of g.members) { m.trio = null; if (alive(m)) m.trioCd = 2; }
+      state.bossTrio = null;
+      return;
+    }
+    g.t += dt;
+    if (g.phase === "charge") {
+      if (Math.random() < dt * 60) {        // chispas del color de cada jefe que convergen hacia el
+        const m = g.members[(Math.random() * 3) | 0];
+        const a = rand(0, Math.PI * 2), d0 = rand(m.r + 8, m.r + 50);
+        state.particles.push({ x: m.x + Math.cos(a) * d0, y: m.y + Math.sin(a) * d0, vx: -Math.cos(a) * 90, vy: -Math.sin(a) * 90, life: 0.35, r: rand(3, 6), color: m.def.glow || "#ffd24a" });
+      }
+      if (g.t >= BOSS_TRIO_CHARGE) {
+        g.phase = "move"; g.t = 0;
+        const ref = g.members[0];           // el que se queda fija el angulo de referencia; los otros van a +120 / -120
+        const aRef = Math.atan2(ref.y - p.y, ref.x - p.x);
+        const TAU = Math.PI * 2;
+        g.members.forEach((m, i) => {
+          m.trio.a0 = Math.atan2(m.y - p.y, m.x - p.x);
+          m.trio.R = Math.max(Math.hypot(m.x - p.x, m.y - p.y), BOSS_TRIO_MIN_R);
+          if (i === 0) { m.trio.sweep = 0; return; }
+          const target = aRef + (m.trio.dir > 0 ? TRIO_ARC : -TRIO_ARC);
+          let d = (target - m.trio.a0) % TAU;               // diferencia en el sentido pedido
+          if (m.trio.dir > 0) { if (d < 0) d += TAU; } else { if (d > 0) d -= TAU; }
+          m.trio.sweep = d;
+        });
+        g.burst = 0.5;
+        state.shake = Math.max(state.shake, 12);
+        trioSnd("trioBurst", ref.x, ref.y);
+        floatText(ref.x, ref.y - ref.r - 20, "\u00a1TR\u00cdO ABISAL!", "#ffffff");
+      }
+    } else { // move
+      const k = clamp(g.t / BOSS_TRIO_MOVE, 0, 1);
+      const ease = k * k * (3 - 2 * k);
+      g.members.forEach(m => {
+        const a = m.trio.a0 + m.trio.sweep * ease;       // el que se queda (sweep 0) conserva su angulo
+        const R = m.trio.R + BOSS_TRIO_RETREAT * ease;   // y todos retroceden BOSS_TRIO_RETREAT px alejandose del jugador
+        m.x = clamp(p.x + Math.cos(a) * R, WALL + m.r, WORLD.w - WALL - m.r);
+        m.y = clamp(p.y + Math.sin(a) * R, WALL + m.r, WORLD.h - WALL - m.r);
+        state.particles.push({ x: m.x + rand(-m.r, m.r) * 0.6, y: m.y + rand(-m.r, m.r) * 0.6, vx: rand(-30, 30), vy: rand(-30, 30), life: 0.35, r: rand(4, 8), color: m.def.glow || "#ffd24a" });
+      });
+      if (g.burst > 0) g.burst -= dt;
+      if (k >= 1) {
+        for (const m of g.members) { m.trio = null; m.trioCd = BOSS_TRIO_COOLDOWN; }
+        state.bossTrio = null;
+      }
+    }
+    return;
+  }
+
+  // ---- detectar el trio: solo en el Desafio final, con los 3 jefes vivos, libres (sin saltar ni cargar rayo) y juntos ----
+  if (!state.finalChallenge || state.bosses.length !== BOSS_FINAL_COUNT) return;
+  const bs = state.bosses;
+  if (!bs.every(b => b.isFinal && b.hp > 0 && !(b.trioCd > 0) && !(b.leaping > 0) && !(b.beamLock > 0))) return;
+  const r2 = BOSS_TRIO_RADIUS * BOSS_TRIO_RADIUS;
+  for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
+    if (dist2(bs[i].x, bs[i].y, bs[j].x, bs[j].y) > r2) return;
+  }
+  const members = bs.slice();
+  const si = (Math.random() * members.length) | 0;           // cual se queda en su sitio: al azar
+  const t0 = members[0]; members[0] = members[si]; members[si] = t0;
+  const dirs = Math.random() < 0.5 ? [1, -1] : [-1, 1];      // quien va en horario / antihorario
+  members.forEach((m, i) => { m.trio = { dir: i === 0 ? 0 : dirs[i - 1], a0: 0, R: 0, sweep: 0 }; });
+  state.bossTrio = { members, phase: "charge", t: 0, burst: 0 };
+  trioSnd("trioCharge", members[0].x, members[0].y);
+}
+
+// Efectos del trio de jefes bajo los sprites: union y auras durante el aviso, y arcos + onda al moverse
+function drawBossTrio() {
+  const g = state.bossTrio;
+  if (!g) return;
+  const p = state.player;
+  const [A, B, C] = g.members;
+  ctx.save();
+  if (g.phase === "charge") {
+    const k = clamp(g.t / BOSS_TRIO_CHARGE, 0, 1);
+    const pulse = 0.5 + 0.5 * Math.sin(g.t * 30);
+    ctx.lineWidth = 3 + k * 3;
+    ctx.strokeStyle = "rgba(255,255,255," + (0.3 + 0.4 * pulse) + ")";
+    ctx.shadowBlur = 18; ctx.shadowColor = "#ffffff";
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.closePath(); ctx.stroke();
+    for (const m of g.members) {
+      const col = m.def.glow || "#ffd24a";
+      ctx.strokeStyle = col; ctx.shadowColor = col;
+      ctx.globalAlpha = 0.6 + 0.4 * pulse;
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.r + 12 + (1 - k) * 34, 0, Math.PI * 2); ctx.stroke();
+    }
+  } else {
+    // guia del arco que recorre cada uno (horario / antihorario) con el jugador de centro
+    const k = clamp(g.t / BOSS_TRIO_MOVE, 0, 1);
+    ctx.globalAlpha = 0.6 * (1 - k * 0.6);
+    ctx.lineWidth = 5; ctx.setLineDash([14, 10]);
+    for (const m of g.members) {
+      if (!m.trio || !m.trio.sweep) continue;
+      const col = m.def.glow || "#ffd24a";
+      ctx.strokeStyle = col; ctx.shadowBlur = 16; ctx.shadowColor = col;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, m.trio.R + BOSS_TRIO_RETREAT * k * k * (3 - 2 * k), m.trio.a0, m.trio.a0 + m.trio.sweep, m.trio.sweep < 0);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // onda de choque en el jefe que se queda
+    if (g.burst > 0) {
+      const b = 1 - g.burst / 0.5;
+      ctx.globalAlpha = 1 - b;
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 5;
+      ctx.shadowBlur = 24; ctx.shadowColor = A.def.glow || "#ffd24a";
+      ctx.beginPath(); ctx.arc(A.x, A.y, A.r + b * 200, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 function separateEnemies() {
   const list = state.enemies;
   const n = list.length;
@@ -173,13 +451,13 @@ function spawnEnemy() {
   state.enemies.push(e);
 }
 
-// Desafio final: tras la pausa de la oleada BOSS_FINAL_WAVE aparecen BOSS_FINAL_COUNT jefes al azar,
+// Desafio final: tras la pausa de la oleada BOSS_FINAL_WAVE aparecen los BOSS_FINAL_COUNT jefes de BOSS_FINAL_ROSTER,
 // todos a la vez y sin enemigos normales. Se gana al derrotarlos a todos.
 function startFinalChallenge() {
   const defs = pickFinalBosses();
   state.finalChallenge = true;
   state.phase = "fighting";
-  state.enemies = []; state.bossBullets = []; state.aoes = [];
+  state.enemies = []; state.bossBullets = []; state.aoes = []; state.beams = [];
   state.toSpawn = 0; state.alive = 0; state.waveQuota = 0; state.waveTotal = 0; state.batchSize = 1; state.batchesSpawned = 1;
   state.finalBossList = [];
   const a0 = rand(0, Math.PI * 2);
@@ -199,13 +477,14 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
 
   const hasLeap  = w >= 20; // Oleada 20+: salto aplastante
   const hasBombs = w >= 30; // Oleada 30+: lluvia de AoEs multiples
+  const hasBeam  = w >= 30; // Oleada 30+: rayo en linea recta (aviso + disparo)
 
   const isFinal = !!forcedDef;
   const def = forcedDef || bossForWave(w);
   const bossHp = isFinal ? BOSS_FINAL_HP : def.hp;
   let title = "\u00a1" + def.name + "<br>ha despertado!";
-  if (isFinal) title = "\u00a1DESAFÍO FINAL " + finalIdx + "/" + finalTotal + "!<br><span style='color:#ff3a1a;font-size:20px'>" + def.name + " \u2014 300.000 de vida</span>";
-  else if (hasLeap && hasBombs) title = "\u00a1" + def.name + "<br><span style='color:#ff9d4d;font-size:18px'>\u2014 Salto y lluvia de fuego \u2014</span>";
+  if (isFinal) title = "\u00a1DESAFÍO FINAL " + finalIdx + "/" + finalTotal + "!<br><span style='color:" + (def.glow || "#ff3a1a") + ";font-size:20px'>" + def.name + " \u2014 300.000 de vida</span>";
+  else if (hasLeap && hasBombs) title = "\u00a1" + def.name + "<br><span style='color:#ff9d4d;font-size:18px'>\u2014 Salto, lluvia de fuego y rayo \u2014</span>";
   else if (hasLeap)             title = "\u00a1" + def.name + "<br><span style='color:#6affa0;font-size:18px'>\u2014 Salto aplastante \u2014</span>";
 
   const boss = {
@@ -215,7 +494,7 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
     name: def.name,
     speed: 85 + Math.min(40, w),
     hp: bossHp, maxHp: bossHp, // vida propia de cada jefe (ver BOSS_ROSTER en jefes.js)
-    dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT,
+    dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT * (isFinal ? BOSS_FINAL_DMG_MULT : (BOSS_DMG_MULT[def.id] || 1)),
     xp: 600 + w * 20, flash: 0,
     color: (hasLeap && hasBombs) ? "#6a0a3a" : (hasBombs ? "#7a1a08" : "#8a0f2a"),
     shootCd: 2, phase: 0,
@@ -224,6 +503,11 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
     leaping: 0, lvx: 0, lvy: 0,
     hasBombs,
     bombRainCd: hasBombs ? rand(6.0, 9.0) : Infinity,
+    hasBeam,
+    beamCd: hasBeam ? rand(4.0, 6.0) : Infinity,
+    beamLock: 0,
+    trio: null,                         // estado del trio de jefes (solo Desafio final)
+    trioCd: isFinal ? 4 : Infinity,     // enfriamiento del trio
   };
   state.bosses.push(boss);
   if (isFinal) state.finalBossList.push(boss);
@@ -261,6 +545,7 @@ function killBoss(boss) {
   if (boss.dead) return;
   boss.dead = true;
   state.bosses = state.bosses.filter(b => b !== boss);
+  state.beams = state.beams.filter(z => z.owner !== boss);
   state.boss = state.bosses[0] || null;
   state.bossDefeated = true;
   state.bossesDown++;
@@ -289,7 +574,7 @@ function killBoss(boss) {
   if (boss.isFinal && state.bosses.length === 0) {
     state.victory = true;
     state.victoryDelay = 3;
-    state.enemies = []; state.bossBullets = []; state.aoes = []; state.toSpawn = 0; state.alive = 0;
+    state.enemies = []; state.bossBullets = []; state.aoes = []; state.beams = []; state.toSpawn = 0; state.alive = 0;
   }
 }
 
@@ -385,6 +670,33 @@ function drawAoe(z) {
   ctx.restore();
 }
 
+// Rayo del jefe: durante el aviso se ve el rectangulo por donde saldra y se va rellenando; al dispararse brilla.
+function drawBeam(z) {
+  ctx.save();
+  ctx.translate(z.x, z.y); ctx.rotate(z.ang);
+  const L = z.len, W = z.w;
+  if (z.warn > 0) {
+    const prog = clamp(1 - z.warn / z.warnMax, 0, 1);
+    const t = performance.now() / 90;
+    ctx.fillStyle = "rgba(255,40,40,0.10)";
+    ctx.fillRect(0, -W / 2, L, W);
+    ctx.fillStyle = "rgba(255,60,40," + (0.12 + prog * 0.28) + ")";
+    ctx.fillRect(0, -W * prog / 2, L, W * prog);
+    ctx.strokeStyle = "rgba(255,80,50," + (0.55 + Math.sin(t) * 0.3) + ")";
+    ctx.lineWidth = 2; ctx.setLineDash([14, 8]);
+    ctx.strokeRect(0, -W / 2, L, W);
+  } else {
+    ctx.globalAlpha = clamp(z.active / z.activeMax, 0, 1);
+    ctx.shadowBlur = 30; ctx.shadowColor = "#ff4a2a";
+    ctx.fillStyle = "#ff4a2a";
+    ctx.fillRect(0, -W / 2, L, W);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#fff4d0";
+    ctx.fillRect(0, -W * 0.2, L, W * 0.4);
+  }
+  ctx.restore();
+}
+
 function drawBoss(b) {
   const t = performance.now() / 300;
   ctx.save();
@@ -418,7 +730,7 @@ function drawBoss(b) {
   const size = BOSS_SPRITE_UNITS * (b.r / BOSS_BODY_UNITS);
   const pulse = 1 + Math.sin(t * 2) * 0.025 + (b.leaping > 0 ? 0.08 : 0);
   ctx.shadowBlur = 36 + (b.hasBombs ? 14 : 0);
-  ctx.shadowColor = b.hasBombs ? "#ff6a00" : (b.hasLeap ? "#6affa0" : "#ff2a1a");
+  ctx.shadowColor = (def && def.glow) || (b.hasBombs ? "#ff6a00" : (b.hasLeap ? "#6affa0" : "#ff2a1a"));
   if (spr) {
     ctx.drawImage(spr, b.x - size * pulse / 2, b.y - size * pulse / 2, size * pulse, size * pulse);
   } else { // el sprite aun no cargo: circulo de respaldo
@@ -426,31 +738,6 @@ function drawBoss(b) {
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
-
-  // Indicador textual de habilidades activas
-  if (b.hasLeap || b.hasBombs) {
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    const tagX = b.x - 38, tagY = b.y + b.r + 6, tagW = 76, tagH = 15, tagR = 4;
-    ctx.beginPath();
-    ctx.moveTo(tagX + tagR, tagY);
-    ctx.lineTo(tagX + tagW - tagR, tagY);
-    ctx.quadraticCurveTo(tagX + tagW, tagY, tagX + tagW, tagY + tagR);
-    ctx.lineTo(tagX + tagW, tagY + tagH - tagR);
-    ctx.quadraticCurveTo(tagX + tagW, tagY + tagH, tagX + tagW - tagR, tagY + tagH);
-    ctx.lineTo(tagX + tagR, tagY + tagH);
-    ctx.quadraticCurveTo(tagX, tagY + tagH, tagX, tagY + tagH - tagR);
-    ctx.lineTo(tagX, tagY + tagR);
-    ctx.quadraticCurveTo(tagX, tagY, tagX + tagR, tagY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#fff0c2";
-    ctx.font = "bold 9px sans-serif"; ctx.textAlign = "center";
-    const tags = [];
-    if (b.hasLeap)  tags.push("⚡Salto");
-    if (b.hasBombs) tags.push("🔥Lluvia");
-    ctx.fillText(tags.join("  "), b.x, b.y + b.r + 17);
-    ctx.textAlign = "left";
-  }
 }
 
 // ---------------------------------------------------------------- Duende del Tesoro (Goblin de Diablo)

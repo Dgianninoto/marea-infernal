@@ -60,6 +60,7 @@ var Sound = (() => {
     toggle: () => { enabled = !enabled; if (enabled) ensure(); return enabled; },
     get enabled() { return enabled; },
     shoot: () => tone(680, 0.08, "square", 0.05, 240),
+    swing: () => { tone(260, 0.2, "sawtooth", 0.06, 560); noise(0.14, 0.05); },
     hit: () => tone(320, 0.05, "triangle", 0.06, 180),
     kill: () => { tone(160, 0.18, "sawtooth", 0.1, 50); noise(0.12, 0.08); },
     loot: (mult) => { const base = 520 + Math.min(mult, 20) * 40; tone(base, 0.12, "sine", 0.12, base * 1.5); },
@@ -101,6 +102,18 @@ var Sound = (() => {
           tone(f * 2, 0.05, "triangle", 0.022 * v, f * 1.5);
         }, i * 95);
       }
+    },
+    // Trio dorado/azul: carga = acorde brillante ascendente; estallido = barrido grave + destello agudo
+    trioCharge: (vol) => {
+      const v = vol == null ? 1 : vol;
+      [392, 494, 587].forEach((f, i) => setTimeout(() => tone(f, 0.3, "triangle", 0.07 * v, f * 1.5), i * 120));
+      tone(220, 0.6, "sine", 0.06 * v, 660);
+    },
+    trioBurst: (vol) => {
+      const v = vol == null ? 1 : vol;
+      tone(700, 0.45, "sawtooth", 0.09 * v, 120);
+      tone(1175, 0.25, "sine", 0.08 * v, 1760);
+      noise(0.35, 0.08 * v);
     },
     // Portal de fantasia al abrirse: barrido ascendente brillante + arpegio de campanillas
     goblinPortal: (vol) => {
@@ -164,6 +177,12 @@ var rand = (a, b) => a + Math.random() * (b - a);
 var randInt = (a, b) => Math.floor(rand(a, b + 1));
 var clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 var dist2 = (ax, ay, bx, by) => { const dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; };
+// distancia^2 de un punto (px,py) al segmento (ax,ay)-(bx,by): colision del rayo del jefe
+var distSeg2 = (px, py, ax, ay, bx, by) => {
+  const abx = bx - ax, aby = by - ay, l2 = abx * abx + aby * aby || 1;
+  const t = clamp(((px - ax) * abx + (py - ay) * aby) / l2, 0, 1);
+  return dist2(px, py, ax + abx * t, ay + aby * t);
+};
 var pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
 // ---------------------------------------------------------------- World
@@ -358,7 +377,7 @@ var WEAPONS = {
     // weapon piece stats: Bloqueo (base 10%, +1% per point) replaces Crítico for the axe.
     // Max with all 25 points in Bloqueo at Único: (10 + 25 * 1) * 5 = 175%
     weaponStats: [
-      { key: "dmg",   base: 8,  step: 2.5 }, // Daño por punto de cenizas del Barbaro: 2.5
+      { key: "dmg",   base: 8,  step: 3 }, // Daño por punto de cenizas del Barbaro: 3
       { key: "block", base: 10, step: 1 } ],
     skills: [
       { name: "Tajo", icon: "🪓", cooldown: 0.625 },
@@ -607,6 +626,7 @@ function newState(weaponId) {
     bullets: [],
     bossBullets: [],   // boss + caster projectiles that damage the player
     aoes: [],          // telegraphed ground areas that damage the player
+    beams: [],         // rayos en linea recta de los jefes (aviso -> disparo)
     weaponEffects: [],
     enemies: [],
     orbs: [],
@@ -971,7 +991,9 @@ function update(dt) {
     // ---- special-enemy behavior ----
     // handledMove = true when the type moved on its own and the plain chase is skipped.
     let handledMove = false;
-    if (e.type === "goblin") {
+    if (e.trio) {
+      handledMove = true; // trio dorado/azul: lo mueve updateTrios
+    } else if (e.type === "goblin") {
       if (typeof updateGoblin === "function") updateGoblin(e, dt, p, dx, dy, d);
       handledMove = true;
     } else if (e.type === "leaper") {
@@ -1057,12 +1079,17 @@ function update(dt) {
     }
   }
 
+  // trio dorado/azul (dispersion en circunferencia alrededor del jugador)
+  updateTrios(dt);
+  updateBossTrio(dt); // trio de jefes (Desafio final)
+
   // enemies cannot overlap each other (or the boss)
   separateEnemies();
 
   // boss
   for (const boss of state.bosses.slice()) {
     if (boss.flash > 0) boss.flash -= dt;
+    if (boss.beamLock > 0) boss.beamLock -= dt; // mientras carga/dispara el rayo el jefe se queda quieto
     const bdx = p.x - boss.x, bdy = p.y - boss.y;
     const bd = Math.hypot(bdx, bdy) || 1;
 
@@ -1091,7 +1118,7 @@ function update(dt) {
         }
       } else {
         boss.leapCd -= dt;
-        if (boss.leapCd <= 0 && bd > 140 && bd < 560 && boss.shootCd > 0.5) {
+        if (boss.leapCd <= 0 && bd > 140 && bd < 560 && boss.shootCd > 0.5 && !(boss.beamLock > 0) && !boss.trio) {
           boss.leaping = 0.42;
           const lspd = 820;
           boss.lvx = (bdx / bd) * lspd;
@@ -1103,7 +1130,7 @@ function update(dt) {
     }
 
     // Movimiento normal solo cuando no está saltando
-    if (!boss.hasLeap || boss.leaping <= 0) {
+    if ((!boss.hasLeap || boss.leaping <= 0) && !(boss.beamLock > 0) && !boss.trio) {
       if (bd > 180) { boss.x += (bdx / bd) * boss.speed * dt; boss.y += (bdy / bd) * boss.speed * dt; }
       boss.x = clamp(boss.x, WALL + boss.r, WORLD.w - WALL - boss.r);
       boss.y = clamp(boss.y, WALL + boss.r, WORLD.h - WALL - boss.r);
@@ -1120,7 +1147,7 @@ function update(dt) {
 
     // Skill 1 (siempre): abanico de proyectiles
     boss.shootCd -= dt;
-    if (boss.shootCd <= 0 && (!boss.hasLeap || boss.leaping <= 0)) {
+    if (boss.shootCd <= 0 && (!boss.hasLeap || boss.leaping <= 0) && !boss.trio) {
       boss.shootCd = 2.2;
       const base = Math.atan2(bdy, bdx);
       const n = 7;
@@ -1134,7 +1161,7 @@ function update(dt) {
     // ---- Skill 3: Lluvia de bombas en patron circular (wave 30+) ----
     if (boss.hasBombs) {
       boss.bombRainCd -= dt;
-      if (boss.bombRainCd <= 0 && (!boss.hasLeap || boss.leaping <= 0)) {
+      if (boss.bombRainCd <= 0 && (!boss.hasLeap || boss.leaping <= 0) && !boss.trio) {
         boss.bombRainCd = rand(7.0, 11.0);
         floatText(boss.x, boss.y - boss.r - 14, "¡LLUVIA DE FUEGO!", "#ff9d4d");
         const bombCount = 5 + Math.floor(state.wave / 10);
@@ -1145,6 +1172,24 @@ function update(dt) {
           const by = clamp(p.y + Math.sin(a) * dist, WALL + 50, WORLD.h - WALL - 50);
           state.aoes.push({ x: bx, y: by, r: 72, warn: 1.0 + i * 0.14, active: 0, dmg: boss.dmg * 1.2, hit: false });
         }
+        Sound.boss();
+      }
+    }
+
+    // ---- Skill 4: Rayo en linea recta (wave 30+) ----
+    // Primero marca en el suelo por donde va a salir (la direccion se fija al lanzarlo: se puede esquivar) y luego dispara.
+    if (boss.hasBeam) {
+      boss.beamCd -= dt;
+      if (boss.beamCd <= 0 && boss.leaping <= 0 && !boss.trio && bd < BOSS_BEAM_LEN + 140) {
+        boss.beamCd = rand(6.5, 9.5);
+        boss.beamLock = BOSS_BEAM_WARN + BOSS_BEAM_ACTIVE;
+        state.beams.push({
+          owner: boss, x: boss.x, y: boss.y, ang: Math.atan2(bdy, bdx),
+          len: BOSS_BEAM_LEN, w: BOSS_BEAM_W,
+          warn: BOSS_BEAM_WARN, warnMax: BOSS_BEAM_WARN, active: 0, activeMax: BOSS_BEAM_ACTIVE,
+          dmg: boss.dmg * BOSS_BEAM_DMG_MULT, hit: false,
+        });
+        floatText(boss.x, boss.y - boss.r - 14, "¡RAYO!", "#ff4a2a");
         Sound.boss();
       }
     }
@@ -1196,6 +1241,31 @@ function update(dt) {
   }
   state.aoes = state.aoes.filter(z => z.warn > 0 || z.active > 0);
 
+  // rayos de jefe: aviso en el suelo, luego disparo en linea recta que dana al jugador si lo toca
+  for (const z of state.beams) {
+    const ex = z.x + Math.cos(z.ang) * z.len, ey = z.y + Math.sin(z.ang) * z.len;
+    if (z.warn > 0) {
+      z.warn -= dt;
+      if (z.warn <= 0) {
+        z.active = z.activeMax;
+        state.shake = Math.max(state.shake, 10);
+        Sound.boss();
+        for (let i = 0; i < 24; i++) {
+          const t = Math.random();
+          state.particles.push({ x: z.x + (ex - z.x) * t, y: z.y + (ey - z.y) * t, vx: rand(-90, 90), vy: rand(-90, 90), life: rand(0.25, 0.5), r: rand(2, 5), color: pick(["#ff3a1a", "#ff9d4d", "#ffffff"]) });
+        }
+      }
+    } else if (z.active > 0) {
+      z.active -= dt;
+      if (!z.hit && p.inv <= 0 && !debugGod && distSeg2(p.x, p.y, z.x, z.y, ex, ey) < (z.w / 2 + p.r) ** 2) {
+        z.hit = true; const taken = blockDamage(z.dmg); p.hp -= taken; p.inv = 0.6; state.shake = Math.max(state.shake, 12); Sound.hurt();
+        floatText(p.x, p.y - 26, "-" + Math.round(taken), "#ff5050");
+        if (p.hp <= 0) { endGame(); return; }
+      }
+    }
+  }
+  state.beams = state.beams.filter(z => z.warn > 0 || z.active > 0);
+
   // bullet vs enemy  (pierce>0 lets the ultimate arrow pass through several)
   for (const b of state.bullets) {
     if (b.life <= 0) continue;
@@ -1212,7 +1282,7 @@ function update(dt) {
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
         }
         if (e.type === "goblin" && typeof onGoblinHit === "function") onGoblinHit(e);
-        if (b.bleed > 0 && e.hp > 0) applyBleed(e, b.bleed, b.skill);
+        if (b.bleed > 0 && e.hp > 0) applyBleed(e, b.bleed, b.skill, b.attackId);
         if (e.hp <= 0) killEnemy(e);
         if (b.splashRadius > 0) {
           dmgSkill = b.skill; damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, e); dmgSkill = -1; // salpicadura: cuenta para el ataque del proyectil
@@ -1233,7 +1303,7 @@ function update(dt) {
           const a = Math.atan2(b.vy, b.vx) + rand(-0.8, 0.8), s = rand(40, 140);
           state.particles.push({ x: b.x, y: b.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.3, r: rand(1, 3), color: "#ffcf80" });
         }
-        if (b.bleed > 0 && boss.hp > 0) applyBleed(boss, b.bleed, b.skill);
+        if (b.bleed > 0 && boss.hp > 0) applyBleed(boss, b.bleed, b.skill, b.attackId);
         if (boss.hp <= 0) killBoss(boss);
         if (b.splashRadius > 0) {
           dmgSkill = b.skill; damageWeaponArea(b.x, b.y, b.splashRadius, b.splashDamage, boss); dmgSkill = -1;
@@ -1332,6 +1402,7 @@ function draw() {
 
   // ground AoE zones (drawn on the floor, under entities)
   for (const z of state.aoes) drawAoe(z);
+  for (const z of state.beams) drawBeam(z);
 
   // chests
   for (const c of state.chests) drawChest(c);
@@ -1348,6 +1419,8 @@ function draw() {
   ctx.globalAlpha = 1;
 
   // enemies
+  drawTrios();
+  drawBossTrio();
   for (const e of state.enemies) { drawEnemy(e); if (e.bleed) drawBleedPulse(e); }
 
   // boss
@@ -1638,6 +1711,7 @@ function debugNextWave() {
   state.enemies = [];
   state.bossBullets = [];
   state.aoes = [];
+  state.beams = [];
   state.boss = null; state.bosses = []; state.finalChallenge = false; state.finalBossList = [];
   bossWrap.style.display = "none";
   state.toSpawn = 0;
@@ -1655,6 +1729,9 @@ for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
   el("dbg-god").classList.toggle("on", debugGod);
 }], ["dbg-goblin", () => {
   if (typeof spawnGoblinNearPlayer === "function") spawnGoblinNearPlayer();
+}], ["dbg-level", () => {
+  if (!state || !state.running || state.over) return;
+  gainXp(state.player.xpNext - state.player.xp); // justo la XP que falta: sube exactamente 1 nivel
 }]]) {
   const b = el(id);
   b.addEventListener("mousedown", e => e.preventDefault()); // keep focus off the button so Space/E don't trigger it
