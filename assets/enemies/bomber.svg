@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <title>Bombardero de azufre</title>
+  <g stroke="#2c1d17" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M33 68L27 82L42 82L46 69M54 69L57 82L72 82L64 68" fill="#825321"/>
+    <path d="M24 42L13 49L15 65L29 61M72 42L83 49L81 65L67 61" fill="#b98028"/>
+    <path d="M31 29L24 18L40 24M56 24L72 18L65 29" fill="#eac878"/>
+    <path d="M48 26C19 24 16 50 25 66Q48 87 71 66C80 50 77 24 48 26Z" fill="#c08b2e"/>
+    <path d="M30 38Q48 26 66 38" stroke="#f4d476"/>
+    <path d="M34 41L43 45M62 41L53 45" stroke="#fff0ab"/>
+    <path d="M36 60L42 50L54 50L61 60L54 72L42 72Z" fill="#553323"/>
+    <path d="M48 53L43 61L48 68L54 61Z" fill="#ffdc69" stroke="#fa9b32" stroke-width="2"/>
+    <path d="M48 26L48 18L55 13" stroke="#e4c79b"/>
+    <path d="M55 6L57 11L64 12L58 16L58 21L53 17L48 18L51 12Z" fill="#ffdf79" stroke="#b36325" stroke-width="2"/>
+  </g>
+</svg>

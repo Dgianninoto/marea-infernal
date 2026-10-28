@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+<title>Maga · Hechicera de ascuas</title>
+<g transform="translate(48 44) scale(1.7)" stroke="#191423" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-6-17C-14-11-14 0-11 11C-8 5-6-3-4-12ZM6-17C14-11 14 0 11 11C8 5 6-3 4-12Z" fill="#a04d48"/>
+<path d="M0-20C6-20 10-14 10-8C10-3 6 0 6 4C6 10 14 14 15 20Q0 24-15 20C-14 14-6 10-6 4C-6 0-10-3-10-8C-10-14-6-20 0-20Z" fill="#713344"/>
+<path d="M0-20C6-20 10-14 10-8C10-3 6 0 6 4C6 10 14 14 15 20M0-20C-6-20-10-14-10-8C-10-3-6 0-6 4C-6 10-14 14-15 20" stroke="#eeaa7b" stroke-width=".8"/>
+<path d="M0 7L-5 21Q0 23 5 21Z" fill="#351d30" stroke-width=".6"/>
+<path d="M-7 10L-11 19M7 10L11 19" stroke="#eeaa7b" stroke-width=".6"/>
+<path d="M-9-4L-6 0M9-4L6 0M-5-4L-3 0M5-4L3 0" stroke="#eeaa7b" stroke-width=".7"/>
+<path d="M-6.4 3.2Q0 5.6 6.4 3.2" stroke="#e7b97c" stroke-width="1.5"/>
+<path d="M0 2L-2 4.4L0 7L2 4.4Z" fill="#ffda9c" stroke="#eeaa7b" stroke-width=".6"/>
+<ellipse cx="0" cy="-11.5" rx="5.3" ry="6" fill="#351d30" stroke-width=".9"/>
+<path d="M-6-12Q-5-19 0-19Q6-18 6-11L2-15L0-13L-2-15Z" fill="#a04d48" stroke-width=".7"/>
+<path d="M-3.5-12.6L-4.5-13.5M3.5-12.6L4.5-13.5" stroke="#eeaa7b" stroke-width=".7"/>
+<ellipse cx="-2.1" cy="-12" rx="1.25" ry=".95" fill="#ffda9c" stroke="none"/>
+<ellipse cx="2.1" cy="-12" rx="1.25" ry=".95" fill="#ffda9c" stroke="none"/>
+<path d="M-1.2-8.6Q0-7.8 1.2-8.6" stroke="#eeaa7b" stroke-width=".7"/>
+<path d="M-4-18L-2-20L0-18L2-20L4-18" stroke="#e7b97c" stroke-width="1"/><path d="M-10 18L-8 15L-8 19M10 18L8 15L8 19" stroke="#eeaa7b" stroke-width=".8"/>
+</g></svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <title>Saltador de ciénaga</title>
+  <g stroke="#10251e" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M34 45Q13 38 10 57L24 68L12 81L30 79L43 62M62 45Q83 38 86 57L72 68L84 81L66 79L53 62" fill="#327354"/>
+    <path d="M30 46L23 20L40 32M56 32L73 20L66 46" fill="#70c187"/>
+    <path d="M29 40Q48 21 67 40L64 61L54 76L42 76L32 61Z" fill="#42976b"/>
+    <path d="M31 55L23 61L31 68M65 55L73 61L65 68" stroke="#9cdd9a"/>
+    <path d="M34 41L43 45L35 49ZM62 41L53 45L61 49Z" fill="#edff99" stroke-width="2"/>
+    <path d="M38 57Q48 63 58 57"/>
+    <path d="M48 34L44 39L48 44L52 39Z" fill="#bcf3a1" stroke-width="2"/>
+    <path d="M45 65L48 69L51 65" stroke="#9cdd9a" stroke-width="2"/>
+    <path d="M16 79L13 85M23 79L22 85M73 79L74 85M80 79L83 85" stroke="#e0e9ba" stroke-width="3"/>
+  </g>
+</svg>

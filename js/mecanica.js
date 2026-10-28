@@ -198,6 +198,12 @@ var THEMES = [
   { id: "blood", name: "Sangre y obsidiana",  base: "#120a0e", wall: "#241419", merlon: "#311b22", edge: "rgba(150,40,55,0.30)",  vignette: "rgba(35,8,14,0.5)" },
 ];
 var groundPatterns = []; // one CanvasPattern per theme, same index as THEMES
+// Exclusive finale scenery; kept outside THEMES so regular waves still rotate through three arenas.
+var FINAL_THEME = { id: "umbral", name: "Bastión del umbral", base: "#151323", wall: "#302b42", merlon: "#494058", edge: "rgba(219,185,117,0.45)", vignette: "rgba(24,10,50,0.5)" };
+var finalGroundPattern;
+function activeScenario() {
+  return state && state.finalChallenge ? FINAL_THEME : THEMES[state ? state.theme % THEMES.length : 0];
+}
 
 function buildTile(theme) {
   const TILE = 64, SUP = TILE * 4;
@@ -226,6 +232,17 @@ function buildTile(theme) {
     // dark fractures plus a few glowing cyan ice veins
     for (let i = 0; i < 22; i++) texCrack(g, SUP, "rgba(5,20,40,0.5)", 1);
     for (let i = 0; i < 6; i++) texCrack(g, SUP, "rgba(130,225,255,0.45)", 1.5);
+  } else if (theme.id === "umbral") {
+    // Quiet violet paving and brass seams, distinct from ice and volcanic glass.
+    texSpeckle(g, SUP, 500, "rgba(166,147,195,", "rgba(0,0,0,");
+    for (let y = 0; y < SUP; y += 64) {
+      for (let x = 0; x < SUP; x += 64) {
+        g.strokeStyle = "rgba(183,154,103,0.18)"; g.lineWidth = 1;
+        g.strokeRect(x + 5, y + 5, 54, 54);
+        g.fillStyle = "rgba(218,192,138,0.25)";
+        g.fillRect(x + 30, y + 30, 4, 4);
+      }
+    }
   } else {
     // blood & obsidian: dark volcanic glass with sparse, dried-blood accents
     texSpeckle(g, SUP, 600, "rgba(60,20,24,", "rgba(90,30,36,");
@@ -298,7 +315,10 @@ function texGrout(g, SUP, TILE) {
     g.beginPath(); g.moveTo(0, t); g.lineTo(SUP, t); g.stroke();
   }
 }
-function buildAllTextures() { for (const t of THEMES) groundPatterns.push(buildTile(t)); }
+function buildAllTextures() {
+  for (const t of THEMES) groundPatterns.push(buildTile(t));
+  finalGroundPattern = buildTile(FINAL_THEME);
+}
 buildAllTextures();
 
 // ---------------------------------------------------------------- Equipment system
@@ -675,12 +695,47 @@ window.addEventListener("mouseup", () => { mouse.down = false; });
 
 
 // ---------------------------------------------------------------- Spawning
-// Symmetric cover: columns and walls mirrored about the arena center so the
-// layout feels deliberate. Rectangles; circle entities resolve against them.
+// Each scenario has its own symmetric cover layout, with an open center and exits.
+// All solid silhouettes keep rectangular footprints for the collision system.
 function spawnObstacles() {
   state.obstacles = [];
   const cx = WORLD.w / 2, cy = WORLD.h / 2;
   const add = (x, y, w, h) => state.obstacles.push({ x, y, w, h });
+  const theme = activeScenario().id;
+  if (theme === "umbral") {
+    // Brass-capped bastions in an outer ring; the center stays open for the trio.
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        add(cx + sx * 530 - 48, cy + sy * 350 - 48, 96, 96);
+        add(cx + sx * 340 - 48, cy + sy * 610 - 48, 96, 96);
+      }
+      add(cx + sx * 790 - 32, cy - 110, 64, 220);
+      add(cx - 110, cy + sx * 850 - 32, 220, 64);
+    }
+    return;
+  }
+  if (theme === "frost") {
+    // Frozen crypt: paired sarcophagi and staggered ice blocks.
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        add(cx + sx * 270 - 38, cy + sy * 190 - 78, 76, 156);
+        add(cx + sx * 540 - 52, cy + sy * 420 - 52, 104, 104);
+        add(cx + sx * 170 - 46, cy + sy * 650 - 46, 92, 92);
+      }
+    }
+    return;
+  }
+  if (theme === "blood") {
+    // Obsidian sanctuary: four altars surrounded by narrow monoliths.
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        add(cx + sx * 330 - 68, cy + sy * 330 - 54, 136, 108);
+        add(cx + sx * 650 - 28, cy + sy * 180 - 90, 56, 180);
+        add(cx + sx * 180 - 90, cy + sy * 650 - 28, 180, 56);
+      }
+    }
+    return;
+  }
   // four corner L-columns (mirrored)
   const off = 560, tw = 40, tl = 180;
   for (const sx of [-1, 1]) {
@@ -695,6 +750,16 @@ function spawnObstacles() {
   for (const sy of [-1, 1]) {
     add(cx - 360, cy + sy * 300 - 22, 240, 44);
     add(cx + 120, cy + sy * 300 - 22, 240, 44);
+  }
+}
+
+function rebuildScenarioObstacles() {
+  spawnObstacles();
+  // Changing scenery must not trap the player or collectible loot.
+  for (const entity of [state.player, ...state.chests, ...state.orbs]) {
+    const pos = resolveObstacles(entity.x, entity.y, entity.r || 8);
+    entity.x = pos.x;
+    entity.y = pos.y;
   }
 }
 
@@ -807,6 +872,7 @@ function startWave() {
   const newTheme = Math.floor((w - 1) / 10) % THEMES.length;
   if (newTheme !== state.theme) {
     state.theme = newTheme;
+    rebuildScenarioObstacles();
     showWarning("Nuevo escenario<br><span style='font-size:22px'>" + THEMES[newTheme].name + "</span>");
     state.shake = Math.max(state.shake, 10);
   }
@@ -1476,7 +1542,7 @@ function draw() {
   ctx.restore();
 
   // scenario vignette
-  const vigColor = THEMES[state ? state.theme % THEMES.length : 0].vignette;
+  const vigColor = activeScenario().vignette;
   const grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.75);
   grad.addColorStop(0, "rgba(0,0,0,0)");
   grad.addColorStop(1, vigColor);
@@ -1487,8 +1553,8 @@ function draw() {
 function drawGround() {
   // floor: cached pattern for the active scenario theme
   const ti = state ? state.theme % THEMES.length : 0;
-  const theme = THEMES[ti];
-  const pat = groundPatterns[ti];
+  const theme = activeScenario();
+  const pat = state && state.finalChallenge ? finalGroundPattern : groundPatterns[ti];
   if (pat) {
     ctx.save();
     ctx.fillStyle = pat;
@@ -1499,6 +1565,22 @@ function drawGround() {
     ctx.fillRect(0, 0, WORLD.w, WORLD.h);
   }
 
+  if (theme.id === "umbral") {
+    // Inlaid concentric rings are floor decoration, with no combat effects.
+    const cx = WORLD.w / 2, cy = WORLD.h / 2;
+    ctx.save();
+    ctx.strokeStyle = "rgba(210,178,117,0.18)"; ctx.lineWidth = 4;
+    for (const r of [340, 390, 960]) {
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.lineWidth = 6;
+    for (let i = 0; i < 16; i++) {
+      const a = i * Math.PI / 8;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * 350, cy + Math.sin(a) * 350);
+      ctx.lineTo(cx + Math.cos(a) * 378, cy + Math.sin(a) * 378); ctx.stroke();
+    }
+    ctx.restore();
+  }
   drawWallBorder(theme);
 }
 
@@ -1556,15 +1638,78 @@ function drawWallBorder(theme) {
 
 
 
-// draw a cover obstacle (stone column/wall) with a dark outline
+// Scenario-specific materials; the outer border matches the solid collision footprint.
 function drawObstacle(o) {
   ctx.save();
-  ctx.fillStyle = "#3a2a20";
-  ctx.strokeStyle = "#0a0604"; ctx.lineWidth = 3;
+  const theme = activeScenario().id;
+  if (theme === "umbral") {
+    ctx.fillStyle = "#373247"; ctx.strokeStyle = "#0d0c16"; ctx.lineWidth = 3;
+    ctx.fillRect(o.x, o.y, o.w, o.h); ctx.strokeRect(o.x, o.y, o.w, o.h);
+    ctx.fillStyle = "#66566f";
+    ctx.fillRect(o.x + 7, o.y + 7, o.w - 14, o.h - 14);
+    ctx.fillStyle = "#272536";
+    ctx.fillRect(o.x + 14, o.y + 14, o.w - 28, o.h - 28);
+    ctx.strokeStyle = "#bb9f67"; ctx.lineWidth = 3;
+    ctx.strokeRect(o.x + 10, o.y + 10, o.w - 20, o.h - 20);
+    for (const sx of [0, 1]) for (const sy of [0, 1]) {
+      ctx.fillStyle = "#d6bf87";
+      ctx.fillRect(o.x + (sx ? o.w - 18 : 6), o.y + (sy ? o.h - 18 : 6), 12, 12);
+    }
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(o.x + 2, o.y + o.h - 6, o.w - 4, 4);
+    ctx.restore();
+    return;
+  }
+  const frost = theme === "frost", blood = theme === "blood";
+  ctx.fillStyle = frost ? "#294f68" : blood ? "#302332" : "#3a2a20";
+  ctx.strokeStyle = frost ? "#102330" : blood ? "#100b15" : "#0a0604";
+  ctx.lineWidth = 3;
   ctx.fillRect(o.x, o.y, o.w, o.h);
   ctx.strokeRect(o.x, o.y, o.w, o.h);
-  // top-left highlight / bottom-right shade for a bit of relief
-  ctx.fillStyle = "rgba(255,180,110,0.10)";
+  if (frost) {
+    // Broad translucent facets inside the ice's solid outline.
+    ctx.fillStyle = "#497e99";
+    ctx.beginPath();
+    ctx.moveTo(o.x + 4, o.y + 4);
+    ctx.lineTo(o.x + o.w - 4, o.y + 4);
+    ctx.lineTo(o.x + o.w * 0.62, o.y + o.h * 0.56);
+    ctx.lineTo(o.x + 4, o.y + o.h - 4);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#8ccfe2"; ctx.lineWidth = 2;
+    ctx.strokeRect(o.x + 7, o.y + 7, o.w - 14, o.h - 14);
+    ctx.beginPath();
+    ctx.moveTo(o.x + o.w * 0.55, o.y + 8);
+    ctx.lineTo(o.x + o.w * 0.38, o.y + o.h * 0.4);
+    ctx.lineTo(o.x + o.w * 0.65, o.y + o.h * 0.62);
+    ctx.lineTo(o.x + o.w * 0.45, o.y + o.h - 8);
+    ctx.stroke();
+  } else if (blood) {
+    // Cut obsidian with a crimson inset and a central ritual diamond.
+    ctx.strokeStyle = "#69516c"; ctx.lineWidth = 2;
+    ctx.strokeRect(o.x + 6, o.y + 6, o.w - 12, o.h - 12);
+    const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+    const r = Math.min(o.w, o.h) * 0.24;
+    ctx.fillStyle = "#751f3b";
+    ctx.strokeStyle = "#dd6174";
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r * 0.65, cy);
+    ctx.lineTo(cx, cy + r); ctx.lineTo(cx - r * 0.65, cy);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, o.y + 10); ctx.lineTo(cx, cy - r);
+    ctx.moveTo(cx, cy + r); ctx.lineTo(cx, o.y + o.h - 10);
+    ctx.stroke();
+  } else {
+    // Ashen ruins: staggered mortar joints make the walls read as masonry.
+    ctx.strokeStyle = "#211710"; ctx.lineWidth = 2;
+    for (let row = 0, y = o.y + 26; y < o.y + o.h - 4; y += 26, row++) {
+      ctx.beginPath(); ctx.moveTo(o.x + 3, y); ctx.lineTo(o.x + o.w - 3, y); ctx.stroke();
+      for (let x = o.x + (row % 2 ? 18 : 38); x < o.x + o.w - 4; x += 48) {
+        ctx.beginPath(); ctx.moveTo(x, y - 23); ctx.lineTo(x, y); ctx.stroke();
+      }
+    }
+  }
+  ctx.fillStyle = frost ? "#a5dfed" : blood ? "#8a647e" : "rgba(255,180,110,0.25)";
   ctx.fillRect(o.x + 2, o.y + 2, o.w - 4, 3);
   ctx.fillStyle = "rgba(0,0,0,0.30)";
   ctx.fillRect(o.x + 2, o.y + o.h - 5, o.w - 4, 3);

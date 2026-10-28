@@ -731,10 +731,21 @@ function endMageBlink(p) {
 // escala con p.r / 20, centrado en (p.x, p.y). El cuerpo NO rota con el
 // apuntado; solo el arma gira hacia el raton (ver drawPlayer).
 
-// Arquero: capa con capucha marron, borde de brasa.
+// Arquero: Explorador del bosque. Load once; keep the original drawing as fallback.
+var archerSprite = new Image();
+var archerSpriteReady = false;
+archerSprite.onload = () => { archerSpriteReady = true; };
+archerSprite.src = "assets/archer/forest.svg";
+
 function drawBodyArcher() {
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath(); ctx.ellipse(0, 14, 18, 10, 0, 0, Math.PI * 2); ctx.fill();
+
+  if (archerSpriteReady) {
+    // 96-unit artwork has padding; its visible body matches the original 40px height.
+    ctx.drawImage(archerSprite, -24, -24, 48, 48);
+    return;
+  }
 
   ctx.save();
   ctx.shadowBlur = 16; ctx.shadowColor = "#ff7a2a";
@@ -759,9 +770,21 @@ function drawBodyArcher() {
 }
 
 // Maga: figura esbelta (hombros estrechos, cintura marcada, falda abierta), violeta.
+var mageSprite = new Image();
+var mageSpriteReady = false;
+mageSprite.onload = () => { mageSpriteReady = true; };
+mageSprite.src = "assets/mage/arcane.svg";
+
 function drawBodyMage() {
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath(); ctx.ellipse(0, 15, 15, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+  if (mageSpriteReady) {
+    // Match the SVG's translate(48 44) scale(1.7) to the original body coordinates.
+    const scale = 1 / 1.7;
+    ctx.drawImage(mageSprite, -48 * scale, -44 * scale, 96 * scale, 96 * scale);
+    return;
+  }
 
   ctx.lineJoin = "round";
   ctx.save();

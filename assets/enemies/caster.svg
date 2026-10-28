@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <title>Hechicero abisal</title>
+  <g stroke="#101d35" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M29 44L14 54L18 65L35 59M67 44L82 54L78 65L61 59" fill="#3774b5"/>
+    <path d="M34 42L23 78L39 75L48 85L57 75L73 78L62 42" fill="#28558b"/>
+    <path d="M31 39L25 20L39 26L48 12L57 26L71 20L65 39" fill="#7295be"/>
+    <path d="M26 43L32 29L48 22L64 29L70 43L60 54L36 54Z" fill="#4086c3"/>
+    <path d="M35 39L48 32L61 39L57 51L39 51Z" fill="#142b4b"/>
+    <path d="M40 41L44 43M56 41L52 43" stroke="#b3f7ff" stroke-width="3"/>
+    <path d="M48 51L37 64L48 77L59 64Z" fill="#173453"/>
+    <path d="M48 55L42 64L48 72L54 64Z" fill="#85e5ff" stroke="#b9faff" stroke-width="2"/>
+    <path d="M33 59L29 71M63 59L67 71" stroke="#529fdd" stroke-width="2"/>
+    <circle cx="15" cy="49" r="6" fill="#81deff" stroke="#c0f4ff" stroke-width="2"/>
+    <circle cx="81" cy="49" r="6" fill="#81deff" stroke="#c0f4ff" stroke-width="2"/>
+  </g>
+</svg>

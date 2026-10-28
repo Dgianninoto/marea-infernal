@@ -475,6 +475,7 @@ function spawnEnemy() {
 function startFinalChallenge() {
   const defs = pickFinalBosses();
   state.finalChallenge = true;
+  rebuildScenarioObstacles();
   state.phase = "fighting";
   state.enemies = []; state.bossBullets = []; state.aoes = []; state.beams = [];
   state.toSpawn = 0; state.alive = 0; state.waveQuota = 0; state.waveTotal = 0; state.batchSize = 1; state.batchesSpawned = 1;
@@ -597,57 +598,110 @@ function killBoss(boss) {
   }
 }
 
+// Load once; cache a white silhouette for damage and teleport flashes.
+// Relative image URLs also work when index.html is opened directly via file://.
+var enemySprites = Object.create(null);
+for (const type of ["imp", "hound", "brute", "leaper", "bomber", "caster"]) {
+  const img = new Image();
+  const sprite = enemySprites[type] = { image: img, white: null, ready: false };
+  img.onload = () => {
+    const white = document.createElement("canvas");
+    white.width = white.height = 192;
+    const tint = white.getContext("2d");
+    tint.drawImage(img, 0, 0, 192, 192);
+    tint.globalCompositeOperation = "source-in";
+    tint.fillStyle = "#fff";
+    tint.fillRect(0, 0, 192, 192);
+    sprite.white = white;
+    sprite.ready = true;
+  };
+  img.src = "assets/enemies/" + type + ".svg";
+}
+
+function drawEnemySprite(e) {
+  const sprite = enemySprites[e.type];
+  if (!sprite || !sprite.ready) return false;
+  // Artwork has padding inside its viewBox: visible body stays near the collision radius.
+  const size = e.r * 2.4;
+  const x = e.x - size / 2, y = e.y - size / 2;
+  ctx.save();
+  ctx.shadowColor = e.color;
+  ctx.shadowBlur = 6;
+  ctx.drawImage(e.flash > 0 ? sprite.white : sprite.image, x, y, size, size);
+  let glow = 0;
+  if (e.tpCharge > 0) {
+    const k = clamp(1 - e.tpCharge / TP_CHARGE_TIME, 0, 1);
+    glow = 0.55 + 0.45 * k;
+    ctx.shadowBlur = 22 + k * 22;
+  }
+  if (e.tpArrive > 0 && Math.floor(e.tpArrive * 20) % 2 === 0) {
+    glow = 0.9;
+    ctx.shadowBlur = 26;
+  }
+  if (glow > 0) {
+    ctx.globalAlpha = glow;
+    ctx.shadowColor = "#fff";
+    ctx.drawImage(sprite.white, x, y, size, size);
+  }
+  ctx.restore();
+  return true;
+}
+
 function drawEnemy(e) {
   if (e.type === "goblin") {
     drawGoblin(e);
     return;
   }
-  ctx.save();
-  if (e.flash > 0) ctx.globalAlpha = 0.9;
-  // spiky demon body
-  const spikes = e.type === "brute" ? 8 : 6;
-  ctx.beginPath();
-  for (let i = 0; i < spikes * 2; i++) {
-    const ang = (i / (spikes * 2)) * Math.PI * 2;
-    const rr = (i % 2 === 0) ? e.r : e.r * 0.62;
-    const px = e.x + Math.cos(ang) * rr;
-    const py = e.y + Math.sin(ang) * rr;
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  // thick black outline so enemies read clearly against floor and loot
-  ctx.lineJoin = "round";
-  ctx.lineWidth = 3.5; ctx.strokeStyle = "#000"; ctx.stroke();
-  // fill with glow
-  ctx.shadowBlur = 10; ctx.shadowColor = e.color;
-  ctx.fillStyle = e.flash > 0 ? "#fff" : e.color;
-  ctx.fill();
-  // cargando el teletransporte: brilla en blanco (pulso rapido)
-  if (e.tpCharge > 0) {
-    const k = 1 - e.tpCharge / TP_CHARGE_TIME; // 0 -> 1 mientras carga
-    ctx.shadowBlur = 22 + k * 22; ctx.shadowColor = "#fff";
-    ctx.fillStyle = "rgba(255,255,255," + (0.55 + 0.45 * k) + ")";
+  const hasSprite = drawEnemySprite(e);
+  // Keep the original body as a fallback while images load or if a file is missing.
+  if (!hasSprite) {
+    ctx.save();
+    if (e.flash > 0) ctx.globalAlpha = 0.9;
+    // spiky demon body
+    const spikes = e.type === "brute" ? 8 : 6;
+    ctx.beginPath();
+    for (let i = 0; i < spikes * 2; i++) {
+      const ang = (i / (spikes * 2)) * Math.PI * 2;
+      const rr = (i % 2 === 0) ? e.r : e.r * 0.62;
+      const px = e.x + Math.cos(ang) * rr;
+      const py = e.y + Math.sin(ang) * rr;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    // thick black outline so enemies read clearly against floor and loot
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3.5; ctx.strokeStyle = "#000"; ctx.stroke();
+    // fill with glow
+    ctx.shadowBlur = 10; ctx.shadowColor = e.color;
+    ctx.fillStyle = e.flash > 0 ? "#fff" : e.color;
     ctx.fill();
+    // cargando el teletransporte: brilla en blanco (pulso rapido)
+    if (e.tpCharge > 0) {
+      const k = 1 - e.tpCharge / TP_CHARGE_TIME; // 0 -> 1 mientras carga
+      ctx.shadowBlur = 22 + k * 22; ctx.shadowColor = "#fff";
+      ctx.fillStyle = "rgba(255,255,255," + (0.55 + 0.45 * k) + ")";
+      ctx.fill();
+    }
+    // recien reaparecido: parpadea en blanco (inofensivo)
+    if (e.tpArrive > 0 && Math.floor(e.tpArrive * 20) % 2 === 0) {
+      ctx.shadowBlur = 26; ctx.shadowColor = "#fff";
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.fill();
+    }
+    ctx.restore();
+    // eyes
+    ctx.fillStyle = "#ffe36a";
+    const ex = e.x, ey = e.y;
+    ctx.beginPath(); ctx.arc(ex - e.r * 0.3, ey - e.r * 0.1, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex + e.r * 0.3, ey - e.r * 0.1, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
   }
-  // recien reaparecido: parpadea en blanco (inofensivo)
-  if (e.tpArrive > 0 && Math.floor(e.tpArrive * 20) % 2 === 0) {
-    ctx.shadowBlur = 26; ctx.shadowColor = "#fff";
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.fill();
-  }
-  ctx.restore();
-  // eyes
-  ctx.fillStyle = "#ffe36a";
-  const ex = e.x, ey = e.y;
-  ctx.beginPath(); ctx.arc(ex - e.r * 0.3, ey - e.r * 0.1, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(ex + e.r * 0.3, ey - e.r * 0.1, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
   // per-type cue so the special enemies read at a glance
   if (e.type === "leaper") {
     // ring around the body; brighter while mid-leap
     ctx.strokeStyle = e.leaping > 0 ? "rgba(140,255,180,0.9)" : "rgba(110,255,160,0.35)";
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 5, 0, Math.PI * 2); ctx.stroke();
-  } else if (e.type === "caster") {
+  } else if (e.type === "caster" && !hasSprite) {
     // arcane core
     ctx.fillStyle = "rgba(127,179,255,0.9)";
     ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 0.3, 0, Math.PI * 2); ctx.fill();

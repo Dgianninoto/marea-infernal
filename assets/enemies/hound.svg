@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <title>Sabueso del vacío</title>
+  <g stroke="#180e24" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M41 69L22 81L12 76L29 59M57 67L75 81L85 75L69 58" fill="#71388f"/>
+    <path d="M35 39L21 23L23 49M62 39L77 23L73 50" fill="#b67bdd"/>
+    <path d="M30 41L34 18L45 29L52 12L61 31L69 41L66 63L56 79L40 79L29 61Z" fill="#81449e"/>
+    <path d="M34 48L23 39L29 60M64 48L75 39L68 60" fill="#ab64c5"/>
+    <path d="M37 37L45 30L54 33" stroke="#d39ce9"/>
+    <path d="M33 48L44 51L36 56ZM63 48L52 51L60 56Z" fill="#cafa9c" stroke-width="2"/>
+    <path d="M41 59L55 59L60 70L53 82L43 82L36 70Z" fill="#45264f"/>
+    <path d="M43 65L53 65L48 70Z" fill="#e4b2e9" stroke-width="2"/>
+    <path d="M39 71L42 77L45 73M51 73L54 77L57 71" fill="#fff1ce" stroke-width="1.5"/>
+  </g>
+</svg>

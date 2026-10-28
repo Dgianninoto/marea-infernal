@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <title>Bruto de escoria</title>
+  <g stroke="#1e1019" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M28 67L23 85L42 85L45 65M54 65L57 85L76 85L69 65" fill="#642b35"/>
+    <path d="M28 29L14 26L8 40L10 65L24 72L34 62M67 29L82 26L88 40L86 65L72 72L62 62" fill="#913940"/>
+    <path d="M14 29L12 17L26 27M75 27L85 16L83 32" fill="#d5b39b"/>
+    <path d="M27 34L38 24L59 24L70 35L66 70L48 78L29 69Z" fill="#a34449"/>
+    <path d="M30 28L26 11L40 21M56 21L70 11L66 29" fill="#e7c6a2"/>
+    <path d="M32 29L40 20L57 20L65 29L60 47L38 47Z" fill="#6d3039"/>
+    <path d="M37 31L44 34M58 31L51 34" stroke="#ffcb69"/>
+    <path d="M41 41L55 41L53 46L44 46Z" fill="#e6c5a3" stroke-width="2"/>
+    <path d="M48 50L43 59L51 64L47 73M34 51L36 61M62 51L60 61" stroke="#ff885d" stroke-width="3"/>
+    <path d="M14 53L22 56M74 56L82 53" stroke="#d76b62"/>
+  </g>
+</svg>

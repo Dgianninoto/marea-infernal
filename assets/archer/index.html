@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marea Infernal · Tres arqueros</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:48px 24px;background:#101219;color:#eee9df;font:16px/1.6 system-ui,sans-serif}main{max-width:1140px;margin:auto}small{color:#edb268;letter-spacing:.16em;text-transform:uppercase}h1{font-size:clamp(28px,5vw,44px);line-height:1.15;margin:12px 0}p{color:#aeb3c1;max-width:760px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:32px 0}article{border:1px solid #343846;border-radius:16px;padding:24px;background:#1b1e28}.stage{height:220px;display:grid;place-items:center;background:radial-gradient(ellipse,#3e3a3c,#151923 75%);border-radius:10px}.hero{position:relative;width:180px;height:180px}.hero img{width:100%;height:100%}.bow{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;transform:rotate(var(--aim,0deg));transform-origin:50% 50%}h2{font-size:21px;margin:20px 0 8px}article p{font-size:14px;min-height:90px;margin:0 0 20px}.sizes{display:flex;align-items:center;gap:20px;border-top:1px solid #343846;padding-top:18px}.sizes img{width:48px;height:48px}.sizes img+img{width:96px;height:96px}a{color:#edb268;text-underline-offset:4px}.controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 20px;border:1px solid #343846;border-radius:12px;background:#1b1e28}input{accent-color:#edb268}label{font-size:14px}footer{font-size:14px;color:#aeb3c1}.swatches{display:flex;gap:6px;margin-bottom:16px}.swatches i{width:24px;height:8px;border-radius:4px;background:var(--c)}
+</style>
+<main>
+<small>Estudio de personaje / Marea Infernal</small>
+<h1>Tres caminos para el arquero</h1>
+<p>La misma clase, tres identidades visuales. Capuchas, carcajes y contornos marcados para acompañar a los enemigos nuevos. Los cuerpos son SVG transparentes; el arco se muestra como una pieza independiente.</p>
+<div class="controls"><label for="aim">Dirección del arco</label><input id="aim" type="range" min="-180" max="180" value="0"><label><input id="weapon" type="checkbox" checked> Mostrar arco</label></div>
+<div class="grid">
+<article><div class="stage"><div class="hero"><img src="ember.svg" alt="Arquero con capucha marrón y ribetes naranjas"></div></div><h2>01 · Cazador de brasas</h2><div class="swatches"><i style="--c:#513027"></i><i style="--c:#96573a"></i><i style="--c:#ef9b56"></i></div><p>Cuero tostado, capa con ribetes de fuego y mirada ámbar. Conserva la identidad del arquero actual con más detalle. Mi recomendación para mantener el tono infernal.</p><div class="sizes"><img src="ember.svg" alt="Brasas a escala pequeña"><img src="ember.svg" alt="Brasas ampliado"><a href="ember.svg">SVG</a></div></article>
+<article><div class="stage"><div class="hero"><img src="forest.svg" alt="Explorador con capa verde, cuero y una pluma"></div></div><h2>02 · Explorador del bosque</h2><div class="swatches"><i style="--c:#35634d"></i><i style="--c:#90704a"></i><i style="--c:#c7e3b1"></i></div><p>Capa verde recortada, cuero claro y pluma en la capucha. Un cazador clásico y ágil, con una silueta más irregular y una paleta natural.</p><div class="sizes"><img src="forest.svg" alt="Bosque a escala pequeña"><img src="forest.svg" alt="Bosque ampliado"><a href="forest.svg">SVG</a></div></article>
+<article><div class="stage"><div class="hero"><img src="lunar.svg" alt="Arquero azul y plata con hombreras y gema luminosa"></div></div><h2>03 · Centinela lunar</h2><div class="swatches"><i style="--c:#354d79"></i><i style="--c:#a3b7cd"></i><i style="--c:#a8f0ff"></i></div><p>Capa azul, hombreras de plata y gema celeste. Una presencia más protegida y ceremonial, con líneas simétricas y un acabado de fantasía arcana.</p><div class="sizes"><img src="lunar.svg" alt="Lunar a escala pequeña"><img src="lunar.svg" alt="Lunar ampliado"><a href="lunar.svg">SVG</a></div></article>
+</div>
+<footer>Propuestas para comparar: el arquero del juego todavía conserva su apariencia actual. El control de dirección permite comprobar cómo se ve cada cuerpo con el arco girando.</footer>
+</main>
+<script>
+const bow = '<svg class="bow" viewBox="0 0 96 96" fill="none" aria-hidden="true"><path d="M68 16Q94 48 68 80" stroke="#18141c" stroke-width="6" stroke-linecap="round"/><path d="M68 16Q94 48 68 80" stroke="#c99865" stroke-width="3" stroke-linecap="round"/><path d="M68 16V80" stroke="#ead8b7" stroke-width="1.3"/></svg>';
+document.querySelectorAll('.hero').forEach(hero => hero.insertAdjacentHTML('beforeend', bow));
+document.getElementById('aim').addEventListener('input', e => document.documentElement.style.setProperty('--aim', e.target.value + 'deg'));
+document.getElementById('weapon').addEventListener('change', e => document.querySelectorAll('.bow').forEach(b => b.style.display = e.target.checked ? '' : 'none'));
+</script>
+</html>

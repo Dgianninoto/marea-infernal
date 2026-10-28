@@ -63,7 +63,12 @@ dependencias ni servidor web.
   para entrar en un intermedio. No aparecerán nuevos enemigos hasta que pulses
   **Continuar**; puedes revisar el inventario antes de seguir.
 - **Cuidado con los tríos:** si 3 demonios dorados/azules (de área y de rango, en cualquier mezcla) se juntan a menos de 50 px, brillan con un sonido de aviso y se dispersan: uno se queda y los otros dos recorren 120° en sentido horario y antihorario alrededor del personaje, quedando repartidos a su alrededor. Después tienen 8 s de enfriamiento (`TRIO_*` en `js/enemigos.js`).
-- **Observa los escenarios:** el entorno cambia cada 10 oleadas.
+- **Observa los escenarios:** el entorno y la distribución de obstáculos cambian cada 10 oleadas
+  (oleadas 11, 21, 31 y 41). El Páramo de cenizas tiene ruinas de piedra;
+  la Cripta de hielo, bloques helados y sarcófagos; Sangre y obsidiana, altares y monolitos.
+  Si una nueva cobertura aparece sobre el personaje o el botín, se desplazan al borde para evitar que queden atrapados.
+  El Desafío final tiene un escenario exclusivo: **Bastión del umbral**, con piso violeta,
+  anillos de latón y bastiones en la periferia. Conserva los tres jefes y las mismas reglas de combate.
 
 ## Controles
 

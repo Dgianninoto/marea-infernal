@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+ <title>Arquero · Centinela lunar</title>
+ <g stroke="#161d32" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M65 23L75 20L80 58L68 63Z" fill="#3c4c6b"/>
+  <path d="M70 24L67 9M75 25L76 9M79 30L84 16" stroke="#a9c9df" stroke-width="2"/>
+  <path d="M67 9L62 12L64 17M76 9L71 12L72 17M84 16L79 18L80 23" stroke="#e1efff" stroke-width="2"/>
+  <path d="M33 62L28 85L43 85L47 64M52 64L55 85L70 85L64 62" fill="#56667e"/>
+  <path d="M30 34L19 78L35 74L48 85L61 74L77 78L66 34Z" fill="#354d79"/>
+  <path d="M24 70L35 67L48 78L61 67L72 70" stroke="#9cc8e3" stroke-width="2"/>
+  <path d="M31 37L20 44L23 55L37 51M65 37L77 44L73 55L60 51" fill="#a3b7cd"/>
+  <path d="M26 54L24 64L33 64L37 53M69 54L72 64L62 64L59 53" fill="#5f7899"/>
+  <path d="M35 43L61 43L64 64L48 72L32 64Z" fill="#718ca9"/>
+  <path d="M36 48L48 54L60 48M48 54L48 65" stroke="#c9e2ed" stroke-width="2"/>
+  <path d="M28 35L34 22L48 10L63 23L68 35L60 49L36 49Z" fill="#4c6d9c"/>
+  <path d="M35 34L48 24L61 34L57 46L39 46Z" fill="#1a2942"/>
+  <path d="M40 36L44 38M56 36L52 38" stroke="#c0f3ff" stroke-width="3"/>
+  <path d="M33 28L48 15L63 28" stroke="#bfddeb" stroke-width="2"/>
+  <path d="M49 17L45 22L49 26L53 22Z" fill="#a8f0ff" stroke-width="1.5"/>
+  <path d="M44 62L52 62L52 68L44 68Z" fill="#cae5ee" stroke-width="2"/>
+ </g>
+</svg>
