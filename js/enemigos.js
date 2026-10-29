@@ -12,6 +12,9 @@
 // Uses a spatial grid (cell 64px > any two radii) so it stays cheap with hundreds of enemies.
 // The heavier body (bigger radius) moves less; the boss is immovable. A leaper mid-air is ignored.
 var enemySeq = 0;
+var ENEMY_SIZE_MULT = 1.25;
+var BOSS_SIZE_MULT = 1.10;
+var GOBLIN_SIZE_MULT = 1.30;
 
 // Habilidad de los bichos (imp rojo, hound violeta y brute: la estrella grande roja): cada 1 s tiran un dado;
 // si sale, brillan en blanco (sin sonido) y reaparecen en el lado opuesto del jugador,
@@ -466,6 +469,7 @@ function spawnEnemy() {
     e.hp = e.maxHp = 40 * hpScale; e.dmg = 8 * dmgScale; e.xp = 22 + w; e.ashChance = 0.55; e.color = "#b8860b";
     e.bombCd = rand(2.0, 3.2); e.aoeDmg = 22 * dmgScale;
   }
+  e.r *= ENEMY_SIZE_MULT;
   e.speed *= 0.75 * 1.1; // -25% from the original, then +10% (net x0.825)
   state.enemies.push(e);
 }
@@ -509,7 +513,7 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
 
   const boss = {
     x, y,
-    r: 48 + (hasLeap ? 4 : 0) + (hasBombs ? 4 : 0),
+    r: (48 + (hasLeap ? 4 : 0) + (hasBombs ? 4 : 0)) * BOSS_SIZE_MULT,
     type: "boss", def, isFinal, finalIdx, finalTotal,
     name: def.name,
     speed: 85 + Math.min(40, w),
@@ -822,7 +826,7 @@ function spawnGoblin(x, y) {
     x: clamp(x, WALL + 30, WORLD.w - WALL - 30),
     y: clamp(y, WALL + 30, WORLD.h - WALL - 30),
     type: "goblin",
-    r: 18,
+    r: 18 * GOBLIN_SIZE_MULT,
     speed: 155, // ágil y escurridizo
     hp: 390 * hpScale,
     maxHp: 390 * hpScale,
@@ -882,7 +886,7 @@ function spawnGoblinNearPlayer() {
 var GOBLIN_PORTAL_FAR = 500;     // a mas de esta distancia (px) del jugador empieza a abrir el portal
 var GOBLIN_PORTAL_CHANNEL = 5;   // segundos de canalizacion antes de escapar
 var GOBLIN_EDGE_ZONE = 150;      // zona (px) junto al borde del mapa donde no puede quedarse mucho
-var GOBLIN_EDGE_MAX_TIME = 2;    // segundos maximos seguidos dentro de esa zona antes de ser obligado a salir
+var GOBLIN_EDGE_MAX_TIME = 0.5;  // segundos maximos seguidos dentro de esa zona antes de ser obligado a salir
 
 function updateGoblin(e, dt, p, dx, dy, d) {
   if (e.panicTimer > 0) e.panicTimer -= dt;
@@ -1144,6 +1148,63 @@ function drawSparkle(ctx, x, y, size) {
   ctx.fill();
 }
 
+// Screen-space locator: only appears once the entire goblin is outside the viewport.
+function goblinIndicatorPosition(e) {
+  const gx = (e.x - cam.x) * zoom;
+  const gy = (e.y - (e.hopHeight || 0) - cam.y) * zoom;
+  const extent = 40 * (e.r / 18) * zoom;
+  if (gx + extent >= 0 && gx - extent <= W && gy + extent >= 0 && gy - extent <= H) return null;
+  // Leave room for the top HUD and bottom ability dock; sizes remain in screen pixels.
+  const left = Math.min(44, W * 0.15), right = W - left;
+  const top = Math.min(96, H * 0.2), bottom = H - Math.min(140, H * 0.2);
+  const cx = (left + right) / 2, cy = (top + bottom) / 2;
+  const dx = gx - cx, dy = gy - cy;
+  const tx = dx ? (dx > 0 ? right - cx : left - cx) / dx : Infinity;
+  const ty = dy ? (dy > 0 ? bottom - cy : top - cy) / dy : Infinity;
+  const t = Math.min(tx, ty);
+  const x = cx + dx * t, y = cy + dy * t;
+  return { x, y, angle: Math.atan2(gy - y, gx - x) };
+}
+
+function drawGoblinIndicator(ctx) {
+  const goblin = state.enemies.find(e => e.type === "goblin" && e.hp > 0);
+  if (!goblin) return;
+  const pos = goblinIndicatorPosition(goblin);
+  if (!pos) return;
+  ctx.save();
+  ctx.translate(pos.x, pos.y);
+  ctx.shadowColor = "#ffe287"; ctx.shadowBlur = 14;
+  ctx.fillStyle = "rgba(20,12,8,0.9)";
+  ctx.strokeStyle = "#ffd84d"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, 19, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.save();
+  ctx.rotate(pos.angle);
+  ctx.fillStyle = "#ffd84d";
+  ctx.beginPath(); ctx.moveTo(13, 0); ctx.lineTo(-8, -9);
+  ctx.lineTo(-4, 0); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
+  ctx.lineWidth = 4; ctx.strokeStyle = "#140c08";
+  ctx.strokeText("Duende", 0, 36);
+  ctx.fillStyle = "#ffe59b"; ctx.fillText("Duende", 0, 36);
+  ctx.restore();
+}
+
+// Contrabandista del umbral: cache the artwork and its damage silhouette once.
+var goblinSprite = { image: new Image(), white: null, ready: false };
+goblinSprite.image.onload = () => {
+  const white = document.createElement("canvas");
+  white.width = white.height = 192;
+  const tint = white.getContext("2d");
+  tint.drawImage(goblinSprite.image, 0, 0, 192, 192);
+  tint.globalCompositeOperation = "source-in";
+  tint.fillStyle = "#fff";
+  tint.fillRect(0, 0, 192, 192);
+  goblinSprite.white = white;
+  goblinSprite.ready = true;
+};
+goblinSprite.image.src = "assets/goblin/umbral.svg";
+
 function drawGoblin(e) {
   // Sombra dinámica en el suelo según la altura del salto
   const hopH = e.hopHeight || 0;
@@ -1185,6 +1246,7 @@ function drawGoblin(e) {
   // Dibujo del Duende
   ctx.save();
   ctx.translate(e.x, e.y - hopH);
+  ctx.scale(e.r / 18, e.r / 18);
   if (e.facing === -1) {
     ctx.scale(-1, 1);
   }
@@ -1199,146 +1261,160 @@ function drawGoblin(e) {
   }
   ctx.scale(sx, sy);
 
-  if (e.flash > 0) ctx.globalAlpha = 0.85;
-
-  // 1. Saco de botín gigante sobrecargado en la espalda
-  ctx.save();
-  const jiggle = Math.sin((e.hopPhase || 0) * 0.8) * 0.1;
-  ctx.rotate(jiggle - 0.15);
-
-  ctx.shadowColor = "#ffd84d";
+  ctx.shadowColor = "#ffe17a";
   ctx.shadowBlur = 12;
 
-  // Cuerpo del saco de cuero
-  const sackGrad = ctx.createRadialGradient(-10, -8, 2, -10, -6, 20);
-  sackGrad.addColorStop(0, "#a06535");
-  sackGrad.addColorStop(0.7, "#6b3e1b");
-  sackGrad.addColorStop(1, "#42220c");
-  ctx.fillStyle = sackGrad;
-  ctx.strokeStyle = "#2e1506";
-  ctx.lineWidth = 2;
+  if (e.flash > 0) ctx.globalAlpha = 0.85;
 
-  ctx.beginPath();
-  ctx.ellipse(-12, -4, 15, 17, -0.2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
+  if (goblinSprite.ready) {
+    ctx.drawImage(e.flash > 0 ? goblinSprite.white : goblinSprite.image, -36, -36, 64, 64);
+    // Keep the glint on the treasure, following the jump and facing direction.
+    const sparkleTime = performance.now() / 250;
+    ctx.save();
+    ctx.globalAlpha *= 0.5 + Math.sin(sparkleTime) * 0.5;
+    ctx.fillStyle = "#fff2c5";
+    drawSparkle(ctx, -16, -27, 3 + Math.sin(sparkleTime));
+    ctx.restore();
+  } else {
+    // 1. Saco de botín gigante sobrecargado en la espalda
+    ctx.save();
+    const jiggle = Math.sin((e.hopPhase || 0) * 0.8) * 0.1;
+    ctx.rotate(jiggle - 0.15);
 
-  // Costuras del saco
-  ctx.strokeStyle = "#d4a373";
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(-16, -6); ctx.lineTo(-12, -2);
-  ctx.moveTo(-15, -3); ctx.lineTo(-13, -5);
-  ctx.stroke();
+    ctx.shadowColor = "#ffd84d";
+    ctx.shadowBlur = 12;
 
-  // Cuerda dorada del saco
-  ctx.fillStyle = "#ffd84d";
-  ctx.fillRect(-15, -19, 8, 3.5);
+    // Cuerpo del saco de cuero
+    const sackGrad = ctx.createRadialGradient(-10, -8, 2, -10, -6, 20);
+    sackGrad.addColorStop(0, "#a06535");
+    sackGrad.addColorStop(0.7, "#6b3e1b");
+    sackGrad.addColorStop(1, "#42220c");
+    ctx.fillStyle = sackGrad;
+    ctx.strokeStyle = "#2e1506";
+    ctx.lineWidth = 2;
 
-  // Monedas y gemas desbordándose
-  ctx.fillStyle = "#ffe066";
-  ctx.beginPath(); ctx.arc(-13, -22, 3.2, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(-9, -21, 2.8, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(-15, -20, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(-12, -4, 15, 17, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
 
-  // Rubí brillante
-  ctx.fillStyle = "#ff3366";
-  ctx.beginPath();
-  ctx.moveTo(-11, -25); ctx.lineTo(-8, -22); ctx.lineTo(-11, -19); ctx.lineTo(-14, -22);
-  ctx.closePath(); ctx.fill();
+    // Costuras del saco
+    ctx.strokeStyle = "#d4a373";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-16, -6); ctx.lineTo(-12, -2);
+    ctx.moveTo(-15, -3); ctx.lineTo(-13, -5);
+    ctx.stroke();
 
-  // Esmeralda brillante
-  ctx.fillStyle = "#00e676";
-  ctx.beginPath();
-  ctx.moveTo(-7, -23); ctx.lineTo(-5, -20); ctx.lineTo(-7, -17); ctx.lineTo(-9, -20);
-  ctx.closePath(); ctx.fill();
+    // Cuerda dorada del saco
+    ctx.fillStyle = "#ffd84d";
+    ctx.fillRect(-15, -19, 8, 3.5);
 
-  // Brillo titilante
-  const sparkleTime = performance.now() / 250;
-  const sparkleAlpha = 0.5 + Math.sin(sparkleTime) * 0.5;
-  ctx.fillStyle = "rgba(255, 255, 255, " + sparkleAlpha + ")";
-  drawSparkle(ctx, -10, -26, 4 + Math.sin(sparkleTime) * 1.5);
+    // Monedas y gemas desbordándose
+    ctx.fillStyle = "#ffe066";
+    ctx.beginPath(); ctx.arc(-13, -22, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-9, -21, 2.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-15, -20, 2.5, 0, Math.PI * 2); ctx.fill();
 
-  ctx.restore();
+    // Rubí brillante
+    ctx.fillStyle = "#ff3366";
+    ctx.beginPath();
+    ctx.moveTo(-11, -25); ctx.lineTo(-8, -22); ctx.lineTo(-11, -19); ctx.lineTo(-14, -22);
+    ctx.closePath(); ctx.fill();
 
-  // 2. Patas y cuerpo del Duende
-  const legSwing = Math.sin((e.hopPhase || 0) * 1.2) * 5;
-  ctx.fillStyle = "#1e392a";
-  ctx.beginPath(); ctx.ellipse(-6 + legSwing, 12, 4.5, 3, 0.2, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(6 - legSwing, 12, 4.5, 3, -0.2, 0, Math.PI * 2); ctx.fill();
+    // Esmeralda brillante
+    ctx.fillStyle = "#00e676";
+    ctx.beginPath();
+    ctx.moveTo(-7, -23); ctx.lineTo(-5, -20); ctx.lineTo(-7, -17); ctx.lineTo(-9, -20);
+    ctx.closePath(); ctx.fill();
 
-  // Túnica carmesí
-  ctx.fillStyle = "#8e1b24";
-  ctx.strokeStyle = "#38070b";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(-3, 0); ctx.lineTo(9, 1); ctx.lineTo(7, 10); ctx.lineTo(-5, 9);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Brillo titilante
+    const sparkleTime = performance.now() / 250;
+    const sparkleAlpha = 0.5 + Math.sin(sparkleTime) * 0.5;
+    ctx.fillStyle = "rgba(255, 255, 255, " + sparkleAlpha + ")";
+    drawSparkle(ctx, -10, -26, 4 + Math.sin(sparkleTime) * 1.5);
 
-  // Cinturón dorado
-  ctx.fillStyle = "#d4af37";
-  ctx.fillRect(-4, 5, 12, 2.5);
+    ctx.restore();
 
-  // Brazo sujetando la correa
-  ctx.fillStyle = "#27ae60";
-  ctx.strokeStyle = "#145a32";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.ellipse(3, 4, 3.5, 5, 0.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // 2. Patas y cuerpo del Duende
+    const legSwing = Math.sin((e.hopPhase || 0) * 1.2) * 5;
+    ctx.fillStyle = "#1e392a";
+    ctx.beginPath(); ctx.ellipse(-6 + legSwing, 12, 4.5, 3, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6 - legSwing, 12, 4.5, 3, -0.2, 0, Math.PI * 2); ctx.fill();
 
-  // 3. Cabeza y rostro del Duende
-  ctx.save();
-  ctx.translate(5, -6);
+    // Túnica carmesí
+    ctx.fillStyle = "#8e1b24";
+    ctx.strokeStyle = "#38070b";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-3, 0); ctx.lineTo(9, 1); ctx.lineTo(7, 10); ctx.lineTo(-5, 9);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
 
-  // Orejas puntiagudas características
-  ctx.fillStyle = "#27ae60";
-  ctx.strokeStyle = "#145a32";
-  ctx.beginPath();
-  ctx.moveTo(-4, -1); ctx.lineTo(-15, -6); ctx.lineTo(-4, 4);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = "#e07b89";
-  ctx.beginPath();
-  ctx.moveTo(-4, 0); ctx.lineTo(-12, -5); ctx.lineTo(-4, 3);
-  ctx.closePath(); ctx.fill();
+    // Cinturón dorado
+    ctx.fillStyle = "#d4af37";
+    ctx.fillRect(-4, 5, 12, 2.5);
 
-  // Cabeza base
-  ctx.fillStyle = e.flash > 0 ? "#ffffff" : "#2ecc71";
-  ctx.strokeStyle = "#145a32";
-  ctx.lineWidth = 1.8;
-  ctx.beginPath(); ctx.ellipse(0, 0, 8.5, 7.5, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // Brazo sujetando la correa
+    ctx.fillStyle = "#27ae60";
+    ctx.strokeStyle = "#145a32";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(3, 4, 3.5, 5, 0.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-  // Nariz curva prominente
-  ctx.fillStyle = "#27ae60";
-  ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(12, 2); ctx.lineTo(4, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // 3. Cabeza y rostro del Duende
+    ctx.save();
+    ctx.translate(5, -6);
 
-  // Ojos brillantes amarillos
-  ctx.fillStyle = "#fff066";
-  ctx.shadowColor = "#ffd84d";
-  ctx.shadowBlur = 6;
-  ctx.beginPath(); ctx.ellipse(3, -2, 3.2, 4, 0.1, 0, Math.PI * 2); ctx.fill();
+    // Orejas puntiagudas características
+    ctx.fillStyle = "#27ae60";
+    ctx.strokeStyle = "#145a32";
+    ctx.beginPath();
+    ctx.moveTo(-4, -1); ctx.lineTo(-15, -6); ctx.lineTo(-4, 4);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#e07b89";
+    ctx.beginPath();
+    ctx.moveTo(-4, 0); ctx.lineTo(-12, -5); ctx.lineTo(-4, 3);
+    ctx.closePath(); ctx.fill();
 
-  // Pupila mirando hacia atrás (al jugador)
-  ctx.fillStyle = "#111";
-  ctx.shadowBlur = 0;
-  ctx.beginPath(); ctx.arc(1.8, -2, 1.4, 0, Math.PI * 2); ctx.fill();
+    // Cabeza base
+    ctx.fillStyle = e.flash > 0 ? "#ffffff" : "#2ecc71";
+    ctx.strokeStyle = "#145a32";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.ellipse(0, 0, 8.5, 7.5, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-  // Sonrisa pícara con colmillo
-  ctx.strokeStyle = "#145a32";
-  ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.arc(2, 4, 4, 0.2, Math.PI * 0.8); ctx.stroke();
+    // Nariz curva prominente
+    ctx.fillStyle = "#27ae60";
+    ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(12, 2); ctx.lineTo(4, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
 
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath(); ctx.moveTo(3, 4); ctx.lineTo(4, 6.5); ctx.lineTo(5, 4); ctx.closePath(); ctx.fill();
+    // Ojos brillantes amarillos
+    ctx.fillStyle = "#fff066";
+    ctx.shadowColor = "#ffd84d";
+    ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.ellipse(3, -2, 3.2, 4, 0.1, 0, Math.PI * 2); ctx.fill();
 
-  // Pequeña capucha
-  ctx.fillStyle = "#8e1b24";
-  ctx.beginPath(); ctx.moveTo(-5, -6); ctx.lineTo(1, -12); ctx.lineTo(6, -6); ctx.closePath(); ctx.fill();
+    // Pupila mirando hacia atrás (al jugador)
+    ctx.fillStyle = "#111";
+    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(1.8, -2, 1.4, 0, Math.PI * 2); ctx.fill();
 
-  ctx.restore(); // fin cabeza
+    // Sonrisa pícara con colmillo
+    ctx.strokeStyle = "#145a32";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(2, 4, 4, 0.2, Math.PI * 0.8); ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.moveTo(3, 4); ctx.lineTo(4, 6.5); ctx.lineTo(5, 4); ctx.closePath(); ctx.fill();
+
+    // Pequeña capucha
+    ctx.fillStyle = "#8e1b24";
+    ctx.beginPath(); ctx.moveTo(-5, -6); ctx.lineTo(1, -12); ctx.lineTo(6, -6); ctx.closePath(); ctx.fill();
+
+    ctx.restore(); // fin cabeza
+  }
   ctx.restore(); // fin cuerpo duende
 
   // Interfaz flotante: Nombre + Barra de vida
   const barW = 36;
-  const barY = e.y - hopH - 26;
+  const barY = e.y - hopH - 26 * (e.r / 18);
 
   ctx.fillStyle = "rgba(0,0,0,0.7)";
   roundRect(e.x - barW / 2 - 2, barY - 12, barW + 4, 18, 3);

@@ -140,6 +140,8 @@ var WORLD = { w: 2600, h: 2600 };
 // ---------------------------------------------------------------- Canvas
 var canvas = document.getElementById("game");
 var ctx = canvas.getContext("2d");
+var locatorCanvas = document.getElementById("locator-layer");
+var locatorCtx = locatorCanvas.getContext("2d");
 var wrap = document.getElementById("game-wrap");
 
 // ---- Modo tactil (moviles/tablets). Solo se activa con puntero "grueso" sin hover (pantalla tactil) o con
@@ -168,6 +170,11 @@ function resize() {
   canvas.style.width = W + "px";
   canvas.style.height = H + "px";
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  locatorCanvas.width = Math.floor(W * DPR);
+  locatorCanvas.height = Math.floor(H * DPR);
+  locatorCanvas.style.width = W + "px";
+  locatorCanvas.style.height = H + "px";
+  locatorCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
 }
 window.addEventListener("resize", resize);
 resize();
@@ -1457,6 +1464,7 @@ function update(dt) {
 // ---------------------------------------------------------------- Render
 function draw() {
   ctx.clearRect(0, 0, W, H);
+  locatorCtx.clearRect(0, 0, W, H);
 
   let sx = 0, sy = 0;
   if (state.shake > 0) { sx = rand(-state.shake, state.shake); sy = rand(-state.shake, state.shake); }
@@ -1548,6 +1556,7 @@ function draw() {
   grad.addColorStop(1, vigColor);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
+  drawGoblinIndicator(locatorCtx);
 }
 
 function drawGround() {
@@ -1719,6 +1728,23 @@ function drawObstacle(o) {
 
 
 
+// Chest artwork is cached once and works when the game is opened via file://.
+var chestSprites = Object.create(null);
+for (const kind of ["closed", "open"]) {
+  const img = new Image();
+  const sprite = chestSprites[kind] = { image: img, ready: false };
+  img.onload = () => { sprite.ready = true; };
+  img.src = "assets/chest/" + kind + ".svg";
+}
+
+function drawChestSprite(c, kind) {
+  const sprite = chestSprites[kind];
+  if (!sprite.ready) return false;
+  const size = c.r * 2.5;
+  ctx.drawImage(sprite.image, c.x - size / 2, c.y - size * 0.55, size, size);
+  return true;
+}
+
 function drawChest(c) {
   ctx.save();
   if (c.opened) ctx.globalAlpha = clamp(c.life / 0.8, 0, 1);
@@ -1729,10 +1755,12 @@ function drawChest(c) {
 function drawChestBody(c) {
   const t = performance.now() / 500;
   if (c.opened) {
-    ctx.fillStyle = "#1a0f08";
-    ctx.strokeStyle = "#3a2010"; ctx.lineWidth = 3;
-    roundRect(c.x - c.r, c.y - c.r * 0.6, c.r * 2, c.r * 1.4, 5);
-    ctx.fill(); ctx.stroke();
+    if (!drawChestSprite(c, "open")) {
+      ctx.fillStyle = "#1a0f08";
+      ctx.strokeStyle = "#3a2010"; ctx.lineWidth = 3;
+      roundRect(c.x - c.r, c.y - c.r * 0.6, c.r * 2, c.r * 1.4, 5);
+      ctx.fill(); ctx.stroke();
+    }
     ctx.fillStyle = "#6a4a30"; ctx.font = "bold " + Math.round(12 / zoom) + "px sans-serif"; ctx.textAlign = "center";
     ctx.fillText("vacío", c.x, c.y + 4); ctx.textAlign = "left";
     return;
@@ -1741,19 +1769,21 @@ function drawChestBody(c) {
   ctx.save();
   ctx.shadowBlur = 20 + c.glow * 20;
   ctx.shadowColor = "#ffb347";
-  // body
-  ctx.fillStyle = "#6a3a12";
-  roundRect(c.x - c.r, c.y - c.r * 0.6, c.r * 2, c.r * 1.4, 5); ctx.fill();
-  // lid
-  ctx.fillStyle = "#8a5020";
-  roundRect(c.x - c.r, c.y - c.r * 0.9, c.r * 2, c.r * 0.5, 5); ctx.fill();
-  // lock & trim
-  ctx.fillStyle = "#ffd84d";
-  ctx.globalAlpha = pulse;
-  ctx.beginPath(); ctx.arc(c.x, c.y - c.r * 0.25, 5, 0, Math.PI * 2); ctx.fill();
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = "#3a2010"; ctx.lineWidth = 3;
-  roundRect(c.x - c.r, c.y - c.r * 0.9, c.r * 2, c.r * 1.4, 5); ctx.stroke();
+  if (!drawChestSprite(c, "closed")) {
+    // body
+    ctx.fillStyle = "#6a3a12";
+    roundRect(c.x - c.r, c.y - c.r * 0.6, c.r * 2, c.r * 1.4, 5); ctx.fill();
+    // lid
+    ctx.fillStyle = "#8a5020";
+    roundRect(c.x - c.r, c.y - c.r * 0.9, c.r * 2, c.r * 0.5, 5); ctx.fill();
+    // lock & trim
+    ctx.fillStyle = "#ffd84d";
+    ctx.globalAlpha = pulse;
+    ctx.beginPath(); ctx.arc(c.x, c.y - c.r * 0.25, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#3a2010"; ctx.lineWidth = 3;
+    roundRect(c.x - c.r, c.y - c.r * 0.9, c.r * 2, c.r * 1.4, 5); ctx.stroke();
+  }
   ctx.restore();
 
   // reward + label

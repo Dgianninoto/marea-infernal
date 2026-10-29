@@ -39,6 +39,15 @@
   }
 
   /* ---------- HUD ---------- */
+  #locator-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 16;
+    pointer-events: none;
+    background: transparent;
+    box-shadow: none;
+  }
+
   #hud {
     position: absolute;
     inset: 0;
@@ -68,6 +77,13 @@
     padding: 10px 14px;
     backdrop-filter: blur(3px);
     box-shadow: 0 0 20px rgba(0,0,0,0.6);
+  }
+
+  #hud .panel {
+    background: rgba(20, 10, 8, 0.12);
+    backdrop-filter: none;
+    box-shadow: 0 0 12px rgba(0,0,0,0.2);
+    text-shadow: 0 1px 3px #000, 0 0 4px #000;
   }
 
   .stat-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
@@ -478,14 +494,14 @@
 #hp-fill {
   position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
   background: linear-gradient(180deg, #ff4d3d 0%, #d91f18 30%, #8a0e0e 70%, #4a0505 100%);
-  transition: height 0.2s ease;
+  transition: height 0.08s linear;
 }
 /* ola animada en la superficie del liquido */
 #hp-fill::before {
   content: ""; position: absolute; left: 0; right: 0; top: -6px; height: 8px;
-  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='8' viewBox='0 0 48 8'><path d='M0 4 Q12 -1 24 4 T48 4 V8 H0Z' fill='%23ff4d3d'/></svg>") repeat-x;
+  background: url("../assets/ui/health-wave.svg") repeat-x;
   background-size: 48px 8px;
-  animation: orbWave 2.4s linear infinite;
+  animation: orbWave 0.9s linear infinite;
 }
 @keyframes orbWave { to { background-position-x: 48px; } }
 /* brillo de cristal */

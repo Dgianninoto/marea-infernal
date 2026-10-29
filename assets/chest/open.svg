@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+ <title>Cofre del umbral abierto</title>
+ <g stroke="#1c1725" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M16 46L13 22L22 13L74 13L83 22L80 46Z" fill="#66516d"/>
+  <path d="M23 39L20 24L26 20L70 20L76 24L73 39Z" fill="#302535" stroke="#bf9b66" stroke-width="2"/>
+  <path d="M24 15L31 15L34 43L27 45ZM64 15L71 15L69 45L62 43Z" fill="#d2a65e" stroke-width="2"/>
+  <path d="M12 49L23 39L73 39L84 49L84 74L73 82L23 82L12 74Z" fill="#4e3746"/>
+  <path d="M17 49L25 43L71 43L79 49L71 59L25 59Z" fill="#201a27" stroke="#d2a65e" stroke-width="2"/>
+  <path d="M15 54L25 61L71 61L81 54L81 72L72 78L24 78L15 72Z" fill="#69503f"/>
+  <path d="M23 60L30 62L30 78L23 76ZM66 62L73 60L73 76L66 78Z" fill="#d2a65e" stroke-width="2"/>
+  <path d="M15 55L25 62L71 62L81 55" stroke="#e5bd77" stroke-width="3"/>
+  <path d="M42 62L54 62L55 71L48 76L41 71Z" fill="#dfb468" stroke-width="2"/>
+  <path d="M48 65L51 69L48 72L45 69Z" fill="#be6c99" stroke="#59324f" stroke-width="1.5"/>
+ </g>
+</svg>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+ <title>Goblin · Saqueador carmesí</title>
+ <g stroke="#18201c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M43 67L37 83L52 81L55 69M60 67L68 80L81 78L69 65" fill="#34503a"/>
+  <path d="M22 31Q7 40 12 61Q16 76 38 70L51 56L40 31Z" fill="#94603b"/>
+  <path d="M18 43Q20 36 31 36M19 54L25 59M21 60L26 54" stroke="#d3a86b" stroke-width="2"/>
+  <path d="M23 32L22 22L38 20L41 32Z" fill="#65422e"/>
+  <circle cx="24" cy="24" r="5" fill="#f4ce6c" stroke="#96662c" stroke-width="2"/>
+  <circle cx="33" cy="22" r="5" fill="#ffe393" stroke="#96662c" stroke-width="2"/>
+  <path d="M34 14L40 20L34 27L28 20Z" fill="#e76082" stroke="#7d364e" stroke-width="2"/>
+  <path d="M22 32L41 30" stroke="#efc16a" stroke-width="4"/>
+  <path d="M44 44L64 42L73 68L59 77L40 70Z" fill="#a03f50"/>
+  <path d="M43 64L69 62" stroke="#edb75a" stroke-width="4"/>
+  <path d="M45 46L62 66" stroke="#dba46a" stroke-width="3"/>
+  <path d="M40 42L25 31L31 49M69 40L86 29L78 49" fill="#62a36e"/>
+  <path d="M41 33L50 26L65 27L76 38L73 54L61 62L46 56L40 45Z" fill="#69af73"/>
+  <path d="M43 34L47 21L60 16L73 27L76 36L62 29L53 35Z" fill="#9b3f50"/>
+  <path d="M49 25L60 21L68 27" stroke="#ed8d81" stroke-width="2"/>
+  <path d="M49 41L58 44L51 48ZM69 40L62 44L69 47Z" fill="#ffe89d" stroke-width="1.5"/>
+  <path d="M64 45L78 49L64 52" fill="#8ac78a" stroke-width="2"/>
+  <path d="M53 53L66 55L62 59L55 58Z" fill="#293629" stroke-width="1.5"/>
+  <path d="M58 55L60 59L62 55" fill="#fff0c9" stroke-width="1"/>
+  <path d="M49 59Q42 54 39 59Q37 65 48 68L54 64" fill="#78ba7b"/>
+  <path d="M17 17V9M13 13H21" stroke="#ffe59a" stroke-width="2"/>
+ </g>
+</svg>

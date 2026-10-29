@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+ <title>Goblin · Contrabandista del umbral</title>
+ <g stroke="#1a1c2c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M43 68L37 83L52 81L56 68M62 66L68 79L82 81L72 65" fill="#46536a"/>
+  <path d="M21 32Q5 43 12 63Q16 76 37 71L49 54L40 31Z" fill="#66517e"/>
+  <path d="M18 43Q22 37 33 37M16 55L27 64L40 53" stroke="#a58fbb" stroke-width="2"/>
+  <path d="M21 31L20 20L38 20L42 32Z" fill="#45384f"/>
+  <circle cx="24" cy="22" r="5" fill="#f5ce74" stroke="#99753f" stroke-width="2"/>
+  <circle cx="34" cy="22" r="5" fill="#ffe3a0" stroke="#99753f" stroke-width="2"/>
+  <path d="M31 10L38 17L32 25L25 18Z" fill="#b6a4ef" stroke="#65518b" stroke-width="2"/>
+  <path d="M20 32L41 31M21 49L38 65" stroke="#e3bc71" stroke-width="3"/>
+  <path d="M44 43L64 41L74 70L60 77L40 70Z" fill="#434562"/>
+  <path d="M43 64L69 62" stroke="#dfba72" stroke-width="4"/>
+  <path d="M40 40L23 29L30 48M69 39L87 26L79 48" fill="#75ac9e"/>
+  <path d="M41 33L50 25L65 26L77 38L74 53L61 61L45 55L39 43Z" fill="#82bda9"/>
+  <path d="M41 35L45 21L60 13L75 26L77 36L64 30L53 35Z" fill="#65547f"/>
+  <path d="M47 25L60 18L70 28" stroke="#d7ba81" stroke-width="2"/>
+  <path d="M49 41L58 44L51 48ZM69 40L62 44L69 47Z" fill="#ffe4a1" stroke-width="1.5"/>
+  <path d="M65 45L80 49L65 52" fill="#a4d2b9" stroke-width="2"/>
+  <path d="M54 53L66 54L62 59L56 57Z" fill="#29373b" stroke-width="1.5"/>
+  <path d="M58 55L60 59L62 55" fill="#fff0d4" stroke-width="1"/>
+  <path d="M49 59Q43 54 39 59Q37 65 48 68L54 64" fill="#95cbb4"/>
+  <path d="M15 11V19M11 15H19M44 12V18M41 15H47" stroke="#efd293" stroke-width="2"/>
+ </g>
+</svg>

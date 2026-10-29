@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marea Infernal · Tres goblins</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:48px 24px;background:#101219;color:#eee9df;font:16px/1.6 system-ui,sans-serif}main{max-width:1140px;margin:auto}small{color:#e5bd72;letter-spacing:.16em;text-transform:uppercase}h1{font-size:clamp(28px,5vw,44px);line-height:1.15;margin:12px 0}p{color:#b6b9c7;max-width:800px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin:30px 0}article{border:1px solid #343846;border-radius:16px;padding:24px;background:#1b1e28}.stage{height:220px;display:grid;place-items:center;background:radial-gradient(ellipse,#413a38,#171923 75%);border-radius:10px}.hero{width:180px;height:180px;filter:drop-shadow(0 0 10px #f6cd6e30)}h2{font-size:21px;margin:20px 0 8px}article p{font-size:14px;min-height:100px;margin:0 0 18px}.sizes{display:flex;align-items:center;gap:18px;border-top:1px solid #343846;padding-top:16px;min-height:95px}.sizes img{width:46px;height:46px}.sizes img+img{width:80px;height:80px}a{color:#edc681;text-underline-offset:4px}.controls{display:flex;gap:20px;flex-wrap:wrap;padding:14px 20px;border:1px solid #343846;border-radius:12px;background:#1b1e28}input{accent-color:#e5bd72}label{font-size:14px}footer{font-size:14px;color:#b6b9c7}.comparison{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:26px 0}.comparison img{width:52px;height:52px}.swatches{display:flex;gap:6px;margin-bottom:14px}.swatches i{width:24px;height:8px;border-radius:4px;background:var(--c)}.mirror .hero{transform:scaleX(-1)}.no-glow .hero{filter:none}.light .stage{background:radial-gradient(ellipse,#b5a78b,#786d65)}
+</style>
+<main>
+<small>Estudio de criatura / Marea Infernal</small>
+<h1>El botín tiene patas</h1>
+<p>Tres goblins con los contornos oscuros y formas angulares de los enemigos. Orejas largas, mirada pícara y un saco de monedas para distinguir al duende de botín durante la pelea.</p>
+<div class="controls"><label><input id="mirror" type="checkbox"> Mirar hacia la izquierda</label><label><input id="glow" type="checkbox" checked> Brillo dorado</label><label><input id="light" type="checkbox"> Probar fondo claro</label></div>
+<div class="grid">
+<article><div class="stage"><img class="hero" src="saqueador.svg" alt="Goblin verde con capucha carmesí, saco de cuero y monedas"></div><h2>01 · Saqueador carmesí</h2><div class="swatches"><i style="--c:#69af73"></i><i style="--c:#a03f50"></i><i style="--c:#f4ce6c"></i></div><p>Piel verde, capucha roja y saco de cuero. Conserva los rasgos del goblin actual y los lleva al estilo de los enemigos nuevos. Mi recomendación.</p><div class="sizes"><img src="saqueador.svg" alt="Saqueador a tamaño pequeño"><img src="saqueador.svg" alt="Saqueador ampliado"><a href="saqueador.svg">SVG</a></div></article>
+<article><div class="stage"><img class="hero" src="cenicero.svg" alt="Goblin de piel oliva pálida, capucha carbón y saco con correas de cobre"></div><h2>02 · Ratero de cenizas</h2><div class="swatches"><i style="--c:#a7b981"></i><i style="--c:#3c3a3e"></i><i style="--c:#f5a261"></i></div><p>Piel oliva clara, capucha carbón y un saco reforzado con cobre. Más áspero y desaliñado, con una gema naranja entre el botín.</p><div class="sizes"><img src="cenicero.svg" alt="Ratero a tamaño pequeño"><img src="cenicero.svg" alt="Ratero ampliado"><a href="cenicero.svg">SVG</a></div></article>
+<article><div class="stage"><img class="hero" src="umbral.svg" alt="Goblin verde menta con capucha violeta, detalles dorados y saco de gemas"></div><h2>03 · Contrabandista del umbral</h2><div class="swatches"><i style="--c:#82bda9"></i><i style="--c:#66547f"></i><i style="--c:#dfba72"></i></div><p>Piel verde menta, capucha violeta y detalles dorados. Un ladrón de tesoros arcanos, con un saco lleno de monedas y cristales.</p><div class="sizes"><img src="umbral.svg" alt="Contrabandista a tamaño pequeño"><img src="umbral.svg" alt="Contrabandista ampliado"><a href="umbral.svg">SVG</a></div></article>
+</div>
+<div class="comparison"><span>Referencia del estilo:</span><img src="../enemies/imp.svg" alt="Imp rojo"><img src="../enemies/hound.svg" alt="Sabueso violeta"><img src="../enemies/bomber.svg" alt="Bombardero dorado"></div>
+<footer>Diseño aplicado: Contrabandista del umbral. Conserva el tamaño, la flecha y los tiempos de escape del goblin. <a href="../../index.html">Probar el juego</a>.</footer>
+</main>
+<script>
+document.getElementById('mirror').addEventListener('change',e=>document.body.classList.toggle('mirror',e.target.checked));
+document.getElementById('glow').addEventListener('change',e=>document.body.classList.toggle('no-glow',!e.target.checked));
+document.getElementById('light').addEventListener('change',e=>document.body.classList.toggle('light',e.target.checked));
+</script>
+</html>

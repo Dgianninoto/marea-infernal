@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+ <title>Goblin · Ratero de cenizas</title>
+ <g stroke="#20221c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M42 68L34 83L51 81L55 68M62 65L68 79L82 82L72 65" fill="#665247"/>
+  <path d="M22 32Q5 43 12 65L23 75L43 69L49 49L39 31Z" fill="#575050"/>
+  <path d="M15 52L45 48M22 33L27 72" stroke="#b98b51" stroke-width="4"/>
+  <path d="M19 56L28 55L28 63L19 64Z" fill="#e4b65c" stroke-width="2"/>
+  <path d="M22 31L20 22L37 20L41 31Z" fill="#856140"/>
+  <circle cx="25" cy="23" r="5" fill="#f6c96a" stroke="#98652e" stroke-width="2"/>
+  <path d="M34 14L40 22L34 28L29 22Z" fill="#f5a261" stroke="#a25839" stroke-width="2"/>
+  <path d="M22 32L40 31" stroke="#ffd477" stroke-width="4"/>
+  <path d="M45 43L64 41L73 70L60 76L43 70Z" fill="#72564a"/>
+  <path d="M44 64L69 63" stroke="#e4b65c" stroke-width="4"/>
+  <path d="M40 40L24 28L30 47M69 39L87 27L79 47" fill="#a1ad78"/>
+  <path d="M41 32L51 25L67 27L77 38L73 54L60 61L45 54L39 43Z" fill="#a7b981"/>
+  <path d="M42 35L46 19L64 16L76 29L76 36L62 29L53 34Z" fill="#3c3a3e"/>
+  <path d="M46 24L59 21L69 28" stroke="#d4925f" stroke-width="2"/>
+  <path d="M48 41L58 44L51 48ZM69 40L62 44L69 47Z" fill="#ffdb87" stroke-width="1.5"/>
+  <path d="M65 45L80 49L65 52" fill="#c0ce91" stroke-width="2"/>
+  <path d="M53 53Q60 58 67 53" stroke-width="2"/>
+  <path d="M57 55L59 59L61 55" fill="#f9edc9" stroke-width="1"/>
+  <path d="M49 59Q43 54 40 59Q37 64 48 68L54 64" fill="#b8c58d"/>
+  <path d="M13 32L16 27M12 21L9 18M44 16L47 12" stroke="#f9c675" stroke-width="2"/>
+ </g>
+</svg>

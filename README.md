@@ -107,6 +107,10 @@ y la partida se pausa sola. El zoom mínimo en móvil es `TOUCH_MIN_ZOOM` (en
 
 ## Interfaz
 
+Los enemigos comunes tienen un tamaño un 25 % mayor, los jefes un 10 % y el duende
+de botín un 30 % (incluidos sus radios de colisión). Cuando el duende queda completamente
+fuera de pantalla, una flecha dorada con la etiqueta «Duende» indica su dirección.
+
 El HUD inferior (estilo Diablo) agrupa la **vida** (orbe rojo a la izquierda),
 la **experiencia con el nivel** (barra encima de las habilidades) y las tres
 **habilidades** del arma. El orbe late cuando la vida baja del 25 %.
@@ -126,6 +130,7 @@ no se sincronizan entre dispositivos o navegadores.
 - `js/jefes.js`: jefes, sus ataques y el Desafío final.
 - `js/enemigos.js`: enemigos, cofres, jefes y renderizado asociado.
 - `js/tactil.js`: controles táctiles (cruceta, esquive, cofre, pausa y apuntado automático). Solo actúa en modo táctil.
+- `assets/bosses/`: los ocho sprites SVG de los jefes de oleada y del Desafío final, cargados desde archivos independientes.
 
 ## Dificultades
 
