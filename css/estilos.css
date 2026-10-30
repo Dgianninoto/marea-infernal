@@ -223,15 +223,6 @@
   }
   #sound-btn:hover { opacity: 1; background: rgba(58,26,14,0.6); }
 
-  /* ---------- Floating text ---------- */
-  #float-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-  .float {
-    position: absolute; font-weight: bold; font-size: 15px;
-    text-shadow: 0 1px 3px #000; white-space: nowrap;
-    animation: floatUp 0.9s ease-out forwards;
-  }
-  @keyframes floatUp { to { transform: translateY(-46px); opacity: 0; } }
-
   /* ---------- Overlays ---------- */
   .overlay {
     position: absolute; inset: 0;
@@ -299,13 +290,29 @@
     text-shadow: 0 1px 2px #000; pointer-events: none; font-variant-numeric: tabular-nums;
   }
 
-  /* TEMP DEBUG panel (remove together with the DEBUG block in the script) */
-  #debug-panel { position: absolute; left: 10px; bottom: 20px; z-index: 40; display: flex; gap: 6px; }
-  #debug-panel button {
-    font: bold 11px sans-serif; padding: 5px 9px; border-radius: 6px; cursor: pointer;
-    background: rgba(20,8,4,0.85); color: #ffb347; border: 1px solid #7a3a12;
+
+  /* Debug controls stay collapsed until needed; overlays remain above them. */
+  #debug-panel { position: absolute; left: 10px; top: 12px; z-index: 40; }
+  #debug-panel summary {
+    list-style: none; cursor: pointer; border: 1px solid #7a3a12;
+    border-radius: 7px; padding: 7px 12px; background: rgba(20,8,4,0.9);
+    color: #ffcb83; font: bold 12px "Trebuchet MS", sans-serif;
+    touch-action: manipulation; user-select: none;
   }
-  #debug-panel button.on { background: #7a3a12; color: #fff0c2; }
+  #debug-panel summary::-webkit-details-marker { display: none; }
+  #debug-menu {
+    width: min(200px, calc(100vw - 24px)); margin-top: 5px; padding: 7px;
+    background: rgba(20,8,4,0.96); border: 1px solid #7a3a12; border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+  }
+  #debug-menu button {
+    display: block; width: 100%; padding: 9px 10px; margin: 3px 0;
+    text-align: left; font: bold 12px "Trebuchet MS", sans-serif; cursor: pointer;
+    border: 1px solid #694022; border-radius: 5px; color: #ffcb83; background: #28180f;
+    touch-action: manipulation;
+  }
+  #debug-menu button.on { background: #7a3a12; color: #fff0c2; }
+  @media (pointer: coarse) { #debug-menu button { min-height: 44px; } }
 
   /* main menu: widescreen (PC) layout */
   .menu-card {
@@ -325,7 +332,7 @@
   }
   .diff-btn:hover { border-color: var(--ember-glow); }
   .diff-btn.active { color: #1a0d05; background: var(--ember-glow); border-color: var(--ember-glow); font-weight: bold; }
-  .weapon-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 14px; }
+  .weapon-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 14px; }
   .weapon-card {
     min-width: 0; padding: 18px 16px; text-align: center;
     background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 12px;
@@ -438,14 +445,13 @@
   .stat-row .sr-detail b.l { color: #5aa0ff; }
   .stat-row .sr-detail b.e { color: #ff9d4d; }
   .stat-legend { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
-  #equip-list, #bag-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; padding-right: 4px; }
+  #equip-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow-y: auto; padding-right: 4px; }
   .item {
     background: rgba(0,0,0,0.35); border: 1px solid #3a1f14; border-left-width: 4px;
     border-radius: 6px; padding: 6px 10px; font-size: 13px;
     display: flex; flex-direction: column; gap: 2px;
   }
   .item .item-head { display: flex; align-items: center; gap: 6px; font-weight: bold; }
-  .item .item-head .pw { margin-left: auto; color: #ffd84d; font-size: 12px; }
   .item .item-affixes { color: var(--muted); font-size: 12px; line-height: 1.4; }
   .item .item-affixes span { margin-right: 10px; }
   .item .item-stat { display: flex; align-items: center; justify-content: space-between; gap: 4px 8px; flex-wrap: wrap; }
@@ -461,8 +467,6 @@
   .item .mini.salvage { color: #ff8a5a; }
   .item .mini:hover { background: #3a1a0e; }
   .item .mini:disabled { opacity: 0.4; cursor: not-allowed; }
-  .item.empty { color: var(--muted); font-style: italic; opacity: 0.7; }
-  .bag-empty { color: var(--muted); font-style: italic; padding: 8px; }
 
 /* Resumen de dano por ataque (pantalla final) */
 #dmg-breakdown { margin: 12px 0 8px; text-align: left; }
@@ -483,6 +487,7 @@
    ===================================================================== */
 #dock { display: flex; align-items: flex-end; gap: 14px; pointer-events: none; }
 #dock-main { display: flex; flex-direction: column; gap: 7px; align-items: stretch; }
+#necro-souls { color: #b8edc7; font-size: 12px; text-shadow: 0 1px 3px #000; }
 
 #hp-orb {
   position: relative; flex-shrink: 0; width: 104px; height: 104px; border-radius: 50%; overflow: hidden;
@@ -603,8 +608,6 @@
 .touch #loot-feed { margin-bottom: 160px; } /* sube el registro de botin para no quedar bajo la cruceta */
 .touch #inv-btn { padding: 8px 10px; font-size: 13px; }
 
-/* debug: columna en la esquina superior izquierda (el HUD ya no tiene panel ahi) */
-.touch #debug-panel { left: 10px; top: 12px; bottom: auto; flex-direction: column; align-items: flex-start; }
 
 /* pantallas bajas (moviles en horizontal): HUD mas compacto */
 @media (max-height: 460px) {
@@ -646,8 +649,6 @@
 /* nombres de habilidad un poco mas compactos para que "Devastacion" quepa en el recuadro */
 #dock .skill .skill-name { font-size: 8px; letter-spacing: 0; }
 
-/* panel de debug: ahora arriba a la izquierda (hueco que dejo el panel de Nivel/Vida/Exp) para no pisar el orbe */
-#debug-panel { left: 10px; top: 12px; bottom: auto; flex-direction: column; align-items: flex-start; }
 
 /* menus en moviles horizontales (pantallas bajas): todo mas compacto para que quepa sin tanto scroll.
    Va con .touch: en PC no se aplica nunca. */
@@ -680,8 +681,6 @@
   .touch #scores-table { max-height: 52vh; }
   .touch .stats-grid { margin: 8px auto; gap: 6px 18px; }
   .touch .name-row { margin: 8px 0; }
-  .touch #debug-panel button { font-size: 10px; padding: 4px 7px; }
-  .touch #debug-panel { gap: 4px; }
 }
 
 
@@ -734,8 +733,6 @@
 .touch #pause-btn, .touch #sound-btn { width: 30px; height: 26px; font-size: 13px; }
 .touch #loot-feed { margin-bottom: 110px; max-height: 70px; }
 .touch .loot-line { font-size: 10px; padding: 1px 6px; }
-.touch #debug-panel { left: 6px; top: 6px; gap: 3px; }
-.touch #debug-panel button { font-size: 8px; padding: 2px 5px; }
 .touch #build-tag { font-size: 9px; bottom: 1px; left: 6px; }
 
 /* inventario: ocupa la pantalla; titulo y Cerrar fijos, cada columna con su scroll */
@@ -752,3 +749,6 @@
 .touch .stat-row .sr-head { margin-bottom: 1px; }
 .touch .item { padding: 4px 8px; font-size: 12px; }
 .touch .inv-card > .btn { flex-shrink: 0; align-self: center; margin-top: 6px; padding: 7px 22px; font-size: 13px; }
+
+/* Four classes: keep touch selection scrollable in landscape. */
+.touch .weapon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 52vh; overflow-y: auto; padding: 2px 4px; }

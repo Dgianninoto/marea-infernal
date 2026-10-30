@@ -14,7 +14,7 @@ dependencias ni servidor web.
 - **Sobrevive:** no hay temporizador. La partida termina cuando la vida del personaje
   llega a cero o cuando superas el Desafío final que sigue a la **oleada 50** (victoria).
 - **Elige tu clase antes de jugar:** el Arquero combate a distancia con flechas; el
-  Mago lanza orbes y un meteorito de área; el Bárbaro golpea de cerca con tajos,
+  Mago lanza orbes y un meteorito de área; el Nigromante barre con su guadaña, invoca esqueletos y cosecha vida; el Bárbaro golpea de cerca con tajos,
   lanza hachas giratorias y usa ataques de área visibles. La clase queda fija durante esa partida.
   El Mago no tiene crítico: su stat de arma es **Poder** (+2 % por punto), que agranda el
   radio del Meteorito y suma un orbe a la Salva arcana cada 10 % (hasta formar un círculo completo).
@@ -50,7 +50,7 @@ dependencias ni servidor web.
   aparecer durante las tandas de enemigos (5 % por tanda; si pasan más de 35 tandas
   sin ninguno, aparece uno de inmediato) y siempre aparecen al derrotar al jefe.
 - **Prepárate para los jefes:** aparece un jefe distinto cada 10 oleadas:
-  Kraken Abisal (10), Cangrejo Acorazado (20), Medusa de Magma (30) e Ídolo Rúnico (40).
+  Kraken Abisal (10), Coloso Abisal (20), Medusa de Magma (30) e Ídolo Rúnico (40).
   Desde la oleada 20 saltan para aplastar y desde la 30 invocan lluvia de fuego.
 - **Desafío final:** tras vencer al Señor de la Marea (oleada 50) hay una última pausa
   ("Prepárate para el Desafío final"). Al continuar aparecen **tres jefes a la
@@ -110,10 +110,17 @@ y la partida se pausa sola. El zoom mínimo en móvil es `TOUCH_MIN_ZOOM` (en
 Los enemigos comunes tienen un tamaño un 25 % mayor, los jefes un 10 % y el duende
 de botín un 30 % (incluidos sus radios de colisión). Cuando el duende queda completamente
 fuera de pantalla, una flecha dorada con la etiqueta «Duende» indica su dirección.
+El duende usa el diseño de Krampus, con cuernos, pelaje y saco de tesoros; conserva su
+comportamiento. Los cofres se dibujan un 30 % más grandes, sin cambiar su alcance de apertura.
 
 El HUD inferior (estilo Diablo) agrupa la **vida** (orbe rojo a la izquierda),
 la **experiencia con el nivel** (barra encima de las habilidades) y las tres
 **habilidades** del arma. El orbe late cuando la vida baja del 25 %.
+
+El botón **Debug ▾**, arriba a la izquierda, despliega los controles para avanzar
+oleada, activar cenizas infinitas o invulnerabilidad, invocar un goblin y subir nivel.
+El menú se cierra al pulsar fuera o con `Esc`. Usar cualquiera de estos controles
+impide guardar la puntuación de esa partida; abrir el menú no afecta al ranking.
 
 ## Puntuaciones
 
@@ -127,10 +134,39 @@ no se sincronizan entre dispositivos o navegadores.
 - `css/estilos.css`: estilos, HUD (dock con orbe de vida), menús, overlays y modo táctil.
 - `js/mecanica.js`: estado, oleadas, combate, inventario y puntuaciones.
 - `js/personajes.js`: movimiento, disparo, habilidades y progresión del jugador.
+- `js/nigromante.js`: habilidades, invocaciones aliadas y renderizado del Nigromante.
 - `js/jefes.js`: jefes, sus ataques y el Desafío final.
 - `js/enemigos.js`: enemigos, cofres, jefes y renderizado asociado.
 - `js/tactil.js`: controles táctiles (cruceta, esquive, cofre, pausa y apuntado automático). Solo actúa en modo táctil.
 - `assets/bosses/`: los ocho sprites SVG de los jefes de oleada y del Desafío final, cargados desde archivos independientes.
+- `assets/enemies/`, `assets/archer/`, `assets/mage/` y `assets/goblin/`: diseños activos de enemigos y personajes.
+- `assets/chest/` y `assets/ui/`: cofres y elementos gráficos de la interfaz.
+- `assets/necro/`: sprites del Nigromante y sus esqueletos espectrales.
+
+## Nigromante
+
+Cuarta clase seleccionable, con guadaña y 95 de vida base (más el equipo inicial).
+Sus tres ataques se activan automáticamente con los mismos controles de las otras clases:
+
+- **Siega espectral:** barrido cuerpo a cuerpo como el del Bárbaro. Cadencia base: 1,6 ataques por segundo.
+  El Nigromante recibe un 20 % adicional sobre el daño previo del barrido, los esqueletos
+  y la Onda pestilente, también al máximo de mejoras; no altera su alcance ni sus recargas.
+- **Hueste espectral:** convierte cada 3 bajas disponibles en un esqueleto durante 10 s,
+  hasta 6 aliados simultáneos. Recarga base: 8 s. Atacan al enemigo o jefe
+  cercano, atraviesan obstáculos y no reciben daño. Su daño aumenta con Daño y Poder.
+- **Onda pestilente:** onda expansiva de filamentos de veneno, con 12 s de recarga base. Cada objetivo
+  alcanzado recupera un 2 % de vida máxima, hasta un 12 % por lanzamiento. Poder amplía
+  el radio; el impacto y 3 s de veneno suman el mismo daño total que la anterior Cosecha.
+  No consume la recarga si no hay un objetivo dentro del área. Después del golpe,
+  convierte las bajas disponibles en esqueletos con la misma proporción de 3 a 1; las bajas
+  causadas por veneno también pueden invocar aliados. El veneno se renueva sin acumularse.
+
+Hueste y Onda pestilente comparten una reserva de bajas: cada muerte se consume una sola vez y los
+sobrantes se conservan. Si hay 6 aliados, las bajas quedan guardadas hasta que haya espacio.
+Hueste no consume recarga si no puede invocar. Los esqueletos son un 25 % más pequeños.
+
+Los esqueletos no cuentan como enemigos de oleada ni bloquean los intermedios. El daño de sus
+ataques se atribuye a la habilidad que los invocó en el resumen final. El ranking identifica la clase como Nigromante.
 
 ## Dificultades
 

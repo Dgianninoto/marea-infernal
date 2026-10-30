@@ -331,6 +331,7 @@ function updateAxeSweep(effect, dt) {
 function updateWeaponEffects(dt) {
   for (const effect of state.weaponEffects) {
     if (effect.kind === "axe-sweep") { updateAxeSweep(effect, dt); continue; }
+    if (effect.kind === "poison-nova") { updateNecromancerNova(effect, dt); continue; }
     if (effect.kind !== "meteor") {
       effect.life = Math.max(0, effect.life - dt);
       continue;
@@ -357,6 +358,7 @@ function updateWeaponEffects(dt) {
 function drawWeaponEffects() {
   drawAxePreview();
   for (const effect of state.weaponEffects) {
+    if (effect.kind === "poison-nova") continue; // rendered by the necromancer class
     if (effect.kind === "meteor") {
       if (effect.phase === "falling") {
         const progress = clamp(1 - effect.life / effect.fallDuration, 0, 1);
@@ -540,50 +542,15 @@ function damageWeaponRings(x, y, radius, rings, baseDamage) {
   }
 }
 
-// Dano por anillos concentricos: cada enemigo recibe un solo golpe, el del anillo mas interior que
-// toque su cuerpo (distancia al centro - radio del enemigo <= radio del anillo).
-function damageWeaponRings(x, y, radius, rings, baseDamage) {
-  const ringFor = t => {
-    const d = Math.sqrt(dist2(x, y, t.x, t.y));
-    if (d > radius + t.r) return null;
-    for (const ring of rings) if (d - t.r <= radius * ring.r) return ring;
-    return null;
-  };
-  for (const enemy of state.enemies.slice()) {
-    if (enemy.hp <= 0) continue;
-    const ring = ringFor(enemy);
-    if (ring) damageWeaponEnemy(enemy, baseDamage * ring.mult);
-  }
-  for (const boss of state.bosses.slice()) {
-    if (boss.hp <= 0) continue;
-    const ring = ringFor(boss);
-    if (ring) damageWeaponBoss(boss, baseDamage * ring.mult);
-  }
-}
-
-function damageWeaponCone(angle, range, halfAngle, damage) {
-  const fx = Math.cos(angle), fy = Math.sin(angle);
-  const tangent = Math.tan(halfAngle);
-  const hits = target => {
-    const dx = target.x - state.player.x, dy = target.y - state.player.y;
-    const forward = dx * fx + dy * fy;
-    const side = Math.abs(dx * fy - dy * fx);
-    return forward >= -target.r && forward <= range + target.r &&
-      side <= Math.max(0, forward) * tangent + target.r;
-  };
-  for (const enemy of state.enemies) if (enemy.hp > 0 && hits(enemy)) damageWeaponEnemy(enemy, damage);
-  for (const bs of state.bosses.slice()) if (bs.hp > 0 && hits(bs)) damageWeaponBoss(bs, damage);
-}
-
 // Automatic weapon kit: basic, intermediate and ultimate attacks share cooldown UI.
 function useSkill(i) {
   dmgSkill = i;
-  try { useSkillInner(i); } finally { dmgSkill = -1; }
+  try { return useSkillInner(i) !== false; } finally { dmgSkill = -1; }
 }
 function useSkillInner(i) {
-  if (!state || !state.running || state.over || paused || invOpen) return;
+  if (!state || !state.running || state.over || paused || invOpen) return false;
   const p = state.player;
-  if (p.skillCd[i] > 0) return;
+  if (p.skillCd[i] > 0) return false;
   const base = Math.atan2(p.aimY, p.aimX);
   const weaponId = state.weaponId;
 
@@ -603,6 +570,8 @@ function useSkillInner(i) {
       state.shake = Math.max(state.shake, 12);
       Sound.bossdie();
     }
+  } else if (weaponId === "necro") {
+    if (useNecromancerSkill(i, base) === false) return false;
   } else if (weaponId === "staff") {
     if (i === 0) {
       // Orbe guiado: sale hacia la mira y gira (hasta 6 rad/s) hacia el enemigo con menos orbes encima (a igualdad, el mas cercano).
@@ -966,6 +935,7 @@ function drawPlayer(p) {
   ctx.translate(p.x, p.y);
   ctx.scale(p.r / 20, p.r / 20);
   if (state.weaponId === "bow") drawBodyArcher();
+  else if (state.weaponId === "necro") drawBodyNecromancer();
   else if (state.weaponId === "staff") drawBodyMage();
   else drawBodyBarbarian();
   ctx.restore();
@@ -983,6 +953,8 @@ function drawPlayer(p) {
     const tipX = 2 + Math.cos(1.15) * br, tipY = Math.sin(1.15) * br;
     ctx.strokeStyle = "rgba(240,223,206,0.85)"; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.moveTo(tipX, -tipY); ctx.lineTo(tipX, tipY); ctx.stroke();
+  } else if (state.weaponId === "necro") {
+    drawNecromancerWeapon();
   } else if (state.weaponId === "staff") {
     ctx.strokeStyle = "#7f542d"; ctx.lineWidth = 5; ctx.lineCap = "round";
     ctx.beginPath(); ctx.moveTo(3, 8); ctx.lineTo(24, -8); ctx.stroke();

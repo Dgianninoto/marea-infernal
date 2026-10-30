@@ -364,6 +364,16 @@ var AFFIX = {
   cdr:      { label: "Recarga",   color: "#c58aff", fmt: v => "+" + v + "%" },
 };
 var WEAPONS = {
+  necro: {
+    id: "necro", name: "Guadaña de almas", icon: "💀", color: "#9fe6b2",
+    baseHp: 95, baseDmg: 30, baseRate: 1.6, baseSpeed: 130, baseRegen: 0.5,
+    weaponStats: [{ key: "dmg", base: 8, step: 3 }, { key: "poder", base: 0, step: 2 }],
+    skills: [
+      { name: "Siega espectral", icon: "⚔️", cooldown: 0.625 },
+      { name: "Hueste espectral", icon: "💀", cooldown: 8 },
+      { name: "Onda pestilente", icon: "☠️", cooldown: 12 },
+    ],
+  },
   bow: {
     id: "bow", name: "Arco", icon: "🏹", color: "#ffd84d",
     baseHp: 120,         // base Vida at level 1 (default 100); level-ups still add +12
@@ -517,7 +527,7 @@ function recalcStats(p) {
   p.ashBonus = equipSum(p, "ashBonus") / 100;
   p.block = Math.max(0, equipSum(p, "block") / 100);               // block chance; >1 = extra guaranteed layers (no cap)
   p.crit = Math.max(0, equipSum(p, "crit") / 100);   // Critico (Arquero): 1 = 100 %; sin tope. Por encima de 100 % es super critico (ver critMultiplier)
-  p.poder = Math.max(0, equipSum(p, "poder") / 100);               // Poder (mago): 1 = +100 % de radio del meteorito; sin tope
+  p.poder = Math.max(0, equipSum(p, "poder") / 100);               // Poder: efectos del mago e invocaciones/cosecha del nigromante
   p.cdr = equipSum(p, "cdr") / 100;                                // Recarga: no cap; cooldowns tick (1 + cdr) times faster
   p.hp = Math.min(p.maxHp, Math.max(1, Math.round(hpRatio * p.maxHp)));
   let power = 0;
@@ -658,6 +668,8 @@ function newState(weaponId) {
     beams: [],         // rayos en linea recta de los jefes (aviso -> disparo)
     weaponEffects: [],
     enemies: [],
+    minions: [],        // friendly spectral skeletons, separate from wave enemy counts
+    necroSouls: 0,      // unspent kills: both summoning skills share a 3-to-1 conversion
     orbs: [],
     dmgStats: [0, 0, 0], // dano real hecho por cada ataque (basico, intermedio, definitivo)
     chests: [],
@@ -670,7 +682,7 @@ function newState(weaponId) {
 
 // ---------------------------------------------------------------- Input
 var keys = {};
-var mouse = { x: W / 2, y: H / 2, down: false };
+var mouse = { x: W / 2, y: H / 2 };
 
 window.addEventListener("keydown", e => {
   var t = e.target;
@@ -697,8 +709,6 @@ canvas.addEventListener("mousemove", e => {
   mouse.x = e.clientX - r.left;
   mouse.y = e.clientY - r.top;
 });
-canvas.addEventListener("mousedown", e => { if (e.button === 0) mouse.down = true; });
-window.addEventListener("mouseup", () => { mouse.down = false; });
 
 
 // ---------------------------------------------------------------- Spawning
@@ -861,9 +871,8 @@ function tryOpenChest() {
 }
 
 // ---------------------------------------------------------------- Floating text + loot feed
-var floatLayer = document.getElementById("float-layer");
 function floatText(wx, wy, text, color) {
-  state.floaters.push({ wx, wy, text, color, el: null, life: 0.9 });
+  state.floaters.push({ wx, wy, text, color, life: 0.9 });
 }
 var lootFeed = document.getElementById("loot-feed");
 // ---------------------------------------------------------------- Wave director
@@ -997,8 +1006,7 @@ function update(dt) {
       if (p.skillCd[0] <= 0) useSkill(0);
       if (p.autoSkillCd <= 0) {
         for (let index = 1; index < 3; index++) {
-          if (p.skillCd[index] <= 0) {
-            useSkill(index);
+          if (p.skillCd[index] <= 0 && useSkill(index)) {
             p.autoSkillCd = 0.22;
             break;
           }
@@ -1007,6 +1015,7 @@ function update(dt) {
     }
   }
   updateWeaponEffects(dt);
+  updateNecromancer(dt);
 
   // dash cooldown / active dash
   if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - dt);
@@ -1503,6 +1512,7 @@ function draw() {
   // boss
   for (const bs of state.bosses) { drawBoss(bs); if (bs.bleed) drawBleedPulse(bs); }
   drawWeaponEffects();
+  drawNecromancer();
 
   // boss + caster projectiles
   for (const bb of state.bossBullets) {
@@ -1740,7 +1750,7 @@ for (const kind of ["closed", "open"]) {
 function drawChestSprite(c, kind) {
   const sprite = chestSprites[kind];
   if (!sprite.ready) return false;
-  const size = c.r * 2.5;
+  const size = c.r * 2.5 * 1.30; // artwork only: preserve pickup range and chest lifetime
   ctx.drawImage(sprite.image, c.x - size / 2, c.y - size * 0.55, size, size);
   return true;
 }
@@ -1858,7 +1868,6 @@ function updateWeaponHud(weaponId) {
   }
 }
 
-var warnTimer = null;
 function showWarning(html) {
   warningEl.innerHTML = html;
   warningEl.classList.remove("show");
@@ -1878,7 +1887,7 @@ el("inter-continue").addEventListener("click", () => {
   if (state && state.phase === "intermission") endIntermission();
 });
 
-// ---------------------------------------------------------------- TEMP DEBUG (remove this block + #debug-panel)
+// ---------------------------------------------------------------- Debug controls (collapsible menu)
 var debugInfAsh = false;
 var debugGod = false; // invulnerable: nada le baja vida al jugador
 var DEBUG_ASH = 999999;
@@ -1900,11 +1909,13 @@ function debugNextWave() {
 for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
   debugInfAsh = !debugInfAsh;
   el("dbg-ash").classList.toggle("on", debugInfAsh);
+  el("dbg-ash").setAttribute("aria-pressed", String(debugInfAsh));
   debugTopUpAsh();
   if (invOpen) renderInventory();
 }], ["dbg-god", () => {
   debugGod = !debugGod;
   el("dbg-god").classList.toggle("on", debugGod);
+  el("dbg-god").setAttribute("aria-pressed", String(debugGod));
 }], ["dbg-goblin", () => {
   if (typeof spawnGoblinNearPlayer === "function") spawnGoblinNearPlayer();
 }], ["dbg-level", () => {
@@ -1918,6 +1929,20 @@ for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
     fn();
   });
 }
+
+var debugPanel = el("debug-panel");
+document.addEventListener("click", e => {
+  if (!debugPanel.contains(e.target)) debugPanel.open = false;
+});
+debugPanel.addEventListener("keydown", e => {
+  // Let native menu controls use Space/Enter without triggering gameplay shortcuts.
+  e.stopPropagation();
+  if (e.key === "Escape" && debugPanel.open) {
+    e.preventDefault();
+    debugPanel.open = false;
+    debugPanel.querySelector("summary").focus();
+  }
+});
 
 // ---------------------------------------------------------------- Inventory UI
 var invScreen = el("inv-screen");
@@ -2039,7 +2064,7 @@ function renderStatsPanel(p) {
     { label: "Brasas",    color: AFFIX.ashBonus.color, lvl: 0,            eq: equipSum(p, "ashBonus"), fmt: v => f1(v) + "%" },
     state.weaponId === "axe"
       ? { label: "Bloqueo", color: AFFIX.block.color,    lvl: 0,            eq: equipSum(p, "block"),    fmt: v => f1(v) + "%" }
-      : state.weaponId === "staff"
+      : (state.weaponId === "staff" || state.weaponId === "necro")
         ? { label: "Poder", color: AFFIX.poder.color,    lvl: 0,            eq: equipSum(p, "poder"),    fmt: v => f1(v) + "%" }
         : { label: "Crítico", color: AFFIX.crit.color,   lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%" },
     { label: "Recarga",   color: AFFIX.cdr.color,      lvl: 0,            eq: equipSum(p, "cdr"),      fmt: v => f1(v) + "%" },
@@ -2079,6 +2104,9 @@ el("inv-close").addEventListener("click", closeInventory);
 
 function updateHud() {
   debugTopUpAsh();
+  const souls = el("necro-souls");
+  souls.hidden = state.weaponId !== "necro";
+  if (!souls.hidden) souls.textContent = "Bajas disponibles: " + state.necroSouls + " · Esqueletos: " + state.minions.length + "/6";
   const p = state.player;
   const hpPct = clamp(p.hp / p.maxHp * 100, 0, 100);
   hpFill.style.height = hpPct + "%"; // el orbe se vacia de arriba hacia abajo, como en Diablo
@@ -2158,14 +2186,14 @@ function sbRequest(path, opts) {
   })).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r; })
     .finally(() => clearTimeout(timer));
 }
-// Clase jugada, segun el arma elegida (se guarda el id del arma: bow / staff / axe)
-var CLASS_LABELS = { bow: "🏹 Arquero", staff: "🪄 Mago", axe: "🪓 Bárbaro" };
+// Clase jugada, segun el arma elegida (bow / staff / axe / necro).
+var CLASS_LABELS = { bow: "🏹 Arquero", staff: "🪄 Mago", axe: "🪓 Bárbaro", necro: "💀 Nigromante" };
 
 function sbInsertScore(entry) {
   const row = {
     name: String(entry.name || "Anónimo").slice(0, 14), score: entry.score | 0, wave: entry.wave | 0,
     level: entry.level | 0, kills: entry.kills | 0, ash: entry.ash | 0,
-    weapon: String(entry.weapon || "").slice(0, 10), // clase jugada (bow / staff / axe); columna `weapon` en supabase-setup.sql
+    weapon: String(entry.weapon || "").slice(0, 10), // clase jugada; columna `weapon` en supabase-setup.sql
     bosses: entry.bosses | 0,           // jefes derrotados; columna `bosses` en supabase-setup.sql
     boss: (entry.bosses | 0) > 0,
     victory: !!entry.victory,           // partida ganada (Desafio final superado); columna `victory` en supabase-setup.sql
@@ -2324,7 +2352,6 @@ function startGame(weaponId) {
   Sound.resume(); // unlock audio on user gesture
   if (typeof weaponId === "string") selectedWeaponId = getWeapon(weaponId).id;
   state = newState(selectedWeaponId);
-  // si el debug (cenizas infinitas / invulnerable) sigue activo de la partida anterior, esta tambien cuenta como debug
   state.debugUsed = !!(debugInfAsh || debugGod);
   updateWeaponHud(state.weaponId);
   recalcStats(state.player); // initialize effective stats
@@ -2395,12 +2422,13 @@ function endGame(victory) {
     weapon: state.weaponId, bosses: state.bossesDown, boss: state.bossesDown > 0, victory, date: Date.now(),
     difficulty: state.difficulty || "hard",
   };
-  if (state.debugUsed) pendingRun = null; // partida con debug: no se guarda ni en local ni en global
+
+  if (state.debugUsed) pendingRun = null; // debug runs never reach local/global rankings
 
   const runDiff = state.difficulty || "hard";
   const prevBest = bestScore(runDiff); // el record se compara dentro de la misma dificultad
   el("best-score").textContent = state.debugUsed
-    ? "🛠 Debug usado: esta partida no se guarda"
+    ? "Debug usado: esta partida no se guarda"
     : finalScore > prevBest && prevBest > 0
     ? "🏆 ¡Nuevo récord en " + diffLabel(runDiff) + "! " + finalScore.toLocaleString()
     : "Mejor puntuación (" + diffLabel(runDiff) + "): " + Math.max(prevBest, finalScore).toLocaleString();

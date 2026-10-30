@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-122 -122 244 244" width="244" height="244" fill="none">
+ <title>Coloso Abisal · Guardián de la segunda marea</title>
+ <defs>
+  <radialGradient id="body" cx="42%" cy="28%" r="80%"><stop stop-color="#cf3658"/><stop offset=".55" stop-color="#8c193b"/><stop offset="1" stop-color="#390a23"/></radialGradient>
+  <radialGradient id="eye" cx="45%" cy="40%" r="65%"><stop stop-color="#fff5b5"/><stop offset=".6" stop-color="#ffd16b"/><stop offset="1" stop-color="#e48535"/></radialGradient>
+  <linearGradient id="bone" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f1d0b0"/><stop offset="1" stop-color="#a97779"/></linearGradient>
+ </defs>
+ <g stroke="#0a0305" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+  <g id="left-limbs">
+   <path d="M-34-22C-58-58-100-54-105-16C-110 18-88 28-80 13C-95 17-95-2-89-12C-78-29-60-12-49 7Z" fill="#751431"/>
+   <path d="M-42 0C-82-8-103 25-92 61C-84 86-59 89-57 70C-67 80-81 61-75 44C-69 30-55 32-38 34Z" fill="#8e1e3d"/>
+   <path d="M-26 30C-56 48-64 81-45 100C-29 115-7 108-10 91C-16 105-35 95-33 80C-31 65-14 58-7 41Z" fill="#751431"/>
+   <path d="M-88-28L-105-44L-102-17M-90 38L-110 48L-91 54M-49 82L-62 100L-42 98" fill="#ac4761"/>
+   <path d="M-60-25Q-78-39-88-20M-61 31Q-83 34-82 52M-24 58Q-44 76-38 89" stroke="#d16079" stroke-width="2.5"/>
+   <circle cx="-66" cy="-13" r="4" fill="#d99197" stroke-width="1.5"/>
+   <circle cx="-62" cy="40" r="4" fill="#d99197" stroke-width="1.5"/>
+   <circle cx="-32" cy="66" r="3.5" fill="#d99197" stroke-width="1.5"/>
+  </g>
+  <use href="#left-limbs" transform="scale(-1 1)"/>
+  <path d="M-38-31L-62-57L-70-95L-45-76L-26-48M38-31L62-57L70-95L45-76L26-48" fill="url(#bone)"/>
+  <path d="M-18-43L-27-87L-5-68L0-103L8-67L28-87L19-42Z" fill="#a84860"/>
+  <path d="M-47-19Q-44-52-18-57L0-48L19-57Q47-49 49-18L53 12L39 45L18 61L0 54L-20 61L-40 44L-53 12Z" fill="url(#body)"/>
+  <path d="M-47-17L-66-32L-62 3L-47 18M47-17L66-32L62 3L47 18" fill="#b94961"/>
+  <path d="M-35-33L-17-43L0-36L18-44L35-34" stroke="#e77784" stroke-width="3"/>
+  <path d="M-38-9Q0-40 38-9Q30 19 0 24Q-30 19-38-9Z" fill="url(#eye)"/>
+  <path d="M0-25C-10-12-10 6 0 19C10 6 10-12 0-25Z" fill="#180b1a" stroke-width="2"/>
+  <ellipse cx="-14" cy="-12" rx="5" ry="3" fill="#fff6cf" stroke="none"/>
+  <path d="M-38-10Q0-46 38-10L33-24L15-32L0-28L-17-32L-34-23Z" fill="#8b1d3d" stroke-width="3"/>
+  <path d="M-27 32Q0 23 27 32L17 46L0 51L-17 46Z" fill="#230b20" stroke-width="3"/>
+  <path d="M-18 31L-14 40L-8 31M-3 30L1 41L6 30M13 31L16 39L21 31" fill="#edd3b5" stroke-width="1.5"/>
+  <path d="M-26 15L-20 23M26 15L20 23M-32 32L-35 40M32 32L35 40" stroke="#da6a80" stroke-width="2.5"/>
+ </g>
+</svg>

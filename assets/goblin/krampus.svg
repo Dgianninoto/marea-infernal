@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+ <title>Krampus · Ladrón de tesoros</title>
+ <g stroke="#1b1420" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M40 69L35 82L45 86L53 83L51 69M60 68L64 81L76 84L81 79L70 65" fill="#352b32"/>
+  <path d="M35 81L45 79L53 82L50 88L36 87ZM65 80L75 78L82 81L79 87L67 86Z" fill="#ae9580" stroke-width="2"/>
+  <path d="M43 70V85M74 81L73 86" stroke-width="2"/>
+  <path d="M22 32Q5 42 11 65L23 76L42 69L48 50L39 31Z" fill="#8f4c3b"/>
+  <path d="M18 44Q21 36 33 37M16 56L26 63L39 53" stroke="#c38b65" stroke-width="2"/>
+  <path d="M22 32L20 22L36 20L41 31Z" fill="#66362e"/>
+  <circle cx="25" cy="23" r="5" fill="#f5ce74" stroke="#99753f" stroke-width="2"/>
+  <circle cx="34" cy="22" r="5" fill="#ffe3a0" stroke="#99753f" stroke-width="2"/>
+  <path d="M32 12L38 18L32 25L26 19Z" fill="#d95a6c" stroke="#793345" stroke-width="2"/>
+  <path d="M21 32L41 31M21 50L39 66" stroke="#e3bc71" stroke-width="3"/>
+  <path d="M43 43L65 42L72 54L69 60L77 68L65 69L60 77L51 71L42 75L42 65L35 61L42 55Z" fill="#40343e"/>
+  <path d="M45 63L68 62" stroke="#bfa27b" stroke-width="4"/>
+  <path d="M52 59L59 59L59 66L52 66Z" fill="#dbb165" stroke-width="2"/>
+  <path d="M42 33C34 28 37 16 43 10C38 22 46 23 49 27M65 27C81 28 88 15 82 5C83 18 73 17 66 19Z" fill="#dfc9a6" stroke-width="3"/>
+  <path d="M44 28L36 21L39 12M72 22L80 18L84 12" stroke="#a88b77" stroke-width="1.5"/>
+  <path d="M43 37L28 31L33 43L42 47M70 36L86 30L81 44L72 47" fill="#65505a"/>
+  <path d="M41 30L49 22L57 26L64 21L73 32L71 39L77 45L73 55L65 63L51 61L41 54L38 45L42 40Z" fill="#4c3b46"/>
+  <path d="M46 36L57 31L68 35L72 47L65 56L52 55L44 47Z" fill="#a67369" stroke-width="2"/>
+  <path d="M45 37L55 40L48 44ZM68 36L60 40L67 43Z" fill="#ffdc79" stroke-width="1.5"/>
+  <path d="M61 41L71 47L61 50L56 46Z" fill="#6b4549" stroke-width="2"/>
+  <path d="M51 50L68 52L64 59L54 57Z" fill="#251722" stroke-width="2"/>
+  <path d="M54 52L57 57L59 52M63 53L65 56L67 53" fill="#f2ddba" stroke-width="1"/>
+  <path d="M59 55Q69 57 69 65Q66 69 63 65L63 59" fill="#d54c62" stroke-width="1.5"/>
+  <path d="M49 53L54 57L59 57L61 65L56 62L54 69L50 63L46 65Z" fill="#d6cbb6" stroke-width="2"/>
+  <path d="M47 60Q41 54 38 59Q37 65 47 68L52 64" fill="#65515b"/>
+  <path d="M43 58L40 61M47 61L44 64" stroke="#c6b198" stroke-width="1.5"/>
+  <path d="M14 14V22M10 18H18" stroke="#ffe4a0" stroke-width="2"/>
+ </g>
+</svg>

@@ -41,7 +41,7 @@ var BOSS_FINAL_HP = 300000;    // vida fija de CADA jefe del desafio final (no d
 // En el Desafio final cada jefe tiene BOSS_FINAL_HP, sea cual sea.
 var BOSS_ROSTER = [
   { id: "B1", name: "Kraken Abisal", hp: 3000, spritePath: "assets/bosses/kraken-abisal.svg" },
-  { id: "B2", name: "Cangrejo Acorazado", hp: 20000, spritePath: "assets/bosses/cangrejo-acorazado.svg" },
+  { id: "B2", name: "Coloso Abisal", hp: 20000, spritePath: "assets/bosses/coloso-abisal.svg" },
   { id: "B3", name: "Medusa de Magma", hp: 90000, spritePath: "assets/bosses/medusa-magma.svg" },
   { id: "C1", name: "Ídolo Rúnico", hp: 150000, spritePath: "assets/bosses/idolo-runico.svg" },
   { id: "C2", name: "Señor de la Marea", hp: 250000, spritePath: "assets/bosses/senor-marea.svg" },

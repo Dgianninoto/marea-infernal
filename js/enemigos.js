@@ -548,6 +548,7 @@ function killEnemy(e) {
     return;
   }
   state.kills++;
+  registerNecromancerKill();
   state.alive = Math.max(0, state.alive - 1);
   state.score += Math.round(e.xp * 1.5);
   Sound.kill();
@@ -574,6 +575,7 @@ function killBoss(boss) {
   state.bossDefeated = true;
   state.bossesDown++;
   state.kills++;
+  registerNecromancerKill();
   state.score += 1500;
   state.ash += 40;
   if (state.bosses.length === 0) bossWrap.style.display = "none";
@@ -1078,6 +1080,7 @@ function onGoblinHit(e) {
 
 function killGoblin(e) {
   state.kills++;
+  registerNecromancerKill();
   state.score += 800;
   if (Sound && Sound.goblinDie) Sound.goblinDie();
   else if (Sound && Sound.chest) Sound.chest();
@@ -1190,7 +1193,7 @@ function drawGoblinIndicator(ctx) {
   ctx.restore();
 }
 
-// Contrabandista del umbral: cache the artwork and its damage silhouette once.
+// Krampus: cache the artwork and its damage silhouette once; goblin behavior stays unchanged.
 var goblinSprite = { image: new Image(), white: null, ready: false };
 goblinSprite.image.onload = () => {
   const white = document.createElement("canvas");
@@ -1203,7 +1206,7 @@ goblinSprite.image.onload = () => {
   goblinSprite.white = white;
   goblinSprite.ready = true;
 };
-goblinSprite.image.src = "assets/goblin/umbral.svg";
+goblinSprite.image.src = "assets/goblin/krampus.svg";
 
 function drawGoblin(e) {
   // Sombra dinámica en el suelo según la altura del salto
