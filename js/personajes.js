@@ -40,20 +40,32 @@ function axeSweepOpacity() {
 // Cono fantasma: muestra hacia donde saldra el siguiente barrido (el barrido en curso queda fijo y no sigue al raton).
 // Sigue la mira en vivo y desaparece cuando el arco ya es el circulo completo (360 grados).
 function drawAxePreview() {
-  if (state.weaponId !== "axe" || state.over || state.phase === "intermission") return;
-  const p = state.player, arc = axeSweepArc(p.dmg);
-  if (arc >= Math.PI * 2 - 0.001) return;
-  const range = axeSweepRange(p.dmg), aim = Math.atan2(p.aimY, p.aimX);
+  const necro = state.weaponId === "necro";
+  if ((state.weaponId !== "axe" && !necro) || state.over || state.phase === "intermission") return;
+  const p = state.player, aim = Math.atan2(p.aimY, p.aimX);
+  // Nigromante: arco fijo que empieza lejos del personaje (ver NECRO_SWEEP_* en nigromante.js)
+  const arc = necro ? NECRO_SWEEP_ARC : axeSweepArc(p.dmg);
+  if (!necro && arc >= Math.PI * 2 - 0.001) return;
+  const inner = necro ? NECRO_SWEEP_INNER : 0;
+  const range = necro ? NECRO_SWEEP_INNER + NECRO_SWEEP_LENGTH : axeSweepRange(p.dmg);
   const start = aim - arc / 2, end = aim + arc / 2;
+  const shape = () => {
+    ctx.beginPath();
+    if (inner > 0) { ctx.arc(p.x, p.y, range, start, end); ctx.arc(p.x, p.y, inner, end, start, true); }
+    else { ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, range, start, end); }
+    ctx.closePath();
+  };
   ctx.save();
-  ctx.fillStyle = "#ff7659";
+  ctx.fillStyle = necro ? "#9fe6b2" : "#ff7659";
   ctx.globalAlpha = 0.09;
-  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, range, start, end); ctx.closePath(); ctx.fill();
-  ctx.globalAlpha = 0.3; ctx.strokeStyle = "#ffd0bd"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
-  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, range, start, end); ctx.closePath(); ctx.stroke();
+  shape(); ctx.fill();
+  ctx.globalAlpha = 0.3; ctx.strokeStyle = necro ? "#d0f2a0" : "#ffd0bd"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
+  shape(); ctx.stroke();
   ctx.setLineDash([]);
   ctx.globalAlpha = 0.55; ctx.lineWidth = 3;               // borde de salida (el barrido avanza en sentido horario desde aqui)
-  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(start) * range, p.y + Math.sin(start) * range); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(p.x + Math.cos(start) * inner, p.y + Math.sin(start) * inner);
+  ctx.lineTo(p.x + Math.cos(start) * range, p.y + Math.sin(start) * range); ctx.stroke();
   ctx.restore();
 }
 
@@ -305,7 +317,9 @@ function updateAxeSweep(effect, dt) {
       if (t.hp <= 0 || effect.hit.has(t)) return false;
       const dx = t.x - p.x, dy = t.y - p.y, d = Math.hypot(dx, dy);
       if (d > effect.range + t.r) return false;
-      if (d <= t.r) return true;                           // el jugador esta dentro del cuerpo: lo golpea ya
+      const inner = effect.inner || 0;                     // arco que empieza lejos del jugador (Nigromante): ignora lo que queda antes
+      if (inner > 0 && d + t.r < inner) return false;
+      if (inner <= 0 && d <= t.r) return true;            // el jugador esta dentro del cuerpo: lo golpea ya
       let rel = (Math.atan2(dy, dx) - effect.start) % TAU; // desplazamiento horario desde el inicio del barrido
       if (rel < 0) rel += TAU;
       const w = Math.asin(Math.min(1, t.r / d));           // semiancho angular del cuerpo
@@ -331,7 +345,6 @@ function updateAxeSweep(effect, dt) {
 function updateWeaponEffects(dt) {
   for (const effect of state.weaponEffects) {
     if (effect.kind === "axe-sweep") { updateAxeSweep(effect, dt); continue; }
-    if (effect.kind === "poison-nova") { updateNecromancerNova(effect, dt); continue; }
     if (effect.kind !== "meteor") {
       effect.life = Math.max(0, effect.life - dt);
       continue;
@@ -358,7 +371,6 @@ function updateWeaponEffects(dt) {
 function drawWeaponEffects() {
   drawAxePreview();
   for (const effect of state.weaponEffects) {
-    if (effect.kind === "poison-nova") continue; // rendered by the necromancer class
     if (effect.kind === "meteor") {
       if (effect.phase === "falling") {
         const progress = clamp(1 - effect.life / effect.fallDuration, 0, 1);
@@ -416,20 +428,31 @@ function drawWeaponEffects() {
       const full = effect.arc >= Math.PI * 2 - 0.001;
       ctx.fillStyle = effect.color;
       ctx.globalAlpha = fade * 0.3 * op;
+      const inner = effect.inner || 0;                         // >0: arco (anillo recortado) que empieza lejos del jugador
       ctx.beginPath();
-      if (!full) ctx.moveTo(effect.x, effect.y);
-      ctx.arc(effect.x, effect.y, effect.range, start, cur);
+      if (inner > 0) {
+        ctx.arc(effect.x, effect.y, effect.range, start, cur);
+        ctx.arc(effect.x, effect.y, inner, cur, start, true);
+      } else {
+        if (!full) ctx.moveTo(effect.x, effect.y);
+        ctx.arc(effect.x, effect.y, effect.range, start, cur);
+      }
       ctx.closePath(); ctx.fill();
       ctx.globalAlpha = fade * lineOp;
-      ctx.strokeStyle = "#ffd0bd"; ctx.lineWidth = 4;
+      ctx.strokeStyle = effect.edgeColor || "#ffd0bd"; ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(effect.x, effect.y, effect.range, start, cur);   // borde exterior de la estela
       ctx.stroke();
+      if (inner > 0) {
+        ctx.beginPath();
+        ctx.arc(effect.x, effect.y, inner, start, cur);        // borde interior
+        ctx.stroke();
+      }
       if (effect.prog < 1) {                                   // filo que va barriendo
         ctx.strokeStyle = "#fff"; ctx.lineWidth = 5;
         ctx.shadowBlur = 14; ctx.shadowColor = effect.color;
         ctx.beginPath();
-        ctx.moveTo(effect.x, effect.y);
+        ctx.moveTo(effect.x + Math.cos(cur) * inner, effect.y + Math.sin(cur) * inner);
         ctx.lineTo(effect.x + Math.cos(cur) * effect.range, effect.y + Math.sin(cur) * effect.range);
         ctx.stroke();
       }

@@ -148,24 +148,32 @@ no se sincronizan entre dispositivos o navegadores.
 Cuarta clase seleccionable, con guadaña y 95 de vida base (más el equipo inicial).
 Sus tres ataques se activan automáticamente con los mismos controles de las otras clases:
 
-- **Siega espectral:** barrido cuerpo a cuerpo como el del Bárbaro. Cadencia base: 1,6 ataques por segundo.
-  El Nigromante recibe un 20 % adicional sobre el daño previo del barrido, los esqueletos
-  y la Onda pestilente, también al máximo de mejoras; no altera su alcance ni sus recargas.
-- **Hueste espectral:** convierte cada 3 bajas disponibles en un esqueleto durante 10 s,
-  hasta 6 aliados simultáneos. Recarga base: 8 s. Atacan al enemigo o jefe
-  cercano, atraviesan obstáculos y no reciben daño. Su daño aumenta con Daño y Poder.
-- **Onda pestilente:** onda expansiva de filamentos de veneno, con 12 s de recarga base. Cada objetivo
-  alcanzado recupera un 2 % de vida máxima, hasta un 12 % por lanzamiento. Poder amplía
-  el radio; el impacto y 3 s de veneno suman el mismo daño total que la anterior Cosecha.
-  No consume la recarga si no hay un objetivo dentro del área. Después del golpe,
-  convierte las bajas disponibles en esqueletos con la misma proporción de 3 a 1; las bajas
-  causadas por veneno también pueden invocar aliados. El veneno se renueva sin acumularse.
+- **Siega espectral:** barrido de guadaña en arco, siempre igual: 70° de apertura y 55 px de largo, empezando a 120 px
+  del personaje (cubre de 120 a 175 px; el hueco interior no golpea). Ya no cambia de arco ni de radio con el Daño
+  (constantes `NECRO_SWEEP_*` en `js/nigromante.js`). Un cono fantasma indica hacia dónde saldrá el siguiente barrido. Recorre su arco en 0,15 s (el Tajo del Bárbaro tarda 0,22 s) y suena como un silbido grave de aire cortado por la guadaña. Cadencia base: 1,6 ataques por segundo.
+- **Hueste espectral:** se lanza siempre que esté disponible (no depende de las bajas) e invoca 3 esqueletos arqueros
+  durante 10 s (`NECRO_HUESTE_COUNT`), hasta **Mando** aliados simultáneos (ver abajo). Recarga base: 8 s. Atacan al enemigo o jefe
+  cercano y atraviesan obstáculos. Cada uno tiene el 30 % de la vida máxima del personaje (`NECRO_HUESTE_HP_RATIO`).
+  Cada golpe hace el 30 % del Daño del Nigromante (`NECRO_MINION_DAMAGE_RATIO`) y atacan cada 1 s con arma Común,
+  0,8 s Mágica, 0,6 s Rara, 0,4 s Legendaria y 0,2 s Única (`NECRO_MINION_ATTACK_CD_BY_RARITY`).
+- **Aura pestilente (pasiva):** aura permanente alrededor del Nigromante (240 px). Cada enemigo
+  o jefe que entra recibe una carga de veneno que le quita un 30 % del daño del arma cada 1 s. Si al terminar ese
+  segundo sigue dentro del aura recibe otra carga y el daño pasa a 60 % (luego 90 %…); si ya salió, pierde una carga
+  (al llegar a 0 el veneno desaparece). Sin tope de cargas por defecto (`NECRO_POISON_MAX_STACKS`). Ya no cura.
 
-Hueste y Onda pestilente comparten una reserva de bajas: cada muerte se consume una sola vez y los
-sobrantes se conservan. Si hay 6 aliados, las bajas quedan guardadas hasta que haya espacio.
-Hueste no consume recarga si no puede invocar. Los esqueletos son un 25 % más pequeños.
+**Esqueletos por bajas:** un contador oculto cuenta cada baja (de cualquier origen: guadaña, veneno, esqueletos). La baja que
+completa 3 (`NECRO_KILLS_PER_SKELETON`) levanta un esqueleto con la vida máxima del bicho que acaba de morir y el contador
+vuelve a 0. Si ya hay tantos aliados como el Mando, el contador se reinicia igualmente y no nace ninguno.
+Hueste no consume recarga si no puede invocar.
 
-Los esqueletos no cuentan como enemigos de oleada ni bloquean los intermedios. El daño de sus
+**Mando:** stat especial del Nigromante (reemplaza al Poder y al Crítico). Fija el máximo de esqueletos simultáneos:
+10 de base y +1 por cada punto gastado en la pieza de arma, multiplicado por la rareza de la pieza como el resto de
+stats (Común ×1, Mágico ×1,5, Raro ×2, Legendario ×3, Único ×5; el resultado se redondea hacia abajo). Se define en `WEAPONS.necro.weaponStats` (`js/mecanica.js`). El Nigromante es un 10 % más grande que el resto de héroes (radio 22 en vez de 20). Los esqueletos nacidos de bajas nacen donde murió el bicho que completó la cuenta y son un 20 % más grandes (radio 12); los de Hueste usan un sprite propio, más grande e imponente (`assets/necro/skeleton-archer.svg`).
+
+**Comportamiento de los esqueletos:** los 3 esqueletos arqueros de Hueste disparan proyectiles como la flecha básica del Arquero (700 px/s, alcance `NECRO_MINION_RANGE` = 240 px, avanzan hasta `NECRO_MINION_HOLD` = 170 px de su blanco). Eligen el enemigo más cercano que ningún otro esqueleto tenga ya fijado (si todos están ocupados, el menos ocupado) y lo mantienen hasta que muere. Los esqueletos nacidos de bajas usan el mismo sistema de blancos pero atacan cuerpo a cuerpo. Todos chocan entre sí y con los enemigos comunes para no apilarse (los jefes y el duende los atraviesan). Los enemigos comunes persiguen al esqueleto o al personaje, el que tengan más cerca (los jefes y el duende siguen al personaje).
+
+Los esqueletos reciben daño de los enemigos (contacto, proyectiles, zonas de área y rayos), con 0,5 s de invulnerabilidad
+tras cada golpe, y desaparecen al llegar a 0 de vida o al acabar sus 10 s. No cuentan como enemigos de oleada ni bloquean los intermedios. El daño de sus
 ataques se atribuye a la habilidad que los invocó en el resumen final. El ranking identifica la clase como Nigromante.
 
 ## Dificultades

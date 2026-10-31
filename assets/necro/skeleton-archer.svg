@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+ <title>Esqueleto arquero (Hueste)</title>
+ <defs>
+  <radialGradient id="aura" cx="50%" cy="56%" r="50%">
+   <stop offset="0" stop-color="#7ce6aa" stop-opacity=".5"/>
+   <stop offset="1" stop-color="#7ce6aa" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#7e9199"/>
+   <stop offset="1" stop-color="#34454b"/>
+  </linearGradient>
+  <linearGradient id="blade" x1="0" y1="0" x2="1" y2="0">
+   <stop offset="0" stop-color="#e9fff3"/>
+   <stop offset="1" stop-color="#58c995"/>
+  </linearGradient>
+ </defs>
+ <circle cx="48" cy="55" r="46" fill="url(#aura)"/>
+ <g stroke="#14261f" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+  <!-- capa -->
+  <path d="M30 44L14 86L33 79L48 91L63 79L82 86L66 44Z" fill="#1f4a3a"/>
+  <path d="M48 66V90M36 70L27 82M60 70L69 82" stroke="#2f6b55" stroke-width="2"/>
+  <!-- piernas y botas -->
+  <path d="M39 70L36 85L27 87L27 91L46 91L47 74ZM57 70L60 85L69 87L69 91L50 91L49 74Z" fill="#c9d9b5"/>
+  <!-- peto -->
+  <path d="M32 46L64 46L67 65L48 74L29 65Z" fill="url(#steel)"/>
+  <path d="M48 47V72M35 56L61 56" stroke-width="2.5"/>
+  <circle cx="48" cy="59" r="6" fill="#7ce6aa" stroke-width="2.5"/>
+  <circle cx="48" cy="59" r="2.5" fill="#f2fff8" stroke="none"/>
+  <!-- brazo izquierdo (hueso) tirando de la cuerda -->
+  <path d="M30 52L44 60L58 49" stroke="#d2dfbc" stroke-width="7"/>
+  <!-- hombreras con pinchos -->
+  <path d="M19 47L24 36L40 40L38 55L22 57Z" fill="url(#steel)"/>
+  <path d="M24 37L18 22L33 35Z" fill="#a9bcc2"/>
+  <path d="M77 47L72 36L56 40L58 55L74 57Z" fill="url(#steel)"/>
+  <path d="M72 37L78 22L63 35Z" fill="#a9bcc2"/>
+  <!-- arco, cuerda y flecha -->
+  <path d="M68 6L58 49L68 92" stroke="#e9fff3" stroke-width="1.5" stroke-opacity=".8"/>
+  <path d="M68 6Q98 49 68 92" stroke="#14261f" stroke-width="7"/>
+  <path d="M68 6Q98 49 68 92" stroke="#7a5a36" stroke-width="3.5"/>
+  <path d="M58 49L87 49" stroke="#d9c7a0" stroke-width="2.5"/>
+  <path d="M87 44L95 49L87 54Z" fill="#9fe6b2" stroke-width="2"/>
+  <path d="M58 49L54 44M58 49L54 54" stroke="#7ce6aa" stroke-width="2"/>
+  <!-- brazo derecho sujetando el arco -->
+  <path d="M66 52L78 54L83 49" stroke="#d2dfbc" stroke-width="7"/>
+  <!-- craneo -->
+  <path d="M33 27L40 19L56 19L63 27L61 38L55 47L41 47L35 38Z" fill="#e1e6c8"/>
+  <path d="M43 44V48M49 44V48M55 44V48" stroke-width="2"/>
+  <!-- yelmo con cuernos -->
+  <path d="M29 29L35 14L48 10L61 14L67 29L58 27L48 25L38 27Z" fill="url(#steel)"/>
+  <path d="M48 11V25" stroke-width="2.5"/>
+  <path d="M35 17C25 16 17 9 18 1C24 7 30 8 38 11Z" fill="#e1e6c8"/>
+  <path d="M61 17C71 16 79 9 78 1C72 7 66 8 58 11Z" fill="#e1e6c8"/>
+  <!-- ojos brillantes y nariz -->
+  <path d="M37 32L46 34L40 39ZM59 32L50 34L56 39Z" fill="#7ce6aa" stroke-width="2"/>
+  <path d="M48 37L44 42L52 42Z" fill="#365641" stroke-width="1.5"/>
+ </g>
+</svg>

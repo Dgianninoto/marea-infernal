@@ -23,10 +23,10 @@
       </div>
     </details>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 219 -> la proxima entrega 220,
-         luego 221, 222, etc. (se muestra como 0.219, 0.220, 0.221...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 220 -> la proxima entrega 221,
+         luego 222, 223, etc. (se muestra como 0.220, 0.221, 0.222...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.219</div>
+    <div id="build-tag">Build 0.220</div>
 
 
     <!-- Boss bar -->
@@ -219,11 +219,11 @@
             <article class="weapon-card">
               <div class="weapon-icon">💀</div>
               <h3>Nigromante</h3>
-              <p>Magia oscura, esqueletos aliados y recuperación de vida al cosechar almas.</p>
+              <p>Magia oscura, esqueletos aliados y un aura de veneno acumulable.</p>
               <ul>
-                <li>Siega espectral: barrido de guadaña</li>
+                <li>Siega espectral: barrido en arco de 70°</li>
                 <li>Hueste: 1 esqueleto cada 3 bajas</li>
-                <li>Onda pestilente: veneno y esqueletos</li>
+                <li>Aura pestilente: veneno que se acumula</li>
               </ul>
               <button class="btn weapon-start" data-weapon="necro">Jugar con nigromante</button>
             </article>
@@ -256,14 +256,16 @@
                 a la mitad el daño recibido. El tajo es un barrido en sentido horario: su arco crece con el daño hasta cerrar el círculo de 360° (con 100 de daño) y, desde ahí, crece su radio; el hacha arrojadiza lanza tres hachas que
                 atraviesan y hacen sangrar (50 % de su daño cada 0,5 s durante 8 s) y el golpe sísmico daña en tres anillos
                 (×2 exterior, ×4 central, ×7 interior).</p>
-              <p><b style="color:#9fe6b2">💀 Nigromante.</b> Ataca con un barrido de guadaña. Todas sus habilidades
+              <p><b style="color:#9fe6b2">💀 Nigromante.</b> Ataca con un barrido de guadaña en arco (70°, de 120 a 175 px del personaje). Todas sus habilidades
                 y sus esqueletos reciben un 20 % de daño adicional. Cada 3 bajas permiten invocar un esqueleto
-                espectral durante 10 segundos (hasta 6 aliados). Hueste y Onda pestilente comparten esta reserva;
-                las bajas ya consumidas no se reutilizan. La Onda pestilente se expande en filamentos de veneno y golpea
-                alrededor del personaje y cura un 2 % de vida máxima por objetivo, hasta un 12 % por lanzamiento.
-                Aplica veneno durante 3 s, convierte las bajas disponibles en esqueletos y tiene 12 s de recarga base.
-                Su <b>Poder</b> aumenta el daño de los esqueletos y amplía el radio de la onda.
-                Los aliados atraviesan obstáculos y no reciben daño.</p>
+                espectral durante 10 segundos (hasta tantos aliados como su <b>Mando</b>: 10 de base, +1 por punto gastado, multiplicado por la rareza). Hueste y el Aura pestilente comparten esta reserva;
+                las bajas ya consumidas no se reutilizan. El Aura pestilente es pasiva y permanente alrededor del personaje:
+                cada enemigo que entra recibe una carga de veneno que le quita un 30 % del daño del arma por segundo; si
+                al terminar el segundo sigue dentro recibe otra carga (60 %, 90 %…), y si salió pierde una. Las bajas
+                causadas por veneno también se convierten en esqueletos.
+                Su stat especial es <b>Mando</b> (en lugar de Crítico), que fija el máximo de esqueletos simultáneos.
+                Los aliados atraviesan obstáculos y sí reciben daño de los enemigos. Los esqueletos de Hueste tienen el 30 % de la vida
+                máxima del personaje; los que nacen de una baja por veneno tienen la vida máxima del bicho que murió.</p>
               <p><b style="color:var(--ember-glow)">Esquiva.</b> Pulsa <kbd>Espacio</kbd> para hacer un dash con una
                 breve invulnerabilidad. Tiene tiempo de recarga.</p>
               <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu

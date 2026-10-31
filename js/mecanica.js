@@ -55,12 +55,38 @@ var Sound = (() => {
     src.connect(gain); gain.connect(c.destination);
     src.start();
   }
+  // Silbido de aire: ruido que pasa por un filtro de banda cuyo centro sube y baja (el filo cortando el viento),
+  // con un golpe grave y un zumbido de fondo. Lo usa la guadaña del Nigromante.
+  function scytheWhoosh() {
+    if (!enabled) return;
+    const c = ensure();
+    if (!c) return;
+    const t0 = c.currentTime, dur = 0.38;
+    const n = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, n, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource(); src.buffer = buf;
+    const filter = c.createBiquadFilter(); filter.type = "bandpass"; filter.Q.value = 1.4;
+    filter.frequency.setValueAtTime(260, t0);
+    filter.frequency.exponentialRampToValueAtTime(2200, t0 + 0.14);   // el filo pasa: el tono sube rapido
+    filter.frequency.exponentialRampToValueAtTime(380, t0 + dur);     // y se aleja: cae
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.32, t0 + 0.07);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filter); filter.connect(gain); gain.connect(c.destination);
+    src.start(t0);
+    tone(120, 0.3, "sine", 0.16, 48);            // peso del arma
+    tone(80, 0.34, "sawtooth", 0.035, 210);      // zumbido grave que sube con el filo
+  }
   return {
     resume: () => ensure(),
     toggle: () => { enabled = !enabled; if (enabled) ensure(); return enabled; },
     get enabled() { return enabled; },
     shoot: () => tone(680, 0.08, "square", 0.05, 240),
     swing: () => { tone(260, 0.2, "sawtooth", 0.06, 560); noise(0.14, 0.05); },
+    scythe: scytheWhoosh,
     hit: () => tone(320, 0.05, "triangle", 0.06, 180),
     kill: () => { tone(160, 0.18, "sawtooth", 0.1, 50); noise(0.12, 0.08); },
     loot: (mult) => { const base = 520 + Math.min(mult, 20) * 40; tone(base, 0.12, "sine", 0.12, base * 1.5); },
@@ -360,6 +386,7 @@ var AFFIX = {
   ashBonus: { label: "Brasas",    color: "#ffb347", fmt: v => "+" + v + "%" },
   crit:     { label: "Crítico",   color: "#ffd84d", fmt: v => "+" + v + "%" },
   poder:    { label: "Poder",     color: "#d7a5ff", fmt: v => "+" + v + "%" },
+  mando:    { label: "Mando",     color: "#9fe6b2", fmt: v => "+" + v },   // Nigromante: maximo de esqueletos simultaneos
   block:    { label: "Bloqueo",   color: "#9bb4d6", fmt: v => "+" + v + "%" },
   cdr:      { label: "Recarga",   color: "#c58aff", fmt: v => "+" + v + "%" },
 };
@@ -367,11 +394,12 @@ var WEAPONS = {
   necro: {
     id: "necro", name: "Guadaña de almas", icon: "💀", color: "#9fe6b2",
     baseHp: 95, baseDmg: 30, baseRate: 1.6, baseSpeed: 130, baseRegen: 0.5,
-    weaponStats: [{ key: "dmg", base: 8, step: 3 }, { key: "poder", base: 0, step: 2 }],
+    fireRateStep: 0.3,   // guantes: A/s por punto de Cadencia con este arma (por defecto 0.4)
+    weaponStats: [{ key: "dmg", base: 8, step: 2 }, { key: "mando", base: 10, step: 1 }],   // Mando: 10 esqueletos base, +1 por punto gastado (la rareza lo multiplica como al resto)
     skills: [
       { name: "Siega espectral", icon: "⚔️", cooldown: 0.625 },
       { name: "Hueste espectral", icon: "💀", cooldown: 8 },
-      { name: "Onda pestilente", icon: "☠️", cooldown: 12 },
+      { name: "Aura pestilente", icon: "☠️", cooldown: 0, passive: true },
     ],
   },
   bow: {
@@ -528,6 +556,7 @@ function recalcStats(p) {
   p.block = Math.max(0, equipSum(p, "block") / 100);               // block chance; >1 = extra guaranteed layers (no cap)
   p.crit = Math.max(0, equipSum(p, "crit") / 100);   // Critico (Arquero): 1 = 100 %; sin tope. Por encima de 100 % es super critico (ver critMultiplier)
   p.poder = Math.max(0, equipSum(p, "poder") / 100);               // Poder: efectos del mago e invocaciones/cosecha del nigromante
+  p.mando = Math.floor(equipSum(p, "mando"));                      // Mando (Nigromante): maximo de esqueletos simultaneos
   p.cdr = equipSum(p, "cdr") / 100;                                // Recarga: no cap; cooldowns tick (1 + cdr) times faster
   p.hp = Math.min(p.maxHp, Math.max(1, Math.round(hpRatio * p.maxHp)));
   let power = 0;
@@ -638,7 +667,7 @@ function newState(weaponId) {
     victoryDelay: 0,    // segundos hasta mostrar la pantalla de victoria
     player: {
       x: WORLD.w / 2, y: WORLD.h / 2,
-      r: 20,             // bigger hero so it reads clearly against loot/ash
+      r: weapon.id === "necro" ? 22 : 20,   // bigger hero so it reads clearly against loot/ash (el Nigromante es un 10 % mas grande)
       hp: weapon.baseHp || 100,
       level: 1, xp: 0, xpNext: 1000,
       aimX: 1, aimY: 0,
@@ -646,7 +675,7 @@ function newState(weaponId) {
       // base stats (raised by level-ups); effective stats are derived in recalcStats()
       base: { speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: weapon.baseRegen || 0.5 },
       // effective stats after equipment (filled by recalcStats)
-      speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: weapon.baseRegen || 0.5, ashBonus: 0, crit: 0, poder: 0, block: 0, cdr: 0,
+      speed: weapon.baseSpeed || 150, maxHp: weapon.baseHp || 100, dmg: weapon.baseDmg || 12, regen: weapon.baseRegen || 0.5, ashBonus: 0, crit: 0, poder: 0, mando: 0, block: 0, cdr: 0,
       // equipment: slotKey -> item (or null)
       equipped: makeBaseEquipment(weapon.id), // start with the 6 base pieces
       power: 0,          // total gear score
@@ -669,7 +698,7 @@ function newState(weaponId) {
     weaponEffects: [],
     enemies: [],
     minions: [],        // friendly spectral skeletons, separate from wave enemy counts
-    necroSouls: 0,      // unspent kills: both summoning skills share a 3-to-1 conversion
+    necroSouls: 0,      // contador oculto de bajas (0..2): al completar 3 nace un esqueleto
     orbs: [],
     dmgStats: [0, 0, 0], // dano real hecho por cada ataque (basico, intermedio, definitivo)
     chests: [],
@@ -1066,11 +1095,16 @@ function update(dt) {
   // enemies
   for (const e of state.enemies) {
     if (e.flash > 0) e.flash -= dt;
-    const dx = p.x - e.x, dy = p.y - e.y;
-    const d = Math.hypot(dx, dy) || 1;
+    const pdx = p.x - e.x, pdy = p.y - e.y;
+    const pd = Math.hypot(pdx, pdy) || 1;          // distancia al personaje (contacto, velocidad de alcance, duende)
+    // Nigromante: el enemigo fija como objetivo al esqueleto o al personaje, el que tenga mas cerca
+    const chase = e.type === "goblin" ? null : necroChaseTarget(e, pd);
+    const tx = chase ? chase.x : p.x, ty = chase ? chase.y : p.y;
+    const dx = tx - e.x, dy = ty - e.y;
+    const d = chase ? (Math.hypot(dx, dy) || 1) : pd;
     // enemies ignore obstacles: they walk straight through them
     // far from the player (>600px): +300% speed (x4) to catch up
-    const sp = d > 600 ? e.speed * 4 : e.speed;
+    const sp = pd > 600 ? e.speed * 4 : e.speed;
 
     // ---- special-enemy behavior ----
     // handledMove = true when the type moved on its own and the plain chase is skipped.
@@ -1078,7 +1112,7 @@ function update(dt) {
     if (e.trio) {
       handledMove = true; // trio dorado/azul: lo mueve updateTrios
     } else if (e.type === "goblin") {
-      if (typeof updateGoblin === "function") updateGoblin(e, dt, p, dx, dy, d);
+      if (typeof updateGoblin === "function") updateGoblin(e, dt, p, pdx, pdy, pd);
       handledMove = true;
     } else if (e.type === "leaper") {
       if (e.leaping > 0) {
@@ -1122,7 +1156,7 @@ function update(dt) {
       e.bombCd -= dt;
       if (e.bombCd <= 0 && d < 460) {
         e.bombCd = rand(2.6, 3.8);
-        state.aoes.push({ x: p.x, y: p.y, r: 70, warn: 1.1, active: 0, dmg: e.aoeDmg, hit: false });
+        state.aoes.push({ x: tx, y: ty, r: 70, warn: 1.1, active: 0, dmg: e.aoeDmg, hit: false });
       }
     }
 
@@ -1152,7 +1186,7 @@ function update(dt) {
       e.y += (dy / d) * sp * dt;
     }
     // contact damage (el duende no daña al jugador)
-    if (e.type !== "goblin" && !(e.tpArrive > 0) && d < e.r + p.r && p.inv <= 0 && !debugGod) {
+    if (e.type !== "goblin" && !(e.tpArrive > 0) && pd < e.r + p.r && p.inv <= 0 && !debugGod) {
       const taken = blockDamage(e.dmg);
       p.hp -= taken;
       p.inv = 0.6;
@@ -1864,7 +1898,7 @@ function updateWeaponHud(weaponId) {
     const skill = weapon.skills[i];
     skillIconEls[i].textContent = skill.icon;
     skillNameEls[i].textContent = skill.name;
-    skillEls[i].title = skill.name + " · " + skill.cooldown + " s";
+    skillEls[i].title = skill.name + (skill.passive ? " · pasiva" : " · " + skill.cooldown + " s");
   }
 }
 
@@ -2064,7 +2098,9 @@ function renderStatsPanel(p) {
     { label: "Brasas",    color: AFFIX.ashBonus.color, lvl: 0,            eq: equipSum(p, "ashBonus"), fmt: v => f1(v) + "%" },
     state.weaponId === "axe"
       ? { label: "Bloqueo", color: AFFIX.block.color,    lvl: 0,            eq: equipSum(p, "block"),    fmt: v => f1(v) + "%" }
-      : (state.weaponId === "staff" || state.weaponId === "necro")
+      : state.weaponId === "necro"
+        ? { label: "Mando", color: AFFIX.mando.color,    lvl: 0,            eq: equipSum(p, "mando"),    fmt: v => f1(v) }
+      : state.weaponId === "staff"
         ? { label: "Poder", color: AFFIX.poder.color,    lvl: 0,            eq: equipSum(p, "poder"),    fmt: v => f1(v) + "%" }
         : { label: "Crítico", color: AFFIX.crit.color,   lvl: 0,            eq: equipSum(p, "crit"),     fmt: v => f1(v) + "%" },
     { label: "Recarga",   color: AFFIX.cdr.color,      lvl: 0,            eq: equipSum(p, "cdr"),      fmt: v => f1(v) + "%" },
@@ -2106,7 +2142,7 @@ function updateHud() {
   debugTopUpAsh();
   const souls = el("necro-souls");
   souls.hidden = state.weaponId !== "necro";
-  if (!souls.hidden) souls.textContent = "Bajas disponibles: " + state.necroSouls + " · Esqueletos: " + state.minions.length + "/6";
+  if (!souls.hidden) souls.textContent = "Esqueletos: " + state.minions.length + "/" + necroMinionCap();
   const p = state.player;
   const hpPct = clamp(p.hp / p.maxHp * 100, 0, 100);
   hpFill.style.height = hpPct + "%"; // el orbe se vacia de arriba hacia abajo, como en Diablo

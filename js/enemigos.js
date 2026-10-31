@@ -548,7 +548,7 @@ function killEnemy(e) {
     return;
   }
   state.kills++;
-  registerNecromancerKill();
+  registerNecromancerKill(e);
   state.alive = Math.max(0, state.alive - 1);
   state.score += Math.round(e.xp * 1.5);
   Sound.kill();
@@ -575,7 +575,7 @@ function killBoss(boss) {
   state.bossDefeated = true;
   state.bossesDown++;
   state.kills++;
-  registerNecromancerKill();
+  registerNecromancerKill(boss);
   state.score += 1500;
   state.ash += 40;
   if (state.bosses.length === 0) bossWrap.style.display = "none";
@@ -1080,7 +1080,7 @@ function onGoblinHit(e) {
 
 function killGoblin(e) {
   state.kills++;
-  registerNecromancerKill();
+  registerNecromancerKill(e);
   state.score += 800;
   if (Sound && Sound.goblinDie) Sound.goblinDie();
   else if (Sound && Sound.chest) Sound.chest();
