@@ -23,10 +23,10 @@
       </div>
     </details>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 224 -> la proxima entrega 225,
-         luego 226, 227, etc. (se muestra como 0.224, 0.225, 0.226...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 225 -> la proxima entrega 226,
+         luego 227, 228, etc. (se muestra como 0.225, 0.226, 0.227...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.224</div>
+    <div id="build-tag">Build 0.225</div>
 
 
     <!-- Boss bar -->
@@ -84,7 +84,10 @@
             <div id="hp-txt" class="orb-label"></div>
           </div>
           <div id="dock-main">
-            <div id="necro-souls" hidden aria-live="polite"></div>
+            <div id="necro-souls" class="bar" hidden aria-live="polite" title="Esqueletos: cuenta / límite">
+              <div class="fill" id="necro-fill"></div>
+              <div class="label" id="necro-txt"></div>
+            </div>
             <div id="xp-row">
               <div id="level-badge" title="Nivel"><small>Nv</small><b id="level-txt">1</b></div>
               <div class="bar" id="xp-bar" title="Experiencia">
@@ -256,11 +259,11 @@
                 a la mitad el daño recibido. El tajo es un barrido en sentido horario: su arco crece con el daño hasta cerrar el círculo de 360° (con 100 de daño) y, desde ahí, crece su radio; el hacha arrojadiza lanza tres hachas que
                 atraviesan y hacen sangrar (50 % de su daño cada 0,5 s durante 8 s) y el golpe sísmico daña en tres anillos
                 (×2 exterior, ×4 central, ×7 interior).</p>
-              <p><b style="color:#9fe6b2">💀 Nigromante.</b> Tiene 95 de vida y 52 de daño base. Pelea con un barrido de guadaña, invoca
+              <p><b style="color:#9fe6b2">💀 Nigromante.</b> Tiene 95 de vida y 62 de daño base. Pelea con un barrido de guadaña, invoca
                 esqueletos y envenena a los enemigos cercanos con su Aura pestilente (el detalle de cada habilidad está
                 en el inventario, <kbd>I</kbd>). Cada 3 bajas levantan un esqueleto espectral durante 10 segundos, hasta tantos
                 aliados como su <b>Mando</b> (10 de base, +1 por punto gastado, multiplicado por la rareza); la Hueste espectral
-                invoca tres arqueros y comparte ese máximo. Los aliados atraviesan obstáculos y sí reciben daño de los enemigos.
+                invoca tres arqueros y comparte ese máximo; los esqueletos de más no aparecen en el mapa: esperan en una reserva (la cuenta pasa del límite) y entran uno a uno cuando muere un aliado. Mientras la cuenta esté por encima del límite (mínimo 5 s) se enciende una luz verde que duplica la vida de todos. Los aliados atraviesan obstáculos (también las flechas de los arqueros) y sí reciben daño de los enemigos.
                 Su stat especial es <b>Mando</b> (en lugar de Crítico) y su Recarga sube un +5 % por punto en vez de un +10 %.</p>
               <p><b style="color:var(--ember-glow)">Esquiva.</b> Pulsa <kbd>Espacio</kbd> para hacer un dash con una
                 breve invulnerabilidad. Tiene tiempo de recarga.</p>

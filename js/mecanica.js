@@ -393,7 +393,7 @@ var AFFIX = {
 var WEAPONS = {
   necro: {
     id: "necro", name: "Guadaña de almas", icon: "💀", color: "#9fe6b2",
-    baseHp: 95, baseDmg: 52, baseRate: 0.8, baseSpeed: 130, baseRegen: 0.5,
+    baseHp: 95, baseDmg: 62, baseRate: 0.8, baseSpeed: 140, baseRegen: 0.5,
     fireRateStep: 0.3,   // guantes: A/s por punto de Cadencia con este arma (por defecto 0.4)
     statSteps: { cdr: 5 },   // guantes: +5 % de Recarga por punto con este arma (por defecto 10)
     weaponStats: [{ key: "dmg", base: 8, step: 2 }, { key: "mando", base: 10, step: 1 }],   // Mando: 10 esqueletos base, +1 por punto gastado (la rareza lo multiplica como al resto)
@@ -701,6 +701,9 @@ function newState(weaponId) {
     enemies: [],
     minions: [],        // friendly spectral skeletons, separate from wave enemy counts
     necroSouls: 0,      // contador oculto de bajas (0..2): al completar 3 nace un esqueleto
+    necroReserve: [],   // reserva (buffer) de esqueletos que no cabian por el limite: {skill, hp}; entran al mapa cuando muere uno
+    necroOverMin: 0,    // s que le quedan al minimo de la luz verde
+    necroBuffed: false, // luz verde activa (vida x2 en los esqueletos)
     orbs: [],
     dmgStats: [0, 0, 0], // dano real hecho por cada ataque (basico, intermedio, definitivo)
     chests: [],
@@ -957,6 +960,12 @@ function onWaveCleared() {
 
 function startIntermission() {
   state.phase = "intermission";
+  // descanso: vida al maximo y habilidades (y esquive) recargadas
+  const pr = state.player;
+  pr.hp = pr.maxHp;
+  for (let i = 0; i < 3; i++) pr.skillCd[i] = 0;
+  pr.autoSkillCd = 0;
+  pr.dashCd = 0;
   // absorb everything left on the floor (xp/ash orbs, boss drops)
   for (const o of state.orbs) o.pull = true;
   // no countdown: the game waits (no new enemies) until the player presses Continue
@@ -1088,7 +1097,7 @@ function update(dt) {
   for (const b of state.bullets) {
     if (b.homing > 0 && b.life > 0) steerHomingBullet(b, dt);
     b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-    if (!b.big && b.life > 0 && pointInObstacle(b.x, b.y)) b.life = 0;
+    if (!b.big && !b.noWalls && b.life > 0 && pointInObstacle(b.x, b.y)) b.life = 0;
   }
 
   // sangrado (Hacha arrojadiza)
@@ -2161,8 +2170,9 @@ function skillBoxes(p) {
       return [
         { tag: rateTag, lines: [`Barrido de guadaña de <b>${Math.round(NECRO_SWEEP_ARC * 180 / Math.PI)}°</b> entre <b>${NECRO_SWEEP_INNER}</b> y <b>${NECRO_SWEEP_INNER + NECRO_SWEEP_LENGTH} px</b> de ti. Daño: <b>${f1(d)}</b> (100 % del Daño) a cada enemigo del arco, una vez por barrido.`] },
         { tag: cd(1), lines: [
-          `Invoca <b>${NECRO_HUESTE_COUNT} esqueletos arqueros</b> durante ${NECRO_MINION_LIFE} s. Cada flecha hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> (${mpct} % del Daño) con alcance de ${NECRO_MINION_RANGE} px. Vida: <b>${Math.round(p.maxHp * NECRO_HUESTE_HP_RATIO)}</b> (${Math.round(NECRO_HUESTE_HP_RATIO * 100)} % de tu vida máxima). Máximo de esqueletos (Mando): <b>${necroMinionCap()}</b>.`,
-          `Además, cada ${NECRO_KILLS_PER_SKELETON} bajas se levanta un esqueleto cuerpo a cuerpo con la vida del enemigo caído: hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> por golpe, uno cada ${f2(necroMinionAttackCd())} s.`] },
+          `Invoca <b>${NECRO_HUESTE_COUNT} esqueletos arqueros</b> que duran hasta que los destruyan. Cada flecha hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> (${mpct} % del Daño), alcanza ${NECRO_MINION_RANGE} px y atraviesa los obstáculos. Vida: <b>${Math.round(p.maxHp * NECRO_HUESTE_HP_RATIO)}</b> (${Math.round(NECRO_HUESTE_HP_RATIO * 100)} % de tu vida máxima). Máximo de esqueletos (Mando): <b>${necroMinionCap()}</b>.`,
+          `Además, cada ${NECRO_KILLS_PER_SKELETON} bajas se levanta un esqueleto cuerpo a cuerpo con la vida del enemigo caído: hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> por golpe, uno cada ${f2(necroMinionAttackCd())} s. Duran ${NECRO_MINION_LIFE} s.`,
+          `Si la cuenta supera el límite, los esqueletos de más no aparecen en el mapa: pasan a una reserva (la cuenta sube por encima del límite) y encienden una luz verde. Cuando muere un esqueleto del mapa, entra el siguiente de la reserva y la cuenta baja 1. La luz verde dura mientras la cuenta esté por encima del límite y mínimo ${NECRO_OVER_MIN} s: tus esqueletos tienen <b>×${NECRO_OVER_HP_MULT} de vida</b>.`] },
         { tag: "Pasiva", lines: [`Aura de <b>${NECRO_AURA_RADIUS} px</b> de radio. Cada enemigo dentro recibe una carga de veneno; cada <b>${f2(necroPoisonInterval())} s</b> sufre <b>${pc(NECRO_POISON_RATIO)}</b> por carga (${Math.round(NECRO_POISON_RATIO * 100)} % del Daño) y gana otra carga si sigue dentro (pierde una si salió). El intervalo se acorta con la Recarga. Las bajas por veneno también levantan esqueletos.`] },
       ];
     }
@@ -2193,13 +2203,15 @@ function placeSkillsPanel() {
   if (room >= 210) {
     if (panel.parentNode !== card) card.appendChild(panel);
     panel.classList.add("sk-float");
-    panel.style.width = Math.min(340, room) + "px";
-    panel.style.top = Math.max(0, el("stats-panel").getBoundingClientRect().top - cardRect.top) + "px";
+    // de la tarjeta hacia la izquierda, pegado al borde de la ventana (left relativo a la tarjeta = -su posicion en pantalla)
+    panel.style.left = -(cardRect.left + card.clientLeft) + "px";
+    panel.style.width = (cardRect.left - 14) + "px";
+    panel.style.top = ""; panel.style.maxHeight = "";   // centrado en vertical con el CSS (top 50 % + translateY)
     sub.hidden = true;
   } else {
     if (panel.parentNode !== left) left.appendChild(panel);
     panel.classList.remove("sk-float");
-    panel.style.width = ""; panel.style.top = "";
+    panel.style.width = ""; panel.style.top = ""; panel.style.left = ""; panel.style.maxHeight = "";
     sub.hidden = false;
   }
 }
@@ -2229,7 +2241,12 @@ function updateHud() {
   debugTopUpAsh();
   const souls = el("necro-souls");
   souls.hidden = state.weaponId !== "necro";
-  if (!souls.hidden) souls.textContent = "Esqueletos: " + state.minions.length + "/" + necroMinionCap();
+  if (!souls.hidden) {
+    const cnt = necroMinionCount(), cap = necroMinionCap();
+    el("necro-fill").style.width = clamp(cnt / cap * 100, 0, 100) + "%";
+    el("necro-txt").textContent = cnt + "/" + cap;
+    souls.classList.toggle("over", !!state.necroBuffed);   // luz verde
+  }
   const p = state.player;
   const hpPct = clamp(p.hp / p.maxHp * 100, 0, 100);
   hpFill.style.height = hpPct + "%"; // el orbe se vacia de arriba hacia abajo, como en Diablo

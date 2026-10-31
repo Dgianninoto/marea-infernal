@@ -1,8 +1,10 @@
 "use strict";
 // Fourth class: independent summons never affect enemy quotas or boss counts.
-var NECRO_MINION_LIFE = 10;
-var NECRO_HUESTE_HP_RATIO = 0.30;   // <<< BALANCE: vida de cada esqueleto de Hueste = 30 % de la vida maxima del personaje
+var NECRO_MINION_LIFE = 10;   // s que dura un esqueleto nacido de bajas; los arqueros de Hueste no caducan (solo mueren en combate o si les quitan el sitio)
+var NECRO_HUESTE_HP_RATIO = 0.40;   // <<< BALANCE: vida de cada esqueleto de Hueste = 40 % de la vida maxima del personaje
 // Los esqueletos nacidos de una baja por veneno heredan la vida maxima del bicho que murio y desencadeno su aparicion.
+var NECRO_OVER_MIN = 5;             // <<< BALANCE: s minimos que dura la luz verde una vez activada (y mientras la cuenta siga por encima del limite)
+var NECRO_OVER_HP_MULT = 2;         // <<< BALANCE: multiplicador de vida de los esqueletos mientras dura la luz verde
 var NECRO_MINION_INVULN = 0.5;      // s de invulnerabilidad de un esqueleto tras recibir un golpe
 var NECRO_MINION_CAP_MIN = 1;   // minimo de esqueletos aunque el equipo no aporte Mando; el maximo real lo da la stat Mando
 var NECRO_MINION_SPEED = 200;
@@ -24,8 +26,9 @@ var NECRO_AURA_RADIUS = 240;               // radio (px)
 var NECRO_POISON_INTERVAL = 2;             // s entre ticks de veneno (y entre cargas) con 0 % de Recarga; la Recarga lo acorta (ver necroPoisonInterval)
 var NECRO_POISON_RATIO = 0.10;             // fraccion del daño del arma por carga y por tick (10 %, 20 %, 30 %...)
 var NECRO_POISON_MAX_STACKS = Infinity;    // <<< BALANCE: tope de cargas (Infinity = sin limite)
-var NECRO_SKELETON_R = 12;              // radio del esqueleto normal (nacido de bajas): 20 % mas grande que los 10 px originales
-var NECRO_ARCHER_R = 10;               // radio del esqueleto arquero (Hueste)
+var NECRO_SKELETON_R = 12;              // radio de referencia del esqueleto nacido de bajas (escala del sprite y radio por defecto); en juego toma el radio del bicho que le dio la vida
+var NECRO_ARCHER_SCALE = 1.2;          // <<< BALANCE: tamaño de los esqueletos arqueros (Hueste) respecto al original (+20 %)
+var NECRO_ARCHER_R = 10 * NECRO_ARCHER_SCALE;               // radio del esqueleto arquero (Hueste)
 var NECRO_KILLS_PER_SKELETON = 3;   // contador oculto: la baja que completa 3 bajas levanta un esqueleto con la vida maxima de ese bicho
 var NECRO_HUESTE_COUNT = 3;         // <<< BALANCE: esqueletos que invoca cada lanzamiento de Hueste (no depende de las bajas)
 var NECRO_POISON_DOT_R = 4;                       // radio (px) de cada bolita de veneno
@@ -42,6 +45,33 @@ for (const name of ["necromancer", "skeleton", "skeleton-archer"]) {
 // Maximo de esqueletos simultaneos = stat Mando (base 10, +2 por punto gastado en la pieza de arma).
 function necroMinionCap() {
   return Math.max(NECRO_MINION_CAP_MIN, Math.floor(state.player.mando || 0));
+}
+
+// Cuenta de esqueletos: los del mapa + los de la reserva (los que no cabian por el limite; no existen en el mapa, esperan su turno).
+function necroMinionCount() {
+  return state.minions.length + state.necroReserve.length;
+}
+
+// Luz verde: activa mientras la cuenta supere el limite y un minimo de NECRO_OVER_MIN s; los esqueletos del mapa tienen entonces la vida x2.
+function syncNecromancerOver() {
+  const on = necroMinionCount() > necroMinionCap() || state.necroOverMin > 0;
+  state.necroBuffed = on;
+  for (const m of state.minions) {
+    if (on && !m.buffed) { m.buffed = true; m.maxHp = m.baseMaxHp * NECRO_OVER_HP_MULT; m.hp *= NECRO_OVER_HP_MULT; }
+    else if (!on && m.buffed) { m.buffed = false; m.maxHp = m.baseMaxHp; m.hp = Math.min(m.hp, m.maxHp); }
+  }
+}
+
+// Reserva como buffer: cuando muere (o caduca) un esqueleto del mapa entra el siguiente de la reserva (FIFO) y la cuenta baja en 1.
+function updateNecromancerOver(dt) {
+  const p = state.player;
+  while (state.necroReserve.length && state.minions.length < necroMinionCap()) {
+    const e = state.necroReserve.shift();
+    const a = Math.random() * Math.PI * 2;
+    pushNecromancerMinion(e.skill, e.hp, p.x + Math.cos(a) * 44, p.y + Math.sin(a) * 44, 0, e.r);
+  }
+  if (state.necroOverMin > 0) state.necroOverMin -= dt;
+  syncNecromancerOver();
 }
 
 // Tiempo entre ataques de los esqueletos: depende de la rareza de la pieza de arma equipada.
@@ -63,23 +93,31 @@ function registerNecromancerKill(target) {
   raiseNecromancerSkeletons(Math.atan2(p.aimY, p.aimX), 2, (target && (target.maxHp || target.hp)) || 1, 1, target);
 }
 
+function pushNecromancerMinion(skill, hp, x, y, attackCd, radius) {
+  const r = skill === 1 ? NECRO_ARCHER_R : (radius > 0 ? radius : NECRO_SKELETON_R);   // los nacidos de bajas tienen el tamaño del bicho que les da la vida
+  const px = clamp(x, WALL + r, WORLD.w - WALL - r), py = clamp(y, WALL + r, WORLD.h - WALL - r);
+  const maxHp = Math.max(1, hp || 1);
+  state.minions.push({ x: px, y: py, r, life: skill === 1 ? Infinity : NECRO_MINION_LIFE, attackCd, swing: 0, skill, archer: skill === 1, hp: maxHp, maxHp, baseMaxHp: maxHp, buffed: false, inv: 0 });   // archer: esqueleto arquero de Hueste (dispara); el resto pelea cuerpo a cuerpo
+  weaponBurst(px, py, 18, "#9fe6b2", 6);
+}
+
 function raiseNecromancerSkeletons(angle, skill, hp, wanted, origin) {
   const p = state.player;
   state.minions = state.minions.filter(m => m.life > 0);
-  const count = Math.min(necroMinionCap() - state.minions.length, wanted);
-  if (count <= 0) return 0;
+  const count = Math.max(0, Math.min(necroMinionCap() - state.minions.length, wanted));
+  // los que no caben no aparecen en el mapa: van a la reserva (la cuenta pasa del limite) y activan la luz verde
+  const extra = wanted - count;
+  for (let i = 0; i < extra; i++) state.necroReserve.push({ skill, hp, r: origin && origin.r });
+  if (extra > 0) state.necroOverMin = NECRO_OVER_MIN;
+  if (count <= 0) { syncNecromancerOver(); return wanted; }
   const spacing = Math.min(0.8, Math.PI * 2 / count);   // con muchos esqueletos se reparten en circulo en vez de solaparse
   for (let i = 0; i < count; i++) {
     const a = angle + Math.PI + (i - (count - 1) / 2) * spacing;
-    const r = skill === 1 ? NECRO_ARCHER_R : NECRO_SKELETON_R;
     // con origen (baja) nace exactamente alli; sin origen (Hueste) se reparte alrededor del personaje
-    const x = clamp(origin ? origin.x : p.x + Math.cos(a) * 44, WALL + r, WORLD.w - WALL - r);
-    const y = clamp(origin ? origin.y : p.y + Math.sin(a) * 44, WALL + r, WORLD.h - WALL - r);
-    const maxHp = Math.max(1, hp || 1);
-    state.minions.push({ x, y, r, life: NECRO_MINION_LIFE, attackCd: i * 0.12, swing: 0, skill, archer: skill === 1, hp: maxHp, maxHp, inv: 0 });   // archer: esqueleto arquero de Hueste (dispara); el resto pelea cuerpo a cuerpo
-    weaponBurst(x, y, 18, "#9fe6b2", 6);
+    pushNecromancerMinion(skill, hp, origin ? origin.x : p.x + Math.cos(a) * 44, origin ? origin.y : p.y + Math.sin(a) * 44, i * 0.12, origin && origin.r);
   }
-  return count;
+  syncNecromancerOver();
+  return wanted;
 }
 
 function useNecromancerSkill(index, angle) {
@@ -231,6 +269,7 @@ function shootNecromancerMinion(m, target) {
     r: 5, dmg: p.dmg * NECRO_MINION_DAMAGE_RATIO * critMult, life: (NECRO_MINION_RANGE + 40) / NECRO_MINION_BULLET_SPEED,
     crit: critMult > 1, critMult, pierce: 0, big: false, color: "#d3e5c6",
     kind: "arrow", splashRadius: 0, splashDamage: 0, homing: 0, target: null, bleed: 0, attackId: 0,
+    noWalls: true,   // las flechas de los esqueletos atraviesan los obstaculos del mapa
     skill: m.skill == null ? 1 : m.skill,   // ataque que lo invoco (para el resumen de daño)
   });
 }
@@ -295,11 +334,12 @@ function updateNecromancer(dt) {
   if (state.weaponId !== "necro") return;
   const p = state.player;
   state.minions = state.minions.filter(m => m.life > 0);
+  updateNecromancerOver(dt);
   updateNecromancerPoison(dt);
   const targets = state.enemies.concat(state.bosses);
   for (let i = 0; i < state.minions.length; i++) {
     const m = state.minions[i];
-    m.life -= dt;
+    if (state.phase !== "intermission") m.life -= dt;   // en los intermedios se detiene el temporizador de muerte de los esqueletos
     if (m.life <= 0) continue;
     m.attackCd -= dt;
     m.swing = Math.max(0, m.swing - dt);
@@ -368,19 +408,27 @@ function drawNecromancer() {
     ctx.save();
     ctx.globalAlpha = Math.min(1, m.life / 0.8);
     const archer = m.archer;                           // esqueleto arquero (Hueste): sprite mas grande
+    const k = archer ? NECRO_ARCHER_SCALE : m.r / NECRO_SKELETON_R;      // escala de los nacidos de bajas: el tamaño del bicho que les dio la vida
     ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath(); ctx.ellipse(m.x, m.y + (archer ? 11 : 9.6), archer ? 14 : 12, archer ? 6 : 5.4, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowColor = m.inv > 0 ? "#ff5a5a" : "#9fe6b2"; ctx.shadowBlur = m.swing > 0 || m.inv > 0 ? 18 : 5;
+    ctx.beginPath(); ctx.ellipse(m.x, m.y + (archer ? 11 : 9.6) * k, (archer ? 14 : 12) * k, (archer ? 6 : 5.4) * k, 0, 0, Math.PI * 2); ctx.fill();
+    if (m.buffed) {                                     // luz verde: la cuenta supera el limite (vida x2)
+      const gr = (archer ? 32 : 28) * k, pulse = 0.5 + 0.5 * Math.sin(performance.now() / 260 + m.x * 0.03);
+      const g = ctx.createRadialGradient(m.x, m.y - 2, 2, m.x, m.y - 2, gr);
+      g.addColorStop(0, "rgba(150,255,185," + (0.5 + 0.25 * pulse) + ")"); g.addColorStop(1, "rgba(150,255,185,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(m.x, m.y - 2, gr, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.shadowColor = m.inv > 0 ? "#ff5a5a" : (m.buffed ? "#7dffa8" : "#9fe6b2"); ctx.shadowBlur = m.swing > 0 || m.inv > 0 ? 18 : (m.buffed ? 12 : 5);
     const bob = Math.sin(performance.now() / 160 + m.x * 0.02) * 2;
     const sprite = archer ? necroSprites["skeleton-archer"] : necroSprites.skeleton;
-    if (archer && sprite.ready) ctx.drawImage(sprite.image, m.x - 24, m.y - 33 + bob, 48, 48);
-    else if (sprite.ready) ctx.drawImage(sprite.image, m.x - 18, m.y - 21.6 + bob, 36, 36);   // 20 % mas grande (30 -> 36)
-    else { ctx.fillStyle = "#dce8c5"; ctx.beginPath(); ctx.arc(m.x, m.y - 3.6, 9, 0, Math.PI * 2); ctx.fill(); }
+    if (archer && sprite.ready) ctx.drawImage(sprite.image, m.x - 24 * k, m.y - 33 * k + bob, 48 * k, 48 * k);
+    else if (sprite.ready) ctx.drawImage(sprite.image, m.x - 18 * k, m.y - 21.6 * k + bob, 36 * k, 36 * k);
+    else { ctx.fillStyle = "#dce8c5"; ctx.beginPath(); ctx.arc(m.x, m.y - 3.6 * k, 9 * k, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
     if (m.hp < m.maxHp) {                               // barra de vida solo cuando ya recibio daño
       ctx.save();
-      ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(m.x - 12, m.y - (archer ? 38 : 31), 24, 3);
-      ctx.fillStyle = "#9fe6b2"; ctx.fillRect(m.x - 12, m.y - (archer ? 38 : 31), 24 * clamp(m.hp / m.maxHp, 0, 1), 3);
+      const bw = 24 * k, by = m.y - (archer ? 38 : 31) * k;
+      ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(m.x - bw / 2, by, bw, 3);
+      ctx.fillStyle = "#9fe6b2"; ctx.fillRect(m.x - bw / 2, by, bw * clamp(m.hp / m.maxHp, 0, 1), 3);
       ctx.restore();
     }
   }
