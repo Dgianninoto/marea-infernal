@@ -23,10 +23,10 @@
       </div>
     </details>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 221 -> la proxima entrega 222,
-         luego 223, 224, etc. (se muestra como 0.221, 0.222, 0.223...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 224 -> la proxima entrega 225,
+         luego 226, 227, etc. (se muestra como 0.224, 0.225, 0.226...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.221</div>
+    <div id="build-tag">Build 0.224</div>
 
 
     <!-- Boss bar -->
@@ -243,33 +243,30 @@
                 partida. Cada héroe tiene tres ataques automáticos (básico, intermedio y definitivo) con su propio
                 cooldown: tú solo te mueves y apuntas con el ratón, que orienta los ataques frontales (los circulares
                 salen desde ti).</p>
-              <p><b style="color:#ffd84d">🏹 Arquero.</b> Combate a distancia con 120 de vida base. Dispara flechas
-                rápidas, un abanico de flechas y una flecha devastadora que atraviesa a todos los enemigos. Su stat
+              <p><b style="color:#ffd84d">🏹 Arquero.</b> Combate a distancia con 120 de vida base y 12 de daño. Dispara flechas
+                rápidas (3,1 por segundo), un abanico de flechas y una flecha devastadora que atraviesa a todos los enemigos. Su stat
                 propio es el <b>Crítico</b>.</p>
-              <p><b style="color:#bd8cff">🪄 Mago.</b> El más frágil (80 de vida) pero con más daño base (15). Lanza un
+              <p><b style="color:#bd8cff">🪄 Mago.</b> El más frágil (80 de vida) pero con más daño base (25). Lanza (1,7 ataques por segundo) un
                 orbe arcano guiado, una salva de orbes en abanico y un meteorito que marca un círculo antes de caer. Su
                 <b>Poder</b> (en lugar de Crítico) agranda el meteorito y añade orbes a la salva. Su esquiva es un
                 <b>parpadeo arcano</b>: desapareces mientras te desplazas, recarga un 75 % más rápido y llega un 25 %
                 más lejos.</p>
-              <p><b style="color:#ff7659">🪓 Bárbaro.</b> Cuerpo a cuerpo y muy resistente: 200 de vida, 30 de daño y
+              <p><b style="color:#ff7659">🪓 Bárbaro.</b> Cuerpo a cuerpo y muy resistente: 200 de vida, 30 de daño, 1,6 ataques por segundo y
                 regeneración de 1/s, pero más lento. Su <b>Bloqueo</b> (en lugar de Crítico) da probabilidad de reducir
                 a la mitad el daño recibido. El tajo es un barrido en sentido horario: su arco crece con el daño hasta cerrar el círculo de 360° (con 100 de daño) y, desde ahí, crece su radio; el hacha arrojadiza lanza tres hachas que
                 atraviesan y hacen sangrar (50 % de su daño cada 0,5 s durante 8 s) y el golpe sísmico daña en tres anillos
                 (×2 exterior, ×4 central, ×7 interior).</p>
-              <p><b style="color:#9fe6b2">💀 Nigromante.</b> Ataca con un barrido de guadaña en arco (70°, de 120 a 175 px del personaje). Todas sus habilidades
-                y sus esqueletos reciben un 20 % de daño adicional. Cada 3 bajas permiten invocar un esqueleto
-                espectral durante 10 segundos (hasta tantos aliados como su <b>Mando</b>: 10 de base, +1 por punto gastado, multiplicado por la rareza). Hueste y el Aura pestilente comparten esta reserva;
-                las bajas ya consumidas no se reutilizan. El Aura pestilente es pasiva y permanente alrededor del personaje:
-                cada enemigo que entra recibe una carga de veneno que le quita un 30 % del daño del arma por segundo; si
-                al terminar el segundo sigue dentro recibe otra carga (60 %, 90 %…), y si salió pierde una. Las bajas
-                causadas por veneno también se convierten en esqueletos.
-                Su stat especial es <b>Mando</b> (en lugar de Crítico), que fija el máximo de esqueletos simultáneos.
-                Los aliados atraviesan obstáculos y sí reciben daño de los enemigos. Los esqueletos de Hueste tienen el 30 % de la vida
-                máxima del personaje; los que nacen de una baja por veneno tienen la vida máxima del bicho que murió.</p>
+              <p><b style="color:#9fe6b2">💀 Nigromante.</b> Tiene 95 de vida y 52 de daño base. Pelea con un barrido de guadaña, invoca
+                esqueletos y envenena a los enemigos cercanos con su Aura pestilente (el detalle de cada habilidad está
+                en el inventario, <kbd>I</kbd>). Cada 3 bajas levantan un esqueleto espectral durante 10 segundos, hasta tantos
+                aliados como su <b>Mando</b> (10 de base, +1 por punto gastado, multiplicado por la rareza); la Hueste espectral
+                invoca tres arqueros y comparte ese máximo. Los aliados atraviesan obstáculos y sí reciben daño de los enemigos.
+                Su stat especial es <b>Mando</b> (en lugar de Crítico) y su Recarga sube un +5 % por punto en vez de un +10 %.</p>
               <p><b style="color:var(--ember-glow)">Esquiva.</b> Pulsa <kbd>Espacio</kbd> para hacer un dash con una
                 breve invulnerabilidad. Tiene tiempo de recarga.</p>
               <p><b style="color:var(--ember-glow)">Botín y equipo.</b> Empiezas con 6 piezas (una por ranura). Abre tu
-                mochila con <kbd>I</kbd> y gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 30, 50, 100, 250 o 2500 cenizas según la rareza de la pieza: Común, Mágico, Raro, Legendario o Único).
+                mochila con <kbd>I</kbd>: a la izquierda de la ventana verás un cuadro por cada habilidad de tu héroe con lo
+                que hace y sus valores actuales; dentro, tus estadísticas y tus piezas. Gasta cenizas: cada punto de stat sube la pieza +1 (cuesta 30, 50, 100, 250 o 2500 cenizas según la rareza de la pieza: Común, Mágico, Raro, Legendario o Único).
                 Al llegar a +5 puedes subir su rareza (Común → Único), y el indicador vuelve a +0 (conservas los stats
                 ya comprados) para repetir el ciclo en el rango superior.</p>
               <p><b style="color:var(--ember-glow)">Rareza.</b> La rareza de una pieza multiplica <b>todos sus
@@ -363,11 +360,12 @@
         <h2>Inventario</h2>
         <p id="inv-power">Brasas</p>
         <div class="inv-cols">
-          <div>
+          <div class="inv-left">
             <div class="inv-sub">Estadísticas</div>
             <div class="stat-legend"><b style="color:#5aa0ff">■</b> Nivel (base) &nbsp; <b style="color:#ff9d4d">■</b>
               Equipo</div>
             <div id="stats-panel"></div>
+            <div class="inv-sub" id="skills-sub" style="margin-top:16px" hidden>Habilidades</div>
           </div>
           <div>
             <div class="inv-sub">Equipo · mejóralo con brasas</div>
@@ -375,6 +373,8 @@
           </div>
         </div>
         <button class="btn" id="inv-close">Cerrar (I)</button>
+        <!-- Habilidades: columna flotante a la izquierda de la tarjeta (si no cabe, se mueve a la columna izquierda; ver placeSkillsPanel) -->
+        <div id="skills-panel"></div>
       </div>
     </div>
 

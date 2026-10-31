@@ -2122,11 +2122,96 @@ function renderStatsPanel(p) {
   }).join("");
 }
 
+// Cuadros de habilidades del inventario: uno por habilidad del heroe, con lo que hace y sus valores actuales.
+function skillBoxes(p) {
+  const f1 = v => (Math.round(v * 10) / 10).toString();
+  const f2 = v => (Math.round(v * 100) / 100).toString();
+  const weapon = getWeapon(state.weaponId);
+  const d = p.dmg;
+  const rate = weaponLevelRate(p, weapon) + equipSum(p, "fireRate");
+  const cd = i => f1(weapon.skills[i].cooldown / (1 + (p.cdr || 0))) + " s";
+  const pc = k => f1(d * k);
+  const rateTag = f2(rate) + " A/s";
+  switch (state.weaponId) {
+    case "bow": return [
+      { tag: rateTag, lines: [`Dispara una flecha recta hacia donde apuntas. Daño: <b>${f1(d)}</b> (100 % del Daño) a un solo enemigo. Alcance ≈ 560 px.` + (p.crit > 0 ? ` Crítico: <b>${f1(p.crit * 100)} %</b>.` : "")] },
+      { tag: cd(1), lines: [`Abanico de <b>7 flechas</b> (≈ 52°). Cada una hace <b>${pc(0.75)}</b> (75 % del Daño), atraviesa al primer enemigo y se detiene en el segundo.`] },
+      { tag: cd(2), lines: [`Flecha gigante que atraviesa a <b>todos</b> los enemigos de su camino. Daño: <b>${f1(d * 6 + 60)}</b> (600 % del Daño + 60).`] },
+    ];
+    case "staff": {
+      const n = salvoOrbCount(p.poder || 0), r = meteorRadius(p.poder || 0);
+      return [
+        { tag: rateTag, lines: [`Orbe arcano guiado: gira hacia el enemigo con menos orbes encima. Daño: <b>${f1(d)}</b> (100 % del Daño) a un solo enemigo.`] },
+        { tag: cd(1), lines: [`Salva de <b>${n} orbes</b> en abanico. Cada uno hace <b>${pc(0.75)}</b> (75 %) y explota en 46 px haciendo <b>${pc(0.35)}</b> (35 %) extra. Cada 10 % de Poder añade un orbe (círculo completo con ${SALVO_MAX_ORBS}).`] },
+        { tag: cd(2), lines: [`Marca un círculo de <b>${Math.round(r)} px</b> de radio (entre ${METEOR_MIN_RANGE} y ${METEOR_MAX_RANGE} px hacia tu mira) y deja caer un meteorito. Daño: <b>×${METEOR_MULT_CENTER}</b> en el centro (${f1(d * METEOR_MULT_CENTER)}) bajando a <b>×${METEOR_MULT_EDGE}</b> en el borde (${f1(d * METEOR_MULT_EDGE)}). Empuja ligeramente a los enemigos hacia el centro.`] },
+      ];
+    }
+    case "axe": {
+      const arc = axeSweepArc(d), range = axeSweepRange(d);
+      const arcTxt = arc >= Math.PI * 2 - 0.001 ? "360°" : Math.round(arc * 180 / Math.PI) + "°";
+      const R = SEISMIC_RINGS;
+      return [
+        { tag: rateTag, lines: [`Barrido en sentido horario de <b>${arcTxt}</b> y <b>${Math.round(range)} px</b> de radio. Daño: <b>${f1(d)}</b> (100 % del Daño) a cada enemigo que toca, una vez por barrido. El arco crece con el Daño hasta cerrar el círculo.`] },
+        { tag: cd(1), lines: [`Lanza <b>3 hachas</b> que atraviesan: dos de 50 px (250 px de recorrido) y una de 100 px (375 px). Cada impacto hace <b>${pc(0.25)}</b> (25 %) y causa sangrado: <b>${pc(BLEED_TICK_RATIO)}</b> cada ${BLEED_TICK_INTERVAL} s durante ${BLEED_TICK_INTERVAL * BLEED_TICKS} s.`] },
+        { tag: cd(2), lines: [`Onda de <b>${SEISMIC_RADIUS} px</b> de radio en tres anillos: <b>×${R[0].mult}</b> (${f1(d * R[0].mult)}) en el interior, <b>×${R[1].mult}</b> (${f1(d * R[1].mult)}) en el central y <b>×${R[2].mult}</b> (${f1(d * R[2].mult)}) en el exterior.`] },
+      ];
+    }
+    case "necro": {
+      const mpct = Math.round(NECRO_MINION_DAMAGE_RATIO * 100);
+      return [
+        { tag: rateTag, lines: [`Barrido de guadaña de <b>${Math.round(NECRO_SWEEP_ARC * 180 / Math.PI)}°</b> entre <b>${NECRO_SWEEP_INNER}</b> y <b>${NECRO_SWEEP_INNER + NECRO_SWEEP_LENGTH} px</b> de ti. Daño: <b>${f1(d)}</b> (100 % del Daño) a cada enemigo del arco, una vez por barrido.`] },
+        { tag: cd(1), lines: [
+          `Invoca <b>${NECRO_HUESTE_COUNT} esqueletos arqueros</b> durante ${NECRO_MINION_LIFE} s. Cada flecha hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> (${mpct} % del Daño) con alcance de ${NECRO_MINION_RANGE} px. Vida: <b>${Math.round(p.maxHp * NECRO_HUESTE_HP_RATIO)}</b> (${Math.round(NECRO_HUESTE_HP_RATIO * 100)} % de tu vida máxima). Máximo de esqueletos (Mando): <b>${necroMinionCap()}</b>.`,
+          `Además, cada ${NECRO_KILLS_PER_SKELETON} bajas se levanta un esqueleto cuerpo a cuerpo con la vida del enemigo caído: hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> por golpe, uno cada ${f2(necroMinionAttackCd())} s.`] },
+        { tag: "Pasiva", lines: [`Aura de <b>${NECRO_AURA_RADIUS} px</b> de radio. Cada enemigo dentro recibe una carga de veneno; cada <b>${f2(necroPoisonInterval())} s</b> sufre <b>${pc(NECRO_POISON_RATIO)}</b> por carga (${Math.round(NECRO_POISON_RATIO * 100)} % del Daño) y gana otra carga si sigue dentro (pierde una si salió). El intervalo se acorta con la Recarga. Las bajas por veneno también levantan esqueletos.`] },
+      ];
+    }
+  }
+  return [];
+}
+
+function renderSkillsPanel(p) {
+  const weapon = getWeapon(state.weaponId);
+  const kinds = ["Básica", "Intermedia", "Definitiva"];
+  el("skills-panel").innerHTML = skillBoxes(p).map((b, i) => {
+    const sk = weapon.skills[i];
+    const kind = sk.passive ? "" : kinds[i] + " · ";
+    return `<div class="skill-box" style="border-left-color:${weapon.color}">
+      <div class="sk-head"><span style="color:${weapon.color}">${sk.icon} ${sk.name}</span><span class="sk-tag">${kind}${b.tag}</span></div>
+      ${b.lines.map(l => `<div class="sk-desc">${l}</div>`).join("")}
+    </div>`;
+  }).join("");
+}
+
+// Los cuadros de habilidades van fuera de la tarjeta, en una columna a su izquierda y alineados con la primera estadistica.
+// Si no hay hueco (pantallas estrechas o tactiles) se meten en la columna izquierda de la tarjeta, bajo las estadisticas.
+function placeSkillsPanel() {
+  const panel = el("skills-panel"), sub = el("skills-sub");
+  const card = invScreen.querySelector(".inv-card"), left = card.querySelector(".inv-left");
+  const cardRect = card.getBoundingClientRect();
+  const room = cardRect.left - 24;                       // espacio libre a la izquierda de la tarjeta
+  if (room >= 210) {
+    if (panel.parentNode !== card) card.appendChild(panel);
+    panel.classList.add("sk-float");
+    panel.style.width = Math.min(340, room) + "px";
+    panel.style.top = Math.max(0, el("stats-panel").getBoundingClientRect().top - cardRect.top) + "px";
+    sub.hidden = true;
+  } else {
+    if (panel.parentNode !== left) left.appendChild(panel);
+    panel.classList.remove("sk-float");
+    panel.style.width = ""; panel.style.top = "";
+    sub.hidden = false;
+  }
+}
+window.addEventListener("resize", () => { if (typeof invOpen !== "undefined" && invOpen && state) placeSkillsPanel(); });
+
 function renderInventory() {
   if (!state) return;
   debugTopUpAsh();
   const p = state.player;
   renderStatsPanel(p);
+  renderSkillsPanel(p);
+  placeSkillsPanel();
   el("inv-power").textContent = "Brasas 🔥 " + state.ash
     + "  ·  Oleada " + (state.finalChallenge ? "FINAL" : state.wave);
   const equipList = el("equip-list");
