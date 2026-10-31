@@ -393,11 +393,12 @@ var AFFIX = {
 var WEAPONS = {
   necro: {
     id: "necro", name: "Guadaña de almas", icon: "💀", color: "#9fe6b2",
-    baseHp: 95, baseDmg: 30, baseRate: 1.6, baseSpeed: 130, baseRegen: 0.5,
+    baseHp: 95, baseDmg: 52, baseRate: 0.8, baseSpeed: 130, baseRegen: 0.5,
     fireRateStep: 0.3,   // guantes: A/s por punto de Cadencia con este arma (por defecto 0.4)
+    statSteps: { cdr: 5 },   // guantes: +5 % de Recarga por punto con este arma (por defecto 10)
     weaponStats: [{ key: "dmg", base: 8, step: 2 }, { key: "mando", base: 10, step: 1 }],   // Mando: 10 esqueletos base, +1 por punto gastado (la rareza lo multiplica como al resto)
     skills: [
-      { name: "Siega espectral", icon: "⚔️", cooldown: 0.625 },
+      { name: "Siega espectral", icon: "⚔️", cooldown: 1.25 },
       { name: "Hueste espectral", icon: "💀", cooldown: 8 },
       { name: "Aura pestilente", icon: "☠️", cooldown: 0, passive: true },
     ],
@@ -405,8 +406,9 @@ var WEAPONS = {
   bow: {
     id: "bow", name: "Arco", icon: "🏹", color: "#ffd84d",
     baseHp: 120,         // base Vida at level 1 (default 100); level-ups still add +12
+    baseRate: 3.1,       // basic attack A/s at level 1
     skills: [
-      { name: "Flecha", icon: "➶", cooldown: 0.29 },
+      { name: "Flecha", icon: "➶", cooldown: 0.3226 },
       { name: "Abanico", icon: "🏹", cooldown: 5.5 },
       { name: "Devastación", icon: "💥", cooldown: 13 },
     ],

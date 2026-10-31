@@ -579,7 +579,7 @@ function useSkillInner(i) {
 
   if (weaponId === "bow") {
     if (i === 0) {
-      spawnArrow(base, { dmg: p.dmg * 1.1, spd: 700, life: 0.8, color: "#ffd84d" });
+      spawnArrow(base, { dmg: p.dmg, spd: 700, life: 0.8, color: "#ffd84d" });
       Sound.shoot();
     } else if (i === 1) {
       const count = 7, spread = 0.9;
@@ -624,7 +624,7 @@ function useSkillInner(i) {
       state.weaponEffects.push({
         kind: "axe-sweep", x: p.x, y: p.y, radius: 0, color: "#ff7659",
         duration: sweepTime + AXE_SWEEP_FADE, life: sweepTime + AXE_SWEEP_FADE, sweepTime,
-        start: base - arc / 2, arc, range, prog: 0, damage: p.dmg * 1.4, hit: new Set(), opacity: axeSweepOpacity(),
+        start: base - arc / 2, arc, range, prog: 0, damage: p.dmg, hit: new Set(), opacity: axeSweepOpacity(),
       });
       Sound.swing();
     } else if (i === 1) {

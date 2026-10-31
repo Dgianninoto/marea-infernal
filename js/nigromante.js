@@ -11,7 +11,7 @@ var NECRO_MINION_HOLD = 170;           // <<< BALANCE: los esqueletos arqueros d
 var NECRO_MINION_BULLET_SPEED = 700;   // como la flecha basica del Arquero
 var NECRO_MINION_GAP = 4;              // separacion minima extra (px) entre esqueletos
 var NECRO_TARGET_SEARCH = 900;         // radio (px) en el que buscan blanco
-var NECRO_MINION_DAMAGE_RATIO = 0.30;   // <<< BALANCE: daño de cada golpe de esqueleto = 30 % del daño del Nigromante
+var NECRO_MINION_DAMAGE_RATIO = 0.15;   // <<< BALANCE: daño de cada golpe de esqueleto = 15 % del daño del Nigromante
 // <<< BALANCE: cadencia de ataque (s entre golpes) de los esqueletos segun la rareza del arma: Comun, Magico, Raro, Legendario, Unico
 var NECRO_MINION_ATTACK_CD_BY_RARITY = [1, 0.8, 0.6, 0.4, 0.2];
 // Siega espectral: arco fijo (ya no depende del Daño). Empieza a NECRO_SWEEP_INNER px del personaje y mide NECRO_SWEEP_LENGTH px de largo.
@@ -21,8 +21,8 @@ var NECRO_SWEEP_TIME = 0.15;               // <<< BALANCE: s que tarda el barrid
 var NECRO_SWEEP_LENGTH = 55;               // <<< BALANCE: largo (px) del arco; llega hasta INNER + LENGTH = 175 px
 // Aura pestilente: pasiva y permanente alrededor del Nigromante. Cada enemigo dentro acumula cargas de veneno.
 var NECRO_AURA_RADIUS = 240;               // radio (px)
-var NECRO_POISON_INTERVAL = 1;             // s entre ticks de veneno (y entre cargas)
-var NECRO_POISON_RATIO = 0.30;             // fraccion del daño del arma por carga y por tick (30 %, 60 %, 90 %...)
+var NECRO_POISON_INTERVAL = 2;             // s entre ticks de veneno (y entre cargas) con 0 % de Recarga; la Recarga lo acorta (ver necroPoisonInterval)
+var NECRO_POISON_RATIO = 0.10;             // fraccion del daño del arma por carga y por tick (10 %, 20 %, 30 %...)
 var NECRO_POISON_MAX_STACKS = Infinity;    // <<< BALANCE: tope de cargas (Infinity = sin limite)
 var NECRO_SKELETON_R = 12;              // radio del esqueleto normal (nacido de bajas): 20 % mas grande que los 10 px originales
 var NECRO_ARCHER_R = 10;               // radio del esqueleto arquero (Hueste)
@@ -30,7 +30,6 @@ var NECRO_KILLS_PER_SKELETON = 3;   // contador oculto: la baja que completa 3 b
 var NECRO_HUESTE_COUNT = 3;         // <<< BALANCE: esqueletos que invoca cada lanzamiento de Hueste (no depende de las bajas)
 var NECRO_POISON_DOT_R = 4;                       // radio (px) de cada bolita de veneno
 var NECRO_POISON_DOT_STEP = 30 * Math.PI / 180;   // separacion angular entre bolitas de veneno
-var NECRO_MELEE_DAMAGE_MULT = 1.4 * 0.88;
 var necroSprites = Object.create(null);
 // "skeleton-archer": esqueleto arquero con yelmo, hombreras y arco, solo para los esqueletos invocados con Hueste espectral.
 for (const name of ["necromancer", "skeleton", "skeleton-archer"]) {
@@ -91,7 +90,7 @@ function useNecromancerSkill(index, angle) {
       kind: "axe-sweep", x: p.x, y: p.y, radius: 0, color: "#9fe6b2",
       duration: NECRO_SWEEP_TIME + AXE_SWEEP_FADE, life: NECRO_SWEEP_TIME + AXE_SWEEP_FADE,
       sweepTime: NECRO_SWEEP_TIME, start: angle - arc / 2, arc, range, inner, prog: 0, edgeColor: "#d0f2a0",
-      damage: p.dmg * NECRO_MELEE_DAMAGE_MULT, hit: new Set(), opacity: axeSweepOpacity(),
+      damage: p.dmg, hit: new Set(), opacity: axeSweepOpacity(),
     });
     Sound.scythe();
   } else if (index === 1) {
@@ -106,10 +105,16 @@ function necroAuraRadius() {
   return NECRO_AURA_RADIUS;
 }
 
+// Intervalo real entre ticks: igual que los cooldowns de las habilidades, la Recarga lo hace (1 + Recarga) veces mas rapido.
+function necroPoisonInterval() {
+  return NECRO_POISON_INTERVAL / (1 + Math.max(0, state.player.cdr || 0));
+}
+
 // Aura: al entrar un enemigo recibe 1 carga. Cada NECRO_POISON_INTERVAL s sufre (cargas x 30 % del daño del arma) y,
 // si sigue dentro del aura, gana otra carga; si salio, pierde una. Sin cargas el veneno desaparece.
 function updateNecromancerPoison(dt) {
   const p = state.player, radius = necroAuraRadius();
+  const interval = necroPoisonInterval();
   const weaponDmg = p.dmg;
   const previousSkill = dmgSkill;
   dmgSkill = 2;
@@ -123,8 +128,8 @@ function updateNecromancerPoison(dt) {
         poison = target.necroPoison = { stacks: 1, timer: 0 };
       }
       poison.timer += dt;
-      while (poison.timer + 1e-9 >= NECRO_POISON_INTERVAL && target.hp > 0) {
-        poison.timer -= NECRO_POISON_INTERVAL;
+      while (poison.timer + 1e-9 >= interval && target.hp > 0) {
+        poison.timer -= interval;
         const damage = weaponDmg * NECRO_POISON_RATIO * poison.stacks;
         if (target.type === "boss") damageWeaponBoss(target, damage);
         else damageWeaponEnemy(target, damage);
