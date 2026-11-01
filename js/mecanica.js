@@ -164,6 +164,12 @@ var Sound = (() => {
 var WORLD = { w: 2600, h: 2600 };
 // Unidad de distancia para los textos del juego: 1 baldosa del piso = 50 px (la logica sigue en px). El piso dibujado usa este mismo tamaño.
 var BALDOSA_PX = 50;
+// Salto aplastante de los jefes: velocidad del vuelo (px/s) y radio del impacto (px). El indicador de aterrizaje usa los mismos valores.
+var BOSS_LEAP_SPEED = 1500;   // <<< BALANCE: velocidad (px/s) del vuelo del salto; el tiempo de vuelo = distancia al punto de aterrizaje / velocidad
+var BOSS_LEAP_WARN = 0.6;   // <<< BALANCE: s que el circulo queda fijo en el suelo antes de que el jefe salte (el jefe espera quieto)
+var BOSS_LEAP_R = 115;
+var BOSS_LEAP_CLOSE_DIST = 750;   // <<< BALANCE: si el jefe esta a mas de estos px del personaje, salta hacia el para acortar distancia (ignora la recarga)
+var BOSS_LEAP_CLOSE_CD = 2;         // <<< BALANCE: s minimos entre dos saltos de acercamiento
 function balNum(px) { return Math.round(px / BALDOSA_PX * 100) / 100; }
 function baldosas(px) { const v = balNum(px); return v + (v === 1 ? " baldosa" : " baldosas"); }
 
@@ -916,6 +922,20 @@ var lootFeed = document.getElementById("loot-feed");
 // ---------------------------------------------------------------- Wave director
 // Begins the next wave. Every 10th wave spawns a boss (Stage 5) and, from Stage 6,
 // rotates the scenario. Difficulty ramps forever (handled in spawnEnemy / startWave).
+// Debug: salta directo al Desafio final (oleada BOSS_FINAL_WAVE, escenario de esa oleada, los tres jefes a la vez).
+function debugFinalChallenge() {
+  if (!state || !state.running || state.over) return;
+  state.enemies = [];
+  state.bossBullets = [];
+  state.aoes = [];
+  state.beams = [];
+  state.boss = null; state.bosses = []; state.finalChallenge = false; state.finalBossList = [];
+  bossWrap.style.display = "none";
+  interPanel.style.display = "none";
+  state.wave = BOSS_FINAL_WAVE;
+  state.theme = Math.floor((BOSS_FINAL_WAVE - 1) / 10) % THEMES.length;   // mismo escenario que tendria al llegar a esa oleada
+  startFinalChallenge();
+}
 function startWave() {
   state.wave++;
   state.phase = "fighting";
@@ -1234,16 +1254,21 @@ function update(dt) {
     if (boss.hasLeap) {
       if (boss.leaping > 0) {
         // En el aire: vuela hacia el punto objetivo con estela de fuego
+        // boss.leaping = espera (BOSS_LEAP_WARN) + vuelo (boss.leapTime, calculado al saltar): primero el circulo queda fijo y el jefe espera quieto, luego vuela
         boss.leaping -= dt;
-        boss.x = clamp(boss.x + boss.lvx * dt, WALL + boss.r, WORLD.w - WALL - boss.r);
-        boss.y = clamp(boss.y + boss.lvy * dt, WALL + boss.r, WORLD.h - WALL - boss.r);
-        if (Math.random() < 0.7) {
+        const flying = boss.leaping < boss.leapTime;
+        if (flying) {
+          boss.x = clamp(boss.x + boss.lvx * dt, WALL + boss.r, WORLD.w - WALL - boss.r);
+          boss.y = clamp(boss.y + boss.lvy * dt, WALL + boss.r, WORLD.h - WALL - boss.r);
+          if (boss.leaping <= 0) { boss.x = boss.leapTx; boss.y = boss.leapTy; }   // aterriza exactamente en el circulo
+        }
+        if (flying && Math.random() < 0.7) {
           state.particles.push({ x: boss.x + rand(-10,10), y: boss.y + rand(-10,10), vx: rand(-40,40), vy: rand(-40,40), life: 0.3, r: rand(4, 9), color: pick(["#ff3a1a","#ff9d4d","#8a0f2a"]) });
         }
         if (boss.leaping <= 0) {
           // Aterrizaje: AoE de golpe en zona grande
           const slamDmg = boss.dmg * 1.8;
-          state.aoes.push({ x: boss.x, y: boss.y, r: 115, warn: 0, active: 0.5, dmg: slamDmg, hit: false });
+          state.aoes.push({ x: boss.x, y: boss.y, r: BOSS_LEAP_R, warn: 0, active: 0.5, dmg: slamDmg, hit: false });
           state.shake = Math.max(state.shake, 18);
           for (let i = 0; i < 50; i++) {
             const a = rand(0, Math.PI * 2), s = rand(100, 420);
@@ -1255,11 +1280,19 @@ function update(dt) {
         }
       } else {
         boss.leapCd -= cdDt;
-        if (boss.leapCd <= 0 && bd > 140 && bd < 560 && boss.shootCd > 0.5 && !(boss.beamLock > 0) && !boss.trio) {
-          boss.leaping = 0.42;
-          const lspd = 820;
-          boss.lvx = (bdx / bd) * lspd;
-          boss.lvy = (bdy / bd) * lspd;
+        boss.leapCloseCd = Math.max(0, (boss.leapCloseCd || 0) - cdDt);
+        const leapClose = bd > BOSS_LEAP_CLOSE_DIST && boss.leapCloseCd <= 0;   // muy lejos del personaje: salto forzado para acortar distancia
+        if ((leapClose || (boss.leapCd <= 0 && bd > 140 && bd < 560 && boss.shootCd > 0.5)) && !(boss.beamLock > 0) && !boss.trio) {
+          if (leapClose) boss.leapCloseCd = BOSS_LEAP_CLOSE_CD;
+          // aterriza desplazado BOSS_LEAP_R px del personaje en un angulo aleatorio (dentro de la arena); el tiempo de vuelo sale de la distancia y la velocidad fija
+          const offA = Math.random() * Math.PI * 2;
+          boss.leapTx = clamp(p.x + Math.cos(offA) * BOSS_LEAP_R, WALL + boss.r, WORLD.w - WALL - boss.r);
+          boss.leapTy = clamp(p.y + Math.sin(offA) * BOSS_LEAP_R, WALL + boss.r, WORLD.h - WALL - boss.r);
+          const ldx = boss.leapTx - boss.x, ldy = boss.leapTy - boss.y, ld = Math.hypot(ldx, ldy) || 1;
+          boss.leapTime = Math.max(0.05, ld / BOSS_LEAP_SPEED);
+          boss.lvx = (ldx / ld) * BOSS_LEAP_SPEED;
+          boss.lvy = (ldy / ld) * BOSS_LEAP_SPEED;
+          boss.leaping = BOSS_LEAP_WARN + boss.leapTime;
           floatText(boss.x, boss.y - boss.r - 14, "¡SALTO!", "#6affa0");
           state.shake = Math.max(state.shake, 6);
         }
@@ -1960,7 +1993,7 @@ function debugNextWave() {
   interPanel.style.display = "none";
   if (state.wave >= BOSS_FINAL_WAVE) startFinalChallenge(); else startWave();
 }
-for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
+for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-final", debugFinalChallenge], ["dbg-ash", () => {
   debugInfAsh = !debugInfAsh;
   el("dbg-ash").classList.toggle("on", debugInfAsh);
   el("dbg-ash").setAttribute("aria-pressed", String(debugInfAsh));

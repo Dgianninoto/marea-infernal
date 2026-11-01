@@ -3,6 +3,7 @@
  * a un canvas pequeño y drawBoss (enemigos.js) los dibuja desde ahi.
  * La oleada BOSS_FINAL_WAVE cierra el juego: al caer su jefe hay victoria. */
 var BOSS_FINAL_WAVE = 50;      // oleada del Desafio final
+var BOSS_FINAL_SPEED = 160;     // <<< BALANCE: velocidad (px/s) de los jefes del Desafio final
 var BOSS_FINAL_COUNT = 3;      // jefes del Desafio final (los 3 de BOSS_FINAL_ROSTER) que hay que derrotar
 // Rayo en linea recta (oleada 30+ y Desafio final): aviso en el suelo y luego disparo.
 var BOSS_BEAM_LEN = 700;        // largo del rayo en px (desde el centro del jefe)
@@ -33,7 +34,7 @@ var BOSS_TRIO_RADIUS = 300;     // px: los 3 se consideran "juntos" si todos est
 var BOSS_TRIO_CHARGE = 0.9;     // s de aviso (aura + sonido) antes de moverse
 var BOSS_TRIO_RETREAT = 250;    // px que retroceden (se alejan del jugador) mientras se dispersan
 var BOSS_TRIO_MOVE = 1.0;       // s que tardan en recorrer el arco de 120 grados
-var BOSS_TRIO_COOLDOWN = 10;    // s antes de poder repetirlo
+var BOSS_TRIO_COOLDOWN = 7.5;    // s antes de poder repetirlo
 var BOSS_TRIO_MIN_R = 200;      // px: distancia minima al jugador durante el arco (no pasan encima de el)
 var BOSS_FINAL_HP = 300000;    // vida fija de CADA jefe del desafio final (no depende del jefe sorteado)
 // Cada jefe tiene su PROPIA vida (hp), ajustada a la fuerza esperada del jugador en su oleada

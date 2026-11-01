@@ -526,7 +526,7 @@ function spawnBoss(forcedDef, finalIdx, finalTotal, angle) {
     r: (48 + (hasLeap ? 4 : 0) + (hasBombs ? 4 : 0)) * BOSS_SIZE_MULT,
     type: "boss", def, isFinal, finalIdx, finalTotal,
     name: def.name,
-    speed: 85 + Math.min(40, w),
+    speed: isFinal ? BOSS_FINAL_SPEED : 85 + Math.min(40, w),   // los jefes del Desafio final van a velocidad fija
     hp: bossHp, maxHp: bossHp, // vida propia de cada jefe (ver BOSS_ROSTER en jefes.js)
     dmg: 26 * (1 + (w - 1) * 0.05) * ENEMY_DMG_MULT * bossDmgMultFor(isFinal ? BOSS_FINAL_DMG_MULT : (BOSS_DMG_MULT[def.id] || 1)),
     xp: 600 + w * 20, flash: 0,
@@ -789,6 +789,21 @@ function drawBeam(z) {
 function drawBoss(b) {
   const t = performance.now() / 300;
   ctx.save();
+
+  // Indicador de aterrizaje: zona del impacto (radio BOSS_LEAP_R) en el suelo, con un circulo interior que crece hasta llenarla
+  if (b.hasLeap && b.leaping > 0 && b.leapTx != null) {
+    ctx.save();
+    const prog = clamp(1 - b.leaping / (BOSS_LEAP_WARN + (b.leapTime || 0.4)), 0, 1);
+    const ring = 0.55 + Math.sin(t * 8) * 0.25;
+    ctx.fillStyle = "rgba(255,70,40," + (0.14 + 0.16 * prog) + ")";
+    ctx.beginPath(); ctx.arc(b.leapTx, b.leapTy, BOSS_LEAP_R, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,110,60," + (0.18 + 0.22 * prog) + ")";
+    ctx.beginPath(); ctx.arc(b.leapTx, b.leapTy, BOSS_LEAP_R * prog, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(106,255,160," + ring + ")"; ctx.lineWidth = 4;
+    ctx.shadowBlur = 14; ctx.shadowColor = "#6affa0";
+    ctx.beginPath(); ctx.arc(b.leapTx, b.leapTy, BOSS_LEAP_R, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
 
   // Indicador de salto: sombra verde bajo el jefe cuando salta
   if (b.hasLeap && b.leaping > 0) {

@@ -158,7 +158,7 @@ Sus tres ataques se activan automáticamente con los mismos controles de las otr
   cercano y atraviesan obstáculos; sus flechas también los atraviesan (`noWalls`). Cada uno tiene el 40 % de la vida máxima del personaje (`NECRO_HUESTE_HP_RATIO`).
   Cada golpe hace el 15 % del Daño del Nigromante (`NECRO_MINION_DAMAGE_RATIO`) y atacan cada 1 s con arma Común,
   0,8 s Mágica, 0,6 s Rara, 0,4 s Legendaria y 0,2 s Única (`NECRO_MINION_ATTACK_CD_BY_RARITY`).
-- **Aura pestilente (pasiva):** aura permanente alrededor del Nigromante (240 px). Cada enemigo
+- **Aura pestilente (pasiva):** aura permanente alrededor del Nigromante (300 px). Cada enemigo
   o jefe que entra recibe una carga de veneno que le quita un 30 % del daño del arma cada 1 s. Si al terminar ese
   segundo sigue dentro del aura recibe otra carga y el daño pasa a 60 % (luego 90 %…); si ya salió, pierde una carga
   (al llegar a 0 el veneno desaparece). Sin tope de cargas por defecto (`NECRO_POISON_MAX_STACKS`). Ya no cura.

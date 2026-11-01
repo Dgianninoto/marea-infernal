@@ -29,7 +29,7 @@ var NECRO_SWEEP_INNER = 120;               // <<< BALANCE: distancia (px) a la q
 var NECRO_SWEEP_TIME = 0.15;               // <<< BALANCE: s que tarda el barrido en recorrer su arco (el del Barbaro tarda AXE_SWEEP_TIME = 0.22)
 var NECRO_SWEEP_LENGTH = 55;               // <<< BALANCE: largo (px) del arco; llega hasta INNER + LENGTH = 175 px
 // Aura pestilente: pasiva y permanente alrededor del Nigromante. Cada enemigo dentro acumula cargas de veneno.
-var NECRO_AURA_RADIUS = 240;               // radio (px)
+var NECRO_AURA_RADIUS = 300;               // radio (px)
 var NECRO_POISON_INTERVAL = 2;             // s entre ticks de veneno (y entre cargas) con 0 % de Recarga; la Recarga lo acorta (ver necroPoisonInterval)
 var NECRO_POISON_RATIO = 0.10;             // fraccion del daño del arma por carga y por tick (10 %, 20 %, 30 %...)
 var NECRO_POISON_MAX_STACKS = Infinity;    // <<< BALANCE: tope de cargas (Infinity = sin limite)
