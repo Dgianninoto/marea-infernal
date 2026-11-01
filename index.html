@@ -25,10 +25,10 @@
       </div>
     </details>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 250 -> la proxima entrega 251,
-         luego 252, 253, etc. (se muestra como 0.225, 0.226, 0.227...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 254 -> la proxima entrega 255,
+         luego 256, 257, etc. (se muestra como 0.254, 0.255, 0.256...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.250</div>
+    <div id="build-tag">Build 0.254</div>
 
 
     <!-- Boss bar -->
@@ -124,7 +124,19 @@
             <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
           </div>
           <button id="pause-btn" title="Pausa" aria-label="Pausa">⏸</button>
-          <button id="sound-btn" title="Sonido" aria-label="Sonido">🔊</button>
+          <div id="audio-controls">
+            <button id="sound-btn" title="Silenciar sonido" aria-label="Silenciar sonido" aria-pressed="false">🔊</button>
+            <button id="volume-btn" title="Volumen" aria-label="Ajustar volumen" aria-expanded="false" aria-controls="volume-panel">🎚</button>
+            <div id="volume-panel" hidden>
+              <label for="volume-slider">General <output id="volume-value" for="volume-slider">100 %</output></label>
+              <input id="volume-slider" type="range" min="0" max="100" step="1" value="100" aria-label="Volumen general" />
+              <label for="music-slider">Música <output id="music-value" for="music-slider">25 %</output></label>
+              <input id="music-slider" type="range" min="0" max="100" step="1" value="25" aria-label="Volumen de música" aria-describedby="music-track" />
+              <label for="effects-slider">Habilidades y efectos <output id="effects-value" for="effects-slider">100 %</output></label>
+              <input id="effects-slider" type="range" min="0" max="100" step="1" value="100" aria-label="Volumen de habilidades y efectos" />
+              <p id="music-track">Ceniza digital · 8 bits</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -417,6 +429,7 @@
      mecanica.js define el nucleo y los simbolos globales (var/function);
      personajes.js y enemigos.js los usan. enemigos.js arranca el juego al final. -->
   <script src="js/mecanica.js"></script>
+  <script src="js/musica.js"></script>
   <script src="js/personajes.js"></script>
   <script src="js/jefes.js"></script>
   <script src="js/nigromante.js"></script>

@@ -205,3 +205,24 @@ Las partidas guardadas antes de existir las dificultades cuentan como **Difícil
 **Importante:** hay que volver a correr `supabase-setup.sql` en el SQL Editor de Supabase para crear la columna `difficulty`
 (se puede correr más de una vez). Mientras no exista, el juego sigue funcionando: el ranking global solo muestra Difícil y las
 partidas Fácil/Normal no se envían al global (quedan en el ranking local).
+## Audio y musica
+
+El boton de volumen (junto al de silencio) abre tres controles: general, musica y habilidades y efectos. El general controla ambos canales; los otros dos permiten equilibrarlos por separado. Los niveles se guardan en este navegador; silenciar conserva los valores elegidos. Llevar musica a 0 permite jugar solo con efectos; llevar habilidades y efectos a 0 deja solo la musica.
+
+La banda sonora se genera en `js/musica.js` mediante Web Audio, sin servicios ni descargas. Son composiciones originales de 32 compases con sintesis de consola. La musica continua al abrir el inventario; se detiene con la pausa, el fin de partida o al ocultar la pestaña. Cambia automaticamente al entrar en cada tramo. El menu principal y la seleccion de personaje comparten una pista chill que comienza tras la primera interaccion que habilita el audio del navegador.
+
+| Oleadas | Pista | Tempo |
+| --- | --- | --- |
+| 1–10 | Falla tectonica | 128 BPM |
+| 11–20 | Ceniza digital | 112 BPM |
+| 21–30 | Marea espectral | 84 BPM |
+| 31–40 | Antes del umbral | 136 BPM |
+| 41–50 | Pulso de hierro | 140 BPM |
+| Desafio final | Alarma en el bastion | 156 BPM |
+| Menu y seleccion | Refugio de cenizas | 76 BPM |
+
+**Falla tectonica** y **Antes del umbral** combinan riffs pesados y breakdowns; **Ceniza digital** tiene groove pesado y melodia de pulsos; **Pulso de hierro**, breakbeat rapido con bajo movil y notas cortas brillantes; **Marea espectral**, medio tiempo atmosferico con acordes sostenidos y percusion espaciada. El desafio final tiene un motivo cromatico y un pulso rapido de tension; el menu usa acordes suaves y percusion discreta. El panel de volumen muestra la pista actual y esta accesible tambien desde el menu.
+
+Al abrir el inventario con **I**, la informacion de oleadas, el boton Inventario, las instrucciones, el volumen, silencio y Debug siguen visibles y accesibles. La tarjeta reserva espacio para esos controles y permite desplazar su contenido cuando la pantalla es pequeña.
+
+El teclado limpia las teclas retenidas al perder el foco u ocultar la pestaña y devuelve el foco al lienzo al volver a una partida. WASD funciona aun con botones o controles de volumen enfocados; las flechas de un deslizador siguen ajustando su valor y los campos de texto conservan la escritura normal.

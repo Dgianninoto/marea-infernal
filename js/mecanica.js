@@ -19,13 +19,40 @@
 // ---------------------------------------------------------------- Audio (Web Audio API, no external files)
 var Sound = (() => {
   let ctx = null;
+  let master = null;
+  let effects = null;
   let enabled = true;
+  let volume = 1;
+  let effectsVolume = 1;
+  const settingsKey = "marea-infernal-audio";
+  try {
+    const saved = JSON.parse(localStorage.getItem(settingsKey));
+    if (saved && typeof saved.enabled === "boolean") enabled = saved.enabled;
+    if (saved && typeof saved.volume === "number" && Number.isFinite(saved.volume)) volume = Math.max(0, Math.min(1, saved.volume));
+    if (saved && typeof saved.effectsVolume === "number" && Number.isFinite(saved.effectsVolume)) effectsVolume = Math.max(0, Math.min(1, saved.effectsVolume));
+  } catch (e) {} // Storage may be unavailable when opened directly from disk.
+  function saveSettings() {
+    try { localStorage.setItem(settingsKey, JSON.stringify({ enabled, volume, effectsVolume })); } catch (e) {}
+  }
+  function updateMaster() {
+    if (!master) return;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setTargetAtTime(enabled ? volume : 0, ctx.currentTime, 0.015);
+  }
   function ensure() {
     if (!ctx) {
-      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch (e) { enabled = false; }
+      try {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        master = ctx.createGain();
+        master.gain.value = enabled ? volume : 0;
+        master.connect(ctx.destination);
+        effects = ctx.createGain();
+        effects.gain.value = effectsVolume;
+        effects.connect(master);
+      }
+      catch (e) { ctx = null; master = null; effects = null; return null; }
     }
-    if (ctx && ctx.state === "suspended") ctx.resume();
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
     return ctx;
   }
   function tone(freq, dur, type, vol, slideTo) {
@@ -39,7 +66,7 @@ var Sound = (() => {
     if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), c.currentTime + dur);
     gain.gain.setValueAtTime(vol || 0.15, c.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
-    osc.connect(gain); gain.connect(c.destination);
+    osc.connect(gain); gain.connect(effects);
     osc.start(); osc.stop(c.currentTime + dur);
   }
   function noise(dur, vol) {
@@ -52,7 +79,7 @@ var Sound = (() => {
     for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / n);
     const src = c.createBufferSource(); src.buffer = buf;
     const gain = c.createGain(); gain.gain.value = vol || 0.2;
-    src.connect(gain); gain.connect(c.destination);
+    src.connect(gain); gain.connect(effects);
     src.start();
   }
   // Silbido de aire: ruido que pasa por un filtro de banda cuyo centro sube y baja (el filo cortando el viento),
@@ -75,14 +102,34 @@ var Sound = (() => {
     gain.gain.setValueAtTime(0.0001, t0);
     gain.gain.exponentialRampToValueAtTime(0.32, t0 + 0.07);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    src.connect(filter); filter.connect(gain); gain.connect(c.destination);
+    src.connect(filter); filter.connect(gain); gain.connect(effects);
     src.start(t0);
     tone(120, 0.3, "sine", 0.16, 48);            // peso del arma
     tone(80, 0.34, "sawtooth", 0.035, 210);      // zumbido grave que sube con el filo
   }
   return {
     resume: () => ensure(),
-    toggle: () => { enabled = !enabled; if (enabled) ensure(); return enabled; },
+    createMusicChannel: () => {
+      const c = ensure();
+      return c ? { context: c, output: master } : null;
+    },
+    toggle: () => { enabled = !enabled; if (enabled) ensure(); updateMaster(); saveSettings(); return enabled; },
+    setVolume: (value) => {
+      if (!Number.isFinite(value)) return;
+      volume = Math.max(0, Math.min(1, value));
+      updateMaster(); saveSettings();
+    },
+    get volume() { return volume; },
+    setEffectsVolume: (value) => {
+      if (!Number.isFinite(value)) return;
+      effectsVolume = Math.max(0, Math.min(1, value));
+      if (effects) {
+        effects.gain.cancelScheduledValues(ctx.currentTime);
+        effects.gain.setTargetAtTime(effectsVolume, ctx.currentTime, 0.015);
+      }
+      saveSettings();
+    },
+    get effectsVolume() { return effectsVolume; },
     get enabled() { return enabled; },
     shoot: () => tone(680, 0.08, "square", 0.05, 240),
     swing: () => { tone(260, 0.2, "sawtooth", 0.06, 560); noise(0.14, 0.05); },
@@ -728,10 +775,47 @@ function newState(weaponId) {
 var keys = {};
 var mouse = { x: W / 2, y: H / 2 };
 
+function isTypingTarget(target) {
+  return !!(target && (target.isContentEditable || target.tagName === "TEXTAREA" || target.tagName === "SELECT"
+    || (target.tagName === "INPUT" && target.type !== "range")));
+}
+function movementKey(event) {
+  const physical = { KeyW: "w", KeyA: "a", KeyS: "s", KeyD: "d" };
+  if (physical[event.code]) return physical[event.code];
+  const key = event.key.toLowerCase();
+  return ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key) ? key : null;
+}
+function clearKeyboardInput() {
+  for (const key of Object.keys(keys)) delete keys[key];
+}
+function focusGameCanvas() {
+  if (state && state.running && !state.over && !paused && !invOpen) canvas.focus({ preventScroll: true });
+}
+// Capture movement before HUD buttons handle their own keyboard shortcuts.
+window.addEventListener("keydown", e => {
+  const key = movementKey(e);
+  if (!key || isTypingTarget(e.target)) return;
+  // The range keeps its arrow-key adjustment; WASD still controls the player.
+  if (e.target && e.target.type === "range" && key.startsWith("arrow")) return;
+  keys[key] = true;
+  if (state && state.running && !invOpen && !paused) e.preventDefault();
+}, true);
+window.addEventListener("keyup", e => {
+  const key = movementKey(e);
+  if (key) keys[key] = false;
+  keys[e.key.toLowerCase()] = false;
+}, true);
+window.addEventListener("blur", clearKeyboardInput);
+window.addEventListener("focus", () => { clearKeyboardInput(); focusGameCanvas(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) clearKeyboardInput(); });
+canvas.tabIndex = -1;
+canvas.addEventListener("pointerdown", focusGameCanvas);
+
 window.addEventListener("keydown", e => {
   var t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
-  keys[e.key.toLowerCase()] = true;
+  if (movementKey(e)) return;
+  if (e.repeat) return;
   if (e.key === " " || e.code === "Space") { e.preventDefault(); tryDash(); }
   if (e.key.toLowerCase() === "e") { e.preventDefault(); tryOpenChest(); }
   if (e.key.toLowerCase() === "i") { e.preventDefault(); toggleInventory(); }
@@ -741,11 +825,6 @@ window.addEventListener("keydown", e => {
     else if (paused) resumeGame();
     else if (state && state.running && !state.over) pauseGame();
   }
-});
-window.addEventListener("keyup", e => {
-  var t = e.target;
-  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
-  keys[e.key.toLowerCase()] = false;
 });
 
 canvas.addEventListener("mousemove", e => {
@@ -1961,12 +2040,51 @@ function showWarning(html) {
   warningEl.classList.add("show");
 }
 
-// sound toggle
-el("sound-btn").addEventListener("click", () => {
-  const on = Sound.toggle();
-  el("sound-btn").textContent = on ? "🔊" : "🔇";
-  el("sound-btn").title = on ? "Sonido" : "Silencio";
+// Audio controls: mute preserves the selected volume.
+function syncAudioControls() {
+  const audible = Sound.enabled && Sound.volume > 0;
+  const label = Sound.enabled ? "Silenciar sonido" : "Activar sonido";
+  el("sound-btn").textContent = audible ? "🔊" : "🔇";
+  el("sound-btn").title = label;
+  el("sound-btn").setAttribute("aria-label", label);
+  el("sound-btn").setAttribute("aria-pressed", String(!Sound.enabled));
+  el("volume-slider").value = Math.round(Sound.volume * 100);
+  el("volume-value").textContent = Math.round(Sound.volume * 100) + " %";
+  el("effects-slider").value = Math.round(Sound.effectsVolume * 100);
+  el("effects-value").textContent = Math.round(Sound.effectsVolume * 100) + " %";
+}
+function setVolumePanel(open) {
+  el("volume-panel").hidden = !open;
+  el("volume-btn").setAttribute("aria-expanded", String(open));
+}
+el("sound-btn").addEventListener("click", () => { Sound.toggle(); syncAudioControls(); });
+el("volume-btn").addEventListener("click", () => {
+  const open = el("volume-panel").hidden;
+  setVolumePanel(open);
+  if (open) el("volume-slider").focus();
 });
+el("volume-slider").addEventListener("input", e => {
+  Sound.setVolume(Number(e.target.value) / 100);
+  syncAudioControls();
+});
+el("effects-slider").addEventListener("input", e => {
+  Sound.setEffectsVolume(Number(e.target.value) / 100);
+  syncAudioControls();
+});
+el("audio-controls").addEventListener("keydown", e => {
+  if (e.key.toLowerCase() === "i" && !e.repeat) {
+    e.preventDefault(); toggleInventory();
+  }
+  if (e.key === "Escape") {
+    e.preventDefault(); setVolumePanel(false); el("volume-btn").focus();
+  }
+  e.stopPropagation();
+});
+el("audio-controls").addEventListener("keyup", e => e.stopPropagation());
+document.addEventListener("pointerdown", e => {
+  if (!el("audio-controls").contains(e.target)) setVolumePanel(false);
+});
+syncAudioControls();
 
 // intermission: let the player skip the breather
 el("inter-continue").addEventListener("click", () => {
@@ -2047,14 +2165,26 @@ function openInventory() {
   if (!state || !state.running || state.over) return;
   if (paused) return;
   invOpen = true;
+  document.documentElement.classList.add("inventory-open");
   invScreen.classList.remove("hidden");
+  updateInventoryLayout();
   renderInventory();
 }
 function closeInventory() {
   invOpen = false;
+  document.documentElement.classList.remove("inventory-open");
   invScreen.classList.add("hidden");
+  focusGameCanvas();
 }
 function toggleInventory() { invOpen ? closeInventory() : openInventory(); }
+
+function updateInventoryLayout() {
+  if (!invOpen) return;
+  const top = document.querySelector(".hud-top").getBoundingClientRect().bottom + 12;
+  const bottom = window.innerHeight - el("hud-br").getBoundingClientRect().top + 12;
+  invScreen.style.setProperty("--inventory-top", top + "px");
+  invScreen.style.setProperty("--inventory-bottom", bottom + "px");
+}
 
 function itemCard(item) {
   const div = document.createElement("div");
@@ -2264,7 +2394,9 @@ function placeSkillsPanel() {
     sub.hidden = false;
   }
 }
-window.addEventListener("resize", () => { if (typeof invOpen !== "undefined" && invOpen && state) placeSkillsPanel(); });
+window.addEventListener("resize", () => {
+  if (typeof invOpen !== "undefined" && invOpen && state) { updateInventoryLayout(); placeSkillsPanel(); }
+});
 
 function renderInventory() {
   if (!state) return;
@@ -2553,6 +2685,8 @@ function startGame(weaponId) {
   if (WORLD.h < VH) cam.y = (WORLD.h - VH) / 2;
   state.running = true;
   state.over = false;
+  clearKeyboardInput();
+  focusGameCanvas();
   menuScreen.classList.add("hidden");
   overScreen.classList.add("hidden");
   pauseScreen.classList.add("hidden");
@@ -2719,6 +2853,10 @@ function loop(now) {
   let dt = (now - last) / 1000;
   last = now;
   if (dt > 0.05) dt = 0.05; // clamp big frame gaps
+  const inMenu = !menuScreen.classList.contains("hidden");
+  if (inMenu) Music.selectMenu();
+  else if (state) Music.selectForWave(state.wave, state.finalChallenge);
+  Music.setPlaying(!document.hidden && (inMenu || !!(state && state.running && !state.over && !paused)));
   if (state && state.running) {
     if (!invOpen && !paused) update(dt); // inventory and pause menu freeze the action
     draw();
