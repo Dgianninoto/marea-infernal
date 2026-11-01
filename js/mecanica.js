@@ -162,6 +162,10 @@ var Sound = (() => {
 })();
 
 var WORLD = { w: 2600, h: 2600 };
+// Unidad de distancia para los textos del juego: 1 baldosa del piso = 50 px (la logica sigue en px). El piso dibujado usa este mismo tamaño.
+var BALDOSA_PX = 50;
+function balNum(px) { return Math.round(px / BALDOSA_PX * 100) / 100; }
+function baldosas(px) { const v = balNum(px); return v + (v === 1 ? " baldosa" : " baldosas"); }
 
 // ---------------------------------------------------------------- Canvas
 var canvas = document.getElementById("game");
@@ -239,7 +243,7 @@ function activeScenario() {
 }
 
 function buildTile(theme) {
-  const TILE = 64, SUP = TILE * 4;
+  const TILE = BALDOSA_PX, SUP = TILE * 4;
   const off = document.createElement("canvas");
   off.width = SUP; off.height = SUP;
   const g = off.getContext("2d");
@@ -268,12 +272,12 @@ function buildTile(theme) {
   } else if (theme.id === "umbral") {
     // Quiet violet paving and brass seams, distinct from ice and volcanic glass.
     texSpeckle(g, SUP, 500, "rgba(166,147,195,", "rgba(0,0,0,");
-    for (let y = 0; y < SUP; y += 64) {
-      for (let x = 0; x < SUP; x += 64) {
+    for (let y = 0; y < SUP; y += TILE) {
+      for (let x = 0; x < SUP; x += TILE) {
         g.strokeStyle = "rgba(183,154,103,0.18)"; g.lineWidth = 1;
-        g.strokeRect(x + 5, y + 5, 54, 54);
+        g.strokeRect(x + 4, y + 4, TILE - 8, TILE - 8);
         g.fillStyle = "rgba(218,192,138,0.25)";
-        g.fillRect(x + 30, y + 30, 4, 4);
+        g.fillRect(x + TILE / 2 - 2, y + TILE / 2 - 2, 4, 4);
       }
     }
   } else {
@@ -1115,7 +1119,9 @@ function update(dt) {
     const d = chase ? (Math.hypot(dx, dy) || 1) : pd;
     // enemies ignore obstacles: they walk straight through them
     // far from the player (>600px): +300% speed (x4) to catch up
-    const sp = pd > 600 ? e.speed * 4 : e.speed;
+    // el Caster no recibe el bono de velocidad por distancia si tiene un esqueleto a 600 px o menos (chase = esqueleto mas cercano que el personaje)
+    const casterNearMinion = e.type === "caster" && chase && d <= 600;
+    const sp = pd > 600 && !casterNearMinion ? e.speed * 4 : e.speed;
 
     // ---- special-enemy behavior ----
     // handledMove = true when the type moved on its own and the plain chase is skipped.
@@ -1157,7 +1163,7 @@ function update(dt) {
       // fire a dodgeable bolt
       e.shootCd -= dt;
       if (e.shootCd <= 0 && d < 520) {
-        e.shootCd = rand(1.6, 2.6);
+        e.shootCd = CASTER_SHOOT_CD;
         const bs = 260;
         state.bossBullets.push({ x: e.x, y: e.y, vx: (dx / d) * bs, vy: (dy / d) * bs, r: 11, dmg: e.projDmg, life: 3, col: "#7fb3ff" });
         Sound.boss();
@@ -1197,6 +1203,7 @@ function update(dt) {
       e.y += (dy / d) * sp * dt;
     }
     // contact damage (el duende no daña al jugador)
+    if (e.type !== "goblin" && !(e.tpArrive > 0) && pd < e.r + p.r && p.inv <= 0) e.hitHeroAt = state.time;   // agresor: los esqueletos del Nigromante lo fijan (aunque el debug invulnerable evite el daño)
     if (e.type !== "goblin" && !(e.tpArrive > 0) && pd < e.r + p.r && p.inv <= 0 && !debugGod) {
       const taken = blockDamage(e.dmg);
       p.hp -= taken;
@@ -1268,6 +1275,7 @@ function update(dt) {
     }
 
     // contact damage
+    if (bd < boss.r + p.r && p.inv <= 0) boss.hitHeroAt = state.time;   // agresor (ver enemigos comunes)
     if (bd < boss.r + p.r && p.inv <= 0 && !debugGod) {
       const taken = blockDamage(boss.dmg);
       p.hp -= taken; p.inv = 0.7; state.shake = Math.max(state.shake, 12); Sound.hurt();
@@ -1935,6 +1943,7 @@ el("inter-continue").addEventListener("click", () => {
 // ---------------------------------------------------------------- Debug controls (collapsible menu)
 var debugInfAsh = false;
 var debugGod = false; // invulnerable: nada le baja vida al jugador
+var debugMinionHp = false; // muestra la vida (y el tiempo restante) sobre cada esqueleto; es solo visual y no invalida el puntaje
 var DEBUG_ASH = 999999;
 function debugTopUpAsh() { if (debugInfAsh && state) state.ash = Math.max(state.ash, DEBUG_ASH); }
 function debugNextWave() {
@@ -1974,6 +1983,13 @@ for (const [id, fn] of [["dbg-wave", debugNextWave], ["dbg-ash", () => {
     fn();
   });
 }
+
+el("dbg-skelhp").addEventListener("mousedown", e => e.preventDefault());
+el("dbg-skelhp").addEventListener("click", () => {
+  debugMinionHp = !debugMinionHp;
+  el("dbg-skelhp").classList.toggle("on", debugMinionHp);
+  el("dbg-skelhp").setAttribute("aria-pressed", String(debugMinionHp));
+});
 
 var debugPanel = el("debug-panel");
 document.addEventListener("click", e => {
@@ -2143,7 +2159,7 @@ function skillBoxes(p) {
   const rateTag = f2(rate) + " A/s";
   switch (state.weaponId) {
     case "bow": return [
-      { tag: rateTag, lines: [`Dispara una flecha recta hacia donde apuntas. Daño: <b>${f1(d)}</b> (100 % del Daño) a un solo enemigo. Alcance ≈ 560 px.` + (p.crit > 0 ? ` Crítico: <b>${f1(p.crit * 100)} %</b>.` : "")] },
+      { tag: rateTag, lines: [`Dispara una flecha recta hacia donde apuntas. Daño: <b>${f1(d)}</b> (100 % del Daño) a un solo enemigo. Alcance ≈ ${baldosas(560)}.` + (p.crit > 0 ? ` Crítico: <b>${f1(p.crit * 100)} %</b>.` : "")] },
       { tag: cd(1), lines: [`Abanico de <b>7 flechas</b> (≈ 52°). Cada una hace <b>${pc(0.75)}</b> (75 % del Daño), atraviesa al primer enemigo y se detiene en el segundo.`] },
       { tag: cd(2), lines: [`Flecha gigante que atraviesa a <b>todos</b> los enemigos de su camino. Daño: <b>${f1(d * 6 + 60)}</b> (600 % del Daño + 60).`] },
     ];
@@ -2151,8 +2167,8 @@ function skillBoxes(p) {
       const n = salvoOrbCount(p.poder || 0), r = meteorRadius(p.poder || 0);
       return [
         { tag: rateTag, lines: [`Orbe arcano guiado: gira hacia el enemigo con menos orbes encima. Daño: <b>${f1(d)}</b> (100 % del Daño) a un solo enemigo.`] },
-        { tag: cd(1), lines: [`Salva de <b>${n} orbes</b> en abanico. Cada uno hace <b>${pc(0.75)}</b> (75 %) y explota en 46 px haciendo <b>${pc(0.35)}</b> (35 %) extra. Cada 10 % de Poder añade un orbe (círculo completo con ${SALVO_MAX_ORBS}).`] },
-        { tag: cd(2), lines: [`Marca un círculo de <b>${Math.round(r)} px</b> de radio (entre ${METEOR_MIN_RANGE} y ${METEOR_MAX_RANGE} px hacia tu mira) y deja caer un meteorito. Daño: <b>×${METEOR_MULT_CENTER}</b> en el centro (${f1(d * METEOR_MULT_CENTER)}) bajando a <b>×${METEOR_MULT_EDGE}</b> en el borde (${f1(d * METEOR_MULT_EDGE)}). Empuja ligeramente a los enemigos hacia el centro.`] },
+        { tag: cd(1), lines: [`Salva de <b>${n} orbes</b> en abanico. Cada uno hace <b>${pc(0.75)}</b> (75 %) y explota en ${baldosas(46)} haciendo <b>${pc(0.35)}</b> (35 %) extra. Cada 10 % de Poder añade un orbe (círculo completo con ${SALVO_MAX_ORBS}).`] },
+        { tag: cd(2), lines: [`Marca un círculo de <b>${baldosas(r)}</b> de radio (entre ${balNum(METEOR_MIN_RANGE)} y ${baldosas(METEOR_MAX_RANGE)} hacia tu mira) y deja caer un meteorito. Daño: <b>×${METEOR_MULT_CENTER}</b> en el centro (${f1(d * METEOR_MULT_CENTER)}) bajando a <b>×${METEOR_MULT_EDGE}</b> en el borde (${f1(d * METEOR_MULT_EDGE)}). Empuja ligeramente a los enemigos hacia el centro.`] },
       ];
     }
     case "axe": {
@@ -2160,20 +2176,20 @@ function skillBoxes(p) {
       const arcTxt = arc >= Math.PI * 2 - 0.001 ? "360°" : Math.round(arc * 180 / Math.PI) + "°";
       const R = SEISMIC_RINGS;
       return [
-        { tag: rateTag, lines: [`Barrido en sentido horario de <b>${arcTxt}</b> y <b>${Math.round(range)} px</b> de radio. Daño: <b>${f1(d)}</b> (100 % del Daño) a cada enemigo que toca, una vez por barrido. El arco crece con el Daño hasta cerrar el círculo.`] },
-        { tag: cd(1), lines: [`Lanza <b>3 hachas</b> que atraviesan: dos de 50 px (250 px de recorrido) y una de 100 px (375 px). Cada impacto hace <b>${pc(0.25)}</b> (25 %) y causa sangrado: <b>${pc(BLEED_TICK_RATIO)}</b> cada ${BLEED_TICK_INTERVAL} s durante ${BLEED_TICK_INTERVAL * BLEED_TICKS} s.`] },
-        { tag: cd(2), lines: [`Onda de <b>${SEISMIC_RADIUS} px</b> de radio en tres anillos: <b>×${R[0].mult}</b> (${f1(d * R[0].mult)}) en el interior, <b>×${R[1].mult}</b> (${f1(d * R[1].mult)}) en el central y <b>×${R[2].mult}</b> (${f1(d * R[2].mult)}) en el exterior.`] },
+        { tag: rateTag, lines: [`Barrido en sentido horario de <b>${arcTxt}</b> y <b>${baldosas(range)}</b> de radio. Daño: <b>${f1(d)}</b> (100 % del Daño) a cada enemigo que toca, una vez por barrido. El arco crece con el Daño hasta cerrar el círculo.`] },
+        { tag: cd(1), lines: [`Lanza <b>3 hachas</b> que atraviesan: dos de ${baldosas(50)} (${baldosas(250)} de recorrido) y una de ${baldosas(100)} (${baldosas(375)}). Cada impacto hace <b>${pc(0.25)}</b> (25 %) y causa sangrado: <b>${pc(BLEED_TICK_RATIO)}</b> cada ${BLEED_TICK_INTERVAL} s durante ${BLEED_TICK_INTERVAL * BLEED_TICKS} s.`] },
+        { tag: cd(2), lines: [`Onda de <b>${baldosas(SEISMIC_RADIUS)}</b> de radio en tres anillos: <b>×${R[0].mult}</b> (${f1(d * R[0].mult)}) en el interior, <b>×${R[1].mult}</b> (${f1(d * R[1].mult)}) en el central y <b>×${R[2].mult}</b> (${f1(d * R[2].mult)}) en el exterior.`] },
       ];
     }
     case "necro": {
       const mpct = Math.round(NECRO_MINION_DAMAGE_RATIO * 100);
       return [
-        { tag: rateTag, lines: [`Barrido de guadaña de <b>${Math.round(NECRO_SWEEP_ARC * 180 / Math.PI)}°</b> entre <b>${NECRO_SWEEP_INNER}</b> y <b>${NECRO_SWEEP_INNER + NECRO_SWEEP_LENGTH} px</b> de ti. Daño: <b>${f1(d)}</b> (100 % del Daño) a cada enemigo del arco, una vez por barrido.`] },
+        { tag: rateTag, lines: [`Barrido de guadaña de <b>${Math.round(NECRO_SWEEP_ARC * 180 / Math.PI)}°</b> entre <b>${balNum(NECRO_SWEEP_INNER)}</b> y <b>${baldosas(NECRO_SWEEP_INNER + NECRO_SWEEP_LENGTH)}</b> de ti. Daño: <b>${f1(d)}</b> (100 % del Daño) a cada enemigo del arco, una vez por barrido.`] },
         { tag: cd(1), lines: [
-          `Invoca <b>${NECRO_HUESTE_COUNT} esqueletos arqueros</b> que duran hasta que los destruyan. Cada flecha hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> (${mpct} % del Daño), alcanza ${NECRO_MINION_RANGE} px y atraviesa los obstáculos. Vida: <b>${Math.round(p.maxHp * NECRO_HUESTE_HP_RATIO)}</b> (${Math.round(NECRO_HUESTE_HP_RATIO * 100)} % de tu vida máxima). Máximo de esqueletos (Mando): <b>${necroMinionCap()}</b>.`,
-          `Además, cada ${NECRO_KILLS_PER_SKELETON} bajas se levanta un esqueleto cuerpo a cuerpo con la vida del enemigo caído: hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> por golpe, uno cada ${f2(necroMinionAttackCd())} s. Duran ${NECRO_MINION_LIFE} s.`,
+          `Invoca <b>${NECRO_HUESTE_COUNT} esqueletos arqueros</b> que duran hasta que los destruyan. Cada flecha hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> (${mpct} % del Daño), alcanza ${baldosas(NECRO_MINION_RANGE)} y atraviesa los obstáculos. Vida: <b>${Math.round(p.maxHp * NECRO_HUESTE_HP_RATIO)}</b> (${Math.round(NECRO_HUESTE_HP_RATIO * 100)} % de tu vida máxima). Máximo de esqueletos (Mando): <b>${necroMinionCap()}</b>.`,
+          `Además, cada ${NECRO_KILLS_PER_SKELETON} bajas se levanta un esqueleto cuerpo a cuerpo con la vida del enemigo caído: hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> por golpe, uno cada ${f2(necroMinionAttackCd())} s. Duran <b>${f1(necroMinionLife())} s</b> (${NECRO_MINION_LIFE} s base + ${NECRO_MINION_LIFE_PER_MANDO} s por punto de Mando).`,
           `Si la cuenta supera el límite, los esqueletos de más no aparecen en el mapa: pasan a una reserva (la cuenta sube por encima del límite) y encienden una luz verde. Cuando muere un esqueleto del mapa, entra el siguiente de la reserva y la cuenta baja 1. La luz verde dura mientras la cuenta esté por encima del límite y mínimo ${NECRO_OVER_MIN} s: tus esqueletos tienen <b>×${NECRO_OVER_HP_MULT} de vida</b>.`] },
-        { tag: "Pasiva", lines: [`Aura de <b>${NECRO_AURA_RADIUS} px</b> de radio. Cada enemigo dentro recibe una carga de veneno; cada <b>${f2(necroPoisonInterval())} s</b> sufre <b>${pc(NECRO_POISON_RATIO)}</b> por carga (${Math.round(NECRO_POISON_RATIO * 100)} % del Daño) y gana otra carga si sigue dentro (pierde una si salió). El intervalo se acorta con la Recarga. Las bajas por veneno también levantan esqueletos.`] },
+        { tag: "Pasiva", lines: [`Aura de <b>${baldosas(NECRO_AURA_RADIUS)}</b> de radio. Cada enemigo dentro recibe una carga de veneno; cada <b>${f2(necroPoisonInterval())} s</b> sufre <b>${pc(NECRO_POISON_RATIO)}</b> por carga (${Math.round(NECRO_POISON_RATIO * 100)} % del Daño) y gana otra carga si sigue dentro (pierde una si salió). El intervalo se acorta con la Recarga. Las bajas por veneno también levantan esqueletos.`] },
       ];
     }
   }

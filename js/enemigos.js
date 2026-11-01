@@ -407,6 +407,14 @@ function currentDifficulty() {
 function bossHpFor(baseHp) { return Math.round(baseHp * currentDifficulty().bossHp); }
 function bossDmgMultFor(m) { const k = currentDifficulty().bossDmgK; return k === 0 ? 1 : m * k; }
 
+// Oleada en la que aparece por primera vez cada tipo de bicho nuevo.
+var CASTER_SHOOT_CD = 2.5;   // <<< BALANCE: s entre disparos del Caster (fijo)
+var ENEMY_UNLOCK_BRUTE = 3;
+var ENEMY_UNLOCK_LEAPER = 8;
+var ENEMY_UNLOCK_BOMBER = 13;
+var ENEMY_UNLOCK_CASTER = 21;
+var NEW_ENEMY_RAMP_WAVES = 5;   // <<< BALANCE: oleadas que tarda un tipo nuevo en llegar a su peso normal de aparicion (su oleada de estreno cuenta como la 1)
+
 function spawnEnemy() {
   const p = state.player;
   // spawn off-screen around the player
@@ -427,15 +435,17 @@ function spawnEnemy() {
   const spdScale = 1 + Math.min(1.1, (w - 1) * 0.03);
 
   // Weighted type pool. New types unlock progressively so early waves stay simple:
-  //  leaper (jumps at you), caster (shoots dodgeable projectiles), bomber (telegraphed AoE).
+  //  brute (lento y duro), leaper (jumps at you), bomber (telegraphed AoE), caster (shoots dodgeable projectiles).
+  // Cada tipo nuevo entra con poco peso en su oleada de estreno y sube de forma lineal hasta su peso normal
+  // en NEW_ENEMY_RAMP_WAVES oleadas (estreno = 1/N del peso, +1/N por oleada); asi su aparicion es progresiva.
+  const ramp = from => Math.min(1, (w - from + 1) / NEW_ENEMY_RAMP_WAVES);
   const pool = [];
   pool.push(["imp", 50]);
   pool.push(["hound", 22 + Math.min(14, w)]);
-  if (w >= 3) pool.push(["brute", Math.min(22, 4 + w)]);
-  if (w >= 4) pool.push(["leaper", Math.min(20, 3 + w)]);
-  // El dorado (bomber, areas) aparece desde la oleada 6 y el azul (caster, proyectiles) desde la 8.
-  if (w >= 6) pool.push(["bomber", Math.min(18, 2 + w)]);
-  if (w >= 8) pool.push(["caster", Math.min(16, 2 + w)]);
+  if (w >= ENEMY_UNLOCK_BRUTE)  pool.push(["brute",  Math.min(22, 4 + w) * ramp(ENEMY_UNLOCK_BRUTE)]);
+  if (w >= ENEMY_UNLOCK_LEAPER) pool.push(["leaper", Math.min(20, 3 + w) * ramp(ENEMY_UNLOCK_LEAPER)]);
+  if (w >= ENEMY_UNLOCK_BOMBER) pool.push(["bomber", Math.min(18, 2 + w) * ramp(ENEMY_UNLOCK_BOMBER)]);   // dorado (areas)
+  if (w >= ENEMY_UNLOCK_CASTER) pool.push(["caster", Math.min(16, 2 + w) * ramp(ENEMY_UNLOCK_CASTER)]);   // azul (proyectiles)
   let total = 0; for (const t of pool) total += t[1];
   let r = Math.random() * total, type = "imp";
   for (const t of pool) { r -= t[1]; if (r <= 0) { type = t[0]; break; } }
@@ -460,9 +470,9 @@ function spawnEnemy() {
     e.leapCd = rand(1.2, 2.2); e.leaping = 0; e.lvx = 0; e.lvy = 0;
   } else if (type === "caster") {
     // keeps its distance and fires dodgeable bolts (big so it reads clearly)
-    e.r = 23; e.speed = rand(55, 75) * spdScale;
+    e.r = 23; e.speed = rand(55, 75);   // el Caster no escala su velocidad con la oleada
     e.hp = e.maxHp = 34 * hpScale; e.dmg = 6 * dmgScale; e.xp = 18 + w; e.ashChance = 0.45; e.color = "#2f6fd1";
-    e.shootCd = rand(1.4, 2.4); e.projDmg = 12 * dmgScale;
+    e.shootCd = CASTER_SHOOT_CD; e.projDmg = 12 * dmgScale;
   } else { // bomber
     // plants a telegraphed ground AoE you must step out of
     e.r = 20; e.speed = rand(50, 68) * spdScale;

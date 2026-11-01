@@ -1,5 +1,6 @@
 "use strict";
 // Fourth class: independent summons never affect enemy quotas or boss counts.
+var NECRO_MINION_LIFE_PER_MANDO = 0.1;   // <<< BALANCE: s extra de vida de los esqueletos nacidos de bajas por cada punto de Mando
 var NECRO_MINION_LIFE = 10;   // s que dura un esqueleto nacido de bajas; los arqueros de Hueste no caducan (solo mueren en combate o si les quitan el sitio)
 var NECRO_HUESTE_HP_RATIO = 0.40;   // <<< BALANCE: vida de cada esqueleto de Hueste = 40 % de la vida maxima del personaje
 // Los esqueletos nacidos de una baja por veneno heredan la vida maxima del bicho que murio y desencadeno su aparicion.
@@ -13,6 +14,12 @@ var NECRO_MINION_HOLD = 170;           // <<< BALANCE: los esqueletos arqueros d
 var NECRO_MINION_BULLET_SPEED = 700;   // como la flecha basica del Arquero
 var NECRO_MINION_GAP = 4;              // separacion minima extra (px) entre esqueletos
 var NECRO_TARGET_SEARCH = 900;         // radio (px) en el que buscan blanco
+var NECRO_TARGET_PRIORITY_R = 400;      // <<< BALANCE: radio (px) alrededor del personaje donde los esqueletos buscan blanco primero
+var NECRO_TARGET_PER_ENEMY = 2;         // <<< BALANCE: esqueletos que pueden fijar a la vez el mismo bicho
+var NECRO_TARGET_BOSS_MANDO_RATIO = 0.5; // <<< BALANCE: para jefes y goblins, esqueletos por blanco = 50 % del Mando
+var NECRO_AGGRO_TIME = 3;               // <<< BALANCE: s que un bicho queda marcado como agresor despues de golpear al personaje
+var NECRO_AGGRO_MANDO_RATIO = 0.5;      // <<< BALANCE: fraccion del Mando (en esqueletos) que fija al bicho que golpea al personaje
+var NECRO_DODGE_MARGIN = 8;               // <<< BALANCE: margen extra (px) fuera del borde del charco al que salen los esqueletos arqueros
 var NECRO_MINION_DAMAGE_RATIO = 0.15;   // <<< BALANCE: daño de cada golpe de esqueleto = 15 % del daño del Nigromante
 // <<< BALANCE: cadencia de ataque (s entre golpes) de los esqueletos segun la rareza del arma: Comun, Magico, Raro, Legendario, Unico
 var NECRO_MINION_ATTACK_CD_BY_RARITY = [1, 0.8, 0.6, 0.4, 0.2];
@@ -45,6 +52,11 @@ for (const name of ["necromancer", "skeleton", "skeleton-archer"]) {
 // Maximo de esqueletos simultaneos = stat Mando (base 10, +2 por punto gastado en la pieza de arma).
 function necroMinionCap() {
   return Math.max(NECRO_MINION_CAP_MIN, Math.floor(state.player.mando || 0));
+}
+
+// Duracion de los esqueletos nacidos de bajas = 10 s base + 0.1 s por cada punto de Mando.
+function necroMinionLife() {
+  return NECRO_MINION_LIFE + NECRO_MINION_LIFE_PER_MANDO * Math.max(0, state.player.mando || 0);
 }
 
 // Cuenta de esqueletos: los del mapa + los de la reserva (los que no cabian por el limite; no existen en el mapa, esperan su turno).
@@ -97,7 +109,7 @@ function pushNecromancerMinion(skill, hp, x, y, attackCd, radius) {
   const r = skill === 1 ? NECRO_ARCHER_R : (radius > 0 ? radius : NECRO_SKELETON_R);   // los nacidos de bajas tienen el tamaño del bicho que les da la vida
   const px = clamp(x, WALL + r, WORLD.w - WALL - r), py = clamp(y, WALL + r, WORLD.h - WALL - r);
   const maxHp = Math.max(1, hp || 1);
-  state.minions.push({ x: px, y: py, r, life: skill === 1 ? Infinity : NECRO_MINION_LIFE, attackCd, swing: 0, skill, archer: skill === 1, hp: maxHp, maxHp, baseMaxHp: maxHp, buffed: false, inv: 0 });   // archer: esqueleto arquero de Hueste (dispara); el resto pelea cuerpo a cuerpo
+  state.minions.push({ x: px, y: py, r, life: skill === 1 ? Infinity : necroMinionLife(), attackCd, swing: 0, skill, archer: skill === 1, hp: maxHp, maxHp, baseMaxHp: maxHp, buffed: false, inv: 0 });   // archer: esqueleto arquero de Hueste (dispara); el resto pelea cuerpo a cuerpo
   weaponBurst(px, py, 18, "#9fe6b2", 6);
 }
 
@@ -209,16 +221,21 @@ function updateNecromancerMinionDamage(dt) {
   const targets = state.enemies.concat(state.bosses);
   for (const m of state.minions) {
     m.inv = Math.max(0, (m.inv || 0) - dt);
-    if (m.life <= 0 || m.inv > 0) continue;
-    for (const t of targets) {
-      if (t.hp <= 0 || t.type === "goblin" || t.tpArrive > 0 || !(t.dmg > 0)) continue;
-      if (dist2(m.x, m.y, t.x, t.y) < (m.r + t.r) ** 2) { hurtNecromancerMinion(m, t.dmg); break; }
+    if (m.life <= 0) continue;
+    if (m.inv <= 0) {
+      for (const t of targets) {
+        if (t.hp <= 0 || t.type === "goblin" || t.tpArrive > 0 || !(t.dmg > 0)) continue;
+        if (dist2(m.x, m.y, t.x, t.y) < (m.r + t.r) ** 2) { hurtNecromancerMinion(m, t.dmg); break; }
+      }
     }
-    if (m.inv > 0) continue;
+    // Proyectiles de bichos y jefes: SIEMPRE desaparecen al tocar a un esqueleto; solo hacen daño si no esta en invulnerabilidad.
     for (const bb of state.bossBullets) {
-      if (bb.life > 0 && dist2(m.x, m.y, bb.x, bb.y) < (m.r + bb.r) ** 2) { bb.life = 0; hurtNecromancerMinion(m, bb.dmg); break; }
+      if (bb.life > 0 && dist2(m.x, m.y, bb.x, bb.y) < (m.r + bb.r) ** 2) {
+        bb.life = 0;
+        if (m.inv <= 0) hurtNecromancerMinion(m, bb.dmg);
+      }
     }
-    if (m.inv > 0) continue;
+    if (m.life <= 0 || m.inv > 0) continue;
     for (const z of state.aoes) {
       if (z.warn > 0 || !(z.active > 0)) continue;
       z.minionHit = z.minionHit || new Set();
@@ -236,26 +253,68 @@ function updateNecromancerMinionDamage(dt) {
   }
 }
 
-// Blanco: el enemigo mas cercano que ningun otro esqueleto tenga ya fijado; si todos estan ocupados, el menos ocupado
-// (a igualdad, el mas cercano). Cada esqueleto conserva su blanco hasta que muere o se aleja demasiado.
+// Blanco de cada esqueleto:
+//  0) Maximo prioridad: el bicho que acaba de golpear al personaje (marcado en e.hitHeroAt, dura NECRO_AGGRO_TIME s) lo fijan hasta
+//     NECRO_AGGRO_MANDO_RATIO (50 %) del Mando en esqueletos; los demas siguen con las reglas de abajo.
+//  1) Prioridad: enemigos a menos de NECRO_TARGET_PRIORITY_R px del personaje; si no hay ninguno, cualquiera dentro de NECRO_TARGET_SEARCH.
+//  2) En cada tramo elige el mas cercano que tenga hueco: maximo NECRO_TARGET_PER_ENEMY esqueletos por bicho, y para jefes y goblins
+//     el NECRO_TARGET_BOSS_MANDO_RATIO (50 %) del Mando, en esqueletos (minimo NECRO_TARGET_PER_ENEMY).
+//  3) Si todos estan llenos, se suma al menos ocupado del tramo prioritario (a igualdad, el mas cercano) para no quedarse parado.
+// Cada esqueleto conserva su blanco hasta que muere o se aleja demasiado; si el blanco queda fuera de la zona prioritaria y entra algun
+// enemigo en ella, cambia a este.
+function necroIsAggressor(e) { return e.hitHeroAt != null && state.time - e.hitHeroAt <= NECRO_AGGRO_TIME; }
+function necroAggroCap() { return Math.max(NECRO_TARGET_PER_ENEMY, Math.floor(necroMinionCap() * NECRO_AGGRO_MANDO_RATIO)); }
+function necroTargetCap(e) {
+  if (e.type === "boss" || e.type === "goblin") return Math.max(NECRO_TARGET_PER_ENEMY, Math.floor(necroMinionCap() * NECRO_TARGET_BOSS_MANDO_RATIO));
+  return NECRO_TARGET_PER_ENEMY;
+}
 function pickNecromancerMinionTarget(m, targets) {
   if (state.phase === "intermission") return m.target = null;
+  const p = state.player;
   const limit = NECRO_TARGET_SEARCH * NECRO_TARGET_SEARCH;
+  const zone = NECRO_TARGET_PRIORITY_R * NECRO_TARGET_PRIORITY_R;
+  const inZone = e => dist2(p.x, p.y, e.x, e.y) <= zone;
   const current = m.target;
-  if (current && current.hp > 0 && dist2(m.x, m.y, current.x, current.y) <= limit * 1.5) return current;
   const claims = new Map();
   for (const o of state.minions) {
     if (o !== m && o.life > 0 && o.target && o.target.hp > 0) claims.set(o.target, (claims.get(o.target) || 0) + 1);
   }
-  let best = null, bestClaims = Infinity, bestD = Infinity;
+  // agresores: bichos que golpearon al personaje hace poco; el mas cercano con hueco (hasta el 50 % del Mando)
+  const currentOk = current && current.hp > 0 && dist2(m.x, m.y, current.x, current.y) <= limit * 1.5;
+  if (!(currentOk && necroIsAggressor(current))) {
+    let aggro = null, aggroD = Infinity;
+    const aCap = necroAggroCap();
+    for (const e of targets) {
+      if (e.hp <= 0 || !necroIsAggressor(e)) continue;
+      const d = dist2(m.x, m.y, e.x, e.y);
+      if (d > limit || (claims.get(e) || 0) >= aCap) continue;
+      if (d < aggroD) { aggro = e; aggroD = d; }
+    }
+    if (aggro) return m.target = aggro;
+  }
+  if (currentOk) {
+    if (inZone(current)) return current;
+    let zoneFree = false;                                // el blanco esta fuera de la zona: solo se mantiene si no hay nadie dentro
+    for (const e of targets) { if (e.hp > 0 && inZone(e) && dist2(m.x, m.y, e.x, e.y) <= limit) { zoneFree = true; break; } }
+    if (!zoneFree) return current;
+  }
+  let best = null, bestD = Infinity;                     // mas cercano con hueco, zona prioritaria
+  let bestAny = null, bestAnyD = Infinity;               // mas cercano con hueco, fuera de la zona
+  let fullZone = null, fullZoneC = Infinity, fullZoneD = Infinity;   // lleno, zona prioritaria: el menos ocupado
+  let fullAny = null, fullAnyC = Infinity, fullAnyD = Infinity;      // lleno, fuera de la zona
   for (const e of targets) {
     if (e.hp <= 0) continue;
     const d = dist2(m.x, m.y, e.x, e.y);
     if (d > limit) continue;
-    const c = claims.get(e) || 0;
-    if (c < bestClaims || (c === bestClaims && d < bestD)) { best = e; bestClaims = c; bestD = d; }
+    const c = claims.get(e) || 0, z = inZone(e);
+    if (c < necroTargetCap(e)) {
+      if (z) { if (d < bestD) { best = e; bestD = d; } }
+      else if (d < bestAnyD) { bestAny = e; bestAnyD = d; }
+    } else if (z) {
+      if (c < fullZoneC || (c === fullZoneC && d < fullZoneD)) { fullZone = e; fullZoneC = c; fullZoneD = d; }
+    } else if (c < fullAnyC || (c === fullAnyC && d < fullAnyD)) { fullAny = e; fullAnyC = c; fullAnyD = d; }
   }
-  return m.target = best;
+  return m.target = best || bestAny || fullZone || fullAny;
 }
 
 // Disparo del esqueleto: proyectil como la flecha basica del Arquero (misma velocidad), con el daño del esqueleto.
@@ -330,6 +389,17 @@ function necroChaseTarget(e, playerDist) {
   return best;
 }
 
+// Charcos de area (bomber, tajo y lluvia de jefes): zona peligrosa desde que se marca (aviso) hasta que termina de estar activa.
+// Devuelve el primero que contiene el punto (con el radio del esqueleto y un margen), o null.
+function necroDangerZoneAt(x, y, r) {
+  for (const z of state.aoes) {
+    if (!(z.warn > 0 || z.active > 0)) continue;
+    const lim = z.r + r + NECRO_DODGE_MARGIN;
+    if (dist2(x, y, z.x, z.y) < lim * lim) return z;
+  }
+  return null;
+}
+
 function updateNecromancer(dt) {
   if (state.weaponId !== "necro") return;
   const p = state.player;
@@ -351,9 +421,17 @@ function updateNecromancer(dt) {
     // Solo los esqueletos arqueros (Hueste) disparan a distancia; los nacidos de bajas pelean cuerpo a cuerpo
     const ranged = m.archer;
     const reach = target ? (ranged ? NECRO_MINION_HOLD : target.r + m.r + 6) : 8;
-    if (d > reach) {
+    const danger = ranged ? necroDangerZoneAt(m.x, m.y, m.r) : null;
+    if (danger) {                                         // arquero dentro de un charco: sale por el camino mas corto (sigue pudiendo disparar)
+      let ox = m.x - danger.x, oy = m.y - danger.y, od = Math.hypot(ox, oy);
+      if (od < 0.001) { const t = Math.random() * Math.PI * 2; ox = Math.cos(t); oy = Math.sin(t); od = 1; }
+      const out = danger.r + m.r + NECRO_DODGE_MARGIN + 1;
+      const move = Math.min(Math.max(0, out - od) + 1, NECRO_MINION_SPEED * dt);
+      m.x += ox / od * move; m.y += oy / od * move;
+    } else if (d > reach) {
       const move = Math.min(d - reach, NECRO_MINION_SPEED * dt);
-      m.x += dx / (d || 1) * move; m.y += dy / (d || 1) * move;
+      const nx = m.x + dx / (d || 1) * move, ny = m.y + dy / (d || 1) * move;
+      if (!(ranged && necroDangerZoneAt(nx, ny, m.r))) { m.x = nx; m.y = ny; }   // un arquero no entra en un charco
     }
     if (target && m.attackCd <= 0) {
       if (ranged && d <= NECRO_MINION_RANGE) {
@@ -410,7 +488,7 @@ function drawNecromancer() {
     const archer = m.archer;                           // esqueleto arquero (Hueste): sprite mas grande
     const k = archer ? NECRO_ARCHER_SCALE : m.r / NECRO_SKELETON_R;      // escala de los nacidos de bajas: el tamaño del bicho que les dio la vida
     ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath(); ctx.ellipse(m.x, m.y + (archer ? 11 : 9.6) * k, (archer ? 14 : 12) * k, (archer ? 6 : 5.4) * k, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(m.x, m.y + 11 * k, (archer ? 14 : 12) * k, (archer ? 6 : 5.4) * k, 0, 0, Math.PI * 2); ctx.fill();
     if (m.buffed) {                                     // luz verde: la cuenta supera el limite (vida x2)
       const gr = (archer ? 32 : 28) * k, pulse = 0.5 + 0.5 * Math.sin(performance.now() / 260 + m.x * 0.03);
       const g = ctx.createRadialGradient(m.x, m.y - 2, 2, m.x, m.y - 2, gr);
@@ -421,14 +499,30 @@ function drawNecromancer() {
     const bob = Math.sin(performance.now() / 160 + m.x * 0.02) * 2;
     const sprite = archer ? necroSprites["skeleton-archer"] : necroSprites.skeleton;
     if (archer && sprite.ready) ctx.drawImage(sprite.image, m.x - 24 * k, m.y - 33 * k + bob, 48 * k, 48 * k);
-    else if (sprite.ready) ctx.drawImage(sprite.image, m.x - 18 * k, m.y - 21.6 * k + bob, 36 * k, 36 * k);
-    else { ctx.fillStyle = "#dce8c5"; ctx.beginPath(); ctx.arc(m.x, m.y - 3.6 * k, 9 * k, 0, Math.PI * 2); ctx.fill(); }
+    else if (sprite.ready) ctx.drawImage(sprite.image, m.x - 18 * k, m.y - 18.4 * k + bob, 36 * k, 36 * k);   // el centro del cuerpo del sprite cae justo sobre m.y, el centro del area de colision
+    else { ctx.fillStyle = "#dce8c5"; ctx.beginPath(); ctx.arc(m.x, m.y, 9 * k, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
     if (m.hp < m.maxHp) {                               // barra de vida solo cuando ya recibio daño
       ctx.save();
       const bw = 24 * k, by = m.y - (archer ? 38 : 31) * k;
       ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(m.x - bw / 2, by, bw, 3);
       ctx.fillStyle = "#9fe6b2"; ctx.fillRect(m.x - bw / 2, by, bw * clamp(m.hp / m.maxHp, 0, 1), 3);
+      ctx.restore();
+    }
+    if (typeof debugMinionHp !== "undefined" && debugMinionHp) {   // debug: vida actual en grande y, debajo, segundos que le quedan
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1.5;   // area de colision real (radio m.r)
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2); ctx.stroke();
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.lineJoin = "round";
+      const ty = m.y - (archer ? 42 : 35) * k;
+      ctx.font = "bold 18px sans-serif"; ctx.lineWidth = 4; ctx.strokeStyle = "#000"; ctx.fillStyle = "#fff35c";
+      const hpTxt = String(Math.ceil(Math.max(0, m.hp)));
+      ctx.strokeText(hpTxt, m.x, ty); ctx.fillText(hpTxt, m.x, ty);
+      if (isFinite(m.life)) {
+        ctx.font = "bold 12px sans-serif"; ctx.lineWidth = 3; ctx.fillStyle = "#9fe6b2";
+        const tTxt = m.life.toFixed(1) + " s";
+        ctx.textBaseline = "top"; ctx.strokeText(tTxt, m.x, ty + 2); ctx.fillText(tTxt, m.x, ty + 2);
+      }
       ctx.restore();
     }
   }
