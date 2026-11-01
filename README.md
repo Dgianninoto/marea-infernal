@@ -254,3 +254,11 @@ El progreso visual de las bombas toma la duracion observada de cada aviso, en lu
 ## Legibilidad de enemigos (build 0.266)
 
 El saltador, el bombardero de area y el hechicero usan colores planos mas claros: verde, dorado y azul respectivamente. Se conservan las formas, contornos, tamaños y todos los valores de combate.
+
+## Controles moviles y pantalla completa (build 0.267)
+
+La cruceta tiene un area tactil mas amplia y un centro que sigue al dedo. Conserva las ocho direcciones y el movimiento normalizado del juego; una zona muerta y un margen angular evitan cambios involuntarios de diagonal. La captura identifica el dedo de movimiento para poder esquivar con el otro. Al soltar, cancelar, perder foco, abrir inventario/pausa o redimensionar la pantalla se limpia la entrada para evitar movimiento retenido.
+
+El boton **⛶** aparece en el menu, junto a los controles de audio y en el aviso de girar el dispositivo. Solicita pantalla completa con la interfaz del navegador oculta y, cuando esta permitido, orientacion horizontal. Permite salir de ese modo sin abandonar la partida. Si el navegador no ofrece o rechaza la API, muestra ayuda sin bloquear el juego: en iPhone, abrir desde Safari y añadir a la pantalla de inicio. La configuracion web incluye modo standalone para esa apertura; no agrega funciones offline.
+
+El alto del juego sigue el viewport visible, incluidos los cambios por barras del navegador, y conserva los margenes de seguridad. La seleccion de personaje en movil vuelve a permitir desplazamiento. El apuntado automatico, la velocidad, las habilidades y las estadisticas no cambian. Las verificaciones de eventos y pantalla completa se realizaron con simulaciones; queda validar la ergonomia en dispositivos Android/iPhone reales.

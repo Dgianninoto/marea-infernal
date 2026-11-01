@@ -4,8 +4,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0806" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <title>Marea Infernal</title>
-  <link rel="stylesheet" href="css/estilos.css" />
+  <link rel="stylesheet" href="css/estilos.css?v=267" />
 </head>
 
 <body>
@@ -25,10 +30,10 @@
       </div>
     </details>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 266 -> la proxima entrega 267,
-         luego 268, 269, etc. (se muestra como 0.266, 0.267, 0.268...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 267 -> la proxima entrega 268,
+         luego 269, 270, etc. (se muestra como 0.267, 0.268, 0.269...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.266</div>
+    <div id="build-tag">Build 0.267</div>
 
 
     <!-- Boss bar -->
@@ -135,6 +140,7 @@
             <button id="sound-btn" title="Silenciar sonido" aria-label="Silenciar sonido" aria-pressed="false">🔊</button>
             <button id="music-mute-btn" title="Silenciar música" aria-label="Silenciar música" aria-pressed="false">🎵</button>
             <button id="volume-btn" title="Volumen" aria-label="Ajustar volumen" aria-expanded="false" aria-controls="volume-panel">🎚</button>
+            <button id="fullscreen-btn" class="touch-only" type="button" data-fullscreen data-compact="true" aria-label="Pantalla completa">⛶</button>
             <div id="volume-panel" hidden>
               <label for="volume-slider">General <output id="volume-value" for="volume-slider">100 %</output></label>
               <input id="volume-slider" type="range" min="0" max="100" step="1" value="100" aria-label="Volumen general" />
@@ -157,11 +163,16 @@
         <span class="dp dp-mid"></span>
         <span class="dp dp-right">▶</span>
         <span class="dp dp-down">▼</span>
+        <span id="dpad-thumb" aria-hidden="true"></span>
       </div>
       <button id="touch-chest" hidden>📦<small>Abrir</small></button>
       <button id="touch-dash" aria-label="Esquive">💨<small>Esquive</small></button>
     </div>
-    <div id="rotate-hint"><div>📱↻<p>Gira el dispositivo en horizontal para jugar</p></div></div>
+    <div id="rotate-hint"><div>📱↻<p>Gira el dispositivo en horizontal para jugar</p><button class="btn" type="button" data-fullscreen>Pantalla completa</button></div></div>
+
+    <div id="fullscreen-help" class="overlay" role="dialog" aria-modal="true" aria-labelledby="fullscreen-help-title" hidden>
+      <div class="card"><h2 id="fullscreen-help-title">Pantalla completa</h2><p id="fullscreen-message"></p><button id="fullscreen-help-close" class="btn" type="button">Entendido</button></div>
+    </div>
 
     <!-- Main menu overlay -->
     <div class="overlay" id="menu-screen">
@@ -177,6 +188,7 @@
                 <button class="btn" id="btn-play">▶ Jugar</button>
                 <button class="btn btn-sec" id="btn-how">📖 Cómo jugar</button>
                 <button class="btn btn-sec" id="btn-scores">🏆 Puntuaciones</button>
+                <button class="btn btn-sec touch-only" type="button" data-fullscreen>Pantalla completa</button>
               </div>
             </div>
             <aside class="home-side">
@@ -337,6 +349,7 @@
                 <div class="ctrl-row"><kbd>auto</kbd><span>apunta solo al enemigo más cercano</span></div>
                 <div class="ctrl-row"><kbd>📦</kbd><span>aparece junto a un cofre para abrirlo</span></div>
                 <div class="ctrl-row"><kbd>⏸</kbd><span>pausar / volver al menú</span></div>
+                <div class="ctrl-row"><kbd>⛶</kbd><span>pantalla completa; podés moverte y esquivar con dos dedos</span></div>
               </div>
             </div>
           </div>
@@ -443,7 +456,7 @@
   <script src="js/jefes.js"></script>
   <script src="js/nigromante.js"></script>
   <script src="js/enemigos.js"></script>
-  <script src="js/tactil.js"></script>
+  <script src="js/tactil.js?v=267"></script>
 </body>
 
 </html>

@@ -595,7 +595,7 @@
 #touch-ui, #rotate-hint, #pause-btn, .touch-only { display: none; }
 
 .touch { touch-action: manipulation; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
-.touch #game-wrap { height: 100vh; height: 100dvh; }
+.touch #game-wrap { height: 100vh; height: var(--mobile-height, 100dvh); }
 .touch #game { touch-action: none; }
 .touch #controls-hint { display: none; }
 .touch .touch-only { display: block; }
@@ -804,3 +804,38 @@
 .touch .stat-row .sr-head { margin-bottom: 1px; }
 .touch .item { padding: 4px 8px; font-size: 12px; }
 .touch .inv-card > .btn { flex-shrink: 0; align-self: center; margin-top: 6px; padding: 7px 22px; font-size: 13px; }
+
+/* Controles moviles: zona amplia para el pulgar y respuesta visual inmediata. */
+.touch #dpad {
+  --dpad-size: clamp(116px, 30vh, 148px);
+  width: var(--dpad-size); height: var(--dpad-size);
+  left: calc(12px + env(safe-area-inset-left)); bottom: calc(10px + env(safe-area-inset-bottom));
+  border: 1px solid rgba(255,157,77,0.35); border-radius: 50%;
+  background: rgba(18,9,6,0.32); opacity: 0.9;
+}
+.touch #dpad.dragging { border-color: var(--ember-glow); }
+#dpad-thumb {
+  position: absolute; left: 50%; top: 50%; width: 35%; height: 35%; border-radius: 50%;
+  transform: translate(-50%, -50%) translate(var(--stick-x, 0px), var(--stick-y, 0px));
+  background: radial-gradient(circle at 35% 30%, #f6b474, #7a3419);
+  border: 2px solid rgba(255,219,177,0.8); box-shadow: 0 2px 8px #100704;
+  pointer-events: none; transition: transform 0.08s ease-out;
+}
+#dpad.dragging #dpad-thumb { transition: none; }
+.touch #dpad .dp { opacity: 0.75; font-size: 15px; }
+.touch #dpad .dp.on { opacity: 1; }
+.touch #dpad .dp-mid { background: transparent; border: 0; }
+.touch #hud-br {
+  position: absolute; right: max(8px, env(safe-area-inset-right));
+  bottom: calc(82px + env(safe-area-inset-bottom)); margin-bottom: 0;
+}
+.touch #fullscreen-btn, .touch #pause-btn, .touch #sound-btn, .touch #music-mute-btn, .touch #volume-btn {
+  display: flex; align-items: center; justify-content: center; min-width: 36px; width: 36px; height: 32px;
+  padding: 0; border: 1px solid rgba(90,36,16,0.8); border-radius: 6px;
+  background: rgba(42,20,12,0.65); color: var(--ember-glow); font-size: 16px;
+  pointer-events: auto; touch-action: manipulation;
+}
+.touch .weapon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 52vh; max-height: 52dvh; overflow-y: auto; padding: 2px 4px; }
+.touch .inv-card { height: calc(var(--mobile-height, 100dvh) - 12px); max-height: calc(var(--mobile-height, 100dvh) - 12px); }
+#fullscreen-help { z-index: 250; }
+#fullscreen-help[hidden], [data-fullscreen][hidden] { display: none !important; }

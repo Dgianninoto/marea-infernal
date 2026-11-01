@@ -1,0 +1,11 @@
+{
+  "name": "Marea Infernal",
+  "short_name": "Marea Infernal",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d0806",
+  "theme_color": "#0d0806"
+}

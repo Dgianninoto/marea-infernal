@@ -41,41 +41,65 @@
 
   // ---------------------------------------------------------------- Cruceta
   var dpadPointer = null;
+  var dpadRect = null;
+  var dpadSector = null;
+  var dpadDirections = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+  function canAct() {
+    return !!(state && state.running && !state.over && !paused && !invOpen);
+  }
   function readDpad(e) {
-    var r = dpad.getBoundingClientRect();
+    if (!canAct()) { clearInput(); return; }
+    var r = dpadRect;
+    if (!r) return;
     var dx = e.clientX - (r.left + r.width / 2);
     var dy = e.clientY - (r.top + r.height / 2);
     var len = Math.hypot(dx, dy);
-    if (len < r.width * 0.12) { setMove(0, 0); return; } // zona muerta del centro
-    var ax = dx / len, ay = dy / len;
-    // 8 sectores: cada eje se activa si la direccion se inclina mas de ~22,5 grados hacia el
-    setMove(ax > 0.38 ? 1 : ax < -0.38 ? -1 : 0, ay > 0.38 ? 1 : ay < -0.38 ? -1 : 0);
+    var knob = Math.min(len, r.width * 0.24);
+    dpad.style.setProperty("--stick-x", (len ? dx / len * knob : 0) + "px");
+    dpad.style.setProperty("--stick-y", (len ? dy / len * knob : 0) + "px");
+    var deadZone = Math.min(14, r.width * 0.10) * (dpadSector === null ? 1 : 0.7);
+    if (len < deadZone) { dpadSector = null; setMove(0, 0); return; }
+    var angle = Math.atan2(dy, dx), sector = Math.round(angle / (Math.PI / 4));
+    // Un margen angular evita alternar entre recto y diagonal con pequeños temblores.
+    if (dpadSector !== null) {
+      var delta = angle - dpadSector * Math.PI / 4;
+      delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+      if (Math.abs(delta) < Math.PI / 8 + 0.08) sector = dpadSector;
+    }
+    dpadSector = (sector + 8) % 8;
+    setMove(dpadDirections[dpadSector][0], dpadDirections[dpadSector][1]);
   }
   dpad.addEventListener("pointerdown", function (e) {
-    if (dpadPointer !== null) return;
+    if (!canAct() || dpadPointer !== null || e.pointerType === "mouse" && e.button !== 0) return;
     e.preventDefault();
     dpadPointer = e.pointerId;
+    dpadRect = dpad.getBoundingClientRect();
+    dpadSector = null;
+    dpad.classList.add("dragging");
     try { dpad.setPointerCapture(e.pointerId); } catch (err) {}
     readDpad(e);
   });
-  dpad.addEventListener("pointermove", function (e) {
+  window.addEventListener("pointermove", function (e) {
     if (e.pointerId !== dpadPointer) return;
     e.preventDefault();
     readDpad(e);
-  });
+  }, { passive: false });
   function releaseDpad(e) {
     if (e && e.pointerId !== dpadPointer) return;
-    dpadPointer = null;
+    var pointer = dpadPointer;
+    dpadPointer = null; dpadRect = null; dpadSector = null;
+    dpad.classList.remove("dragging");
+    dpad.style.setProperty("--stick-x", "0px"); dpad.style.setProperty("--stick-y", "0px");
     setMove(0, 0);
+    if (pointer !== null) { try { dpad.releasePointerCapture(pointer); } catch (err) {} }
   }
   dpad.addEventListener("pointerup", releaseDpad);
   dpad.addEventListener("pointercancel", releaseDpad);
   dpad.addEventListener("lostpointercapture", releaseDpad);
+  window.addEventListener("pointerup", releaseDpad);
+  window.addEventListener("pointercancel", releaseDpad);
 
   // ---------------------------------------------------------------- Esquive
-  function canAct() {
-    return !!(state && state.running && !state.over && !paused && !invOpen);
-  }
   dashBtn.addEventListener("pointerdown", function (e) {
     e.preventDefault();
     dashBtn.classList.add("down");
@@ -130,6 +154,7 @@
   function frame() {
     requestAnimationFrame(frame);
     if (!state || !state.player) return;
+    if (!canAct() && dpadPointer !== null) clearInput();
     var p = state.player;
 
     var cd = p.dashMax > 0 ? Math.min(1, Math.max(0, p.dashCd / p.dashMax)) : 0;
@@ -151,7 +176,7 @@
 
   // ---------------------------------------------------------------- Seguridad
   // si la pantalla se oscurece o cambia de app con un dedo apoyado, no dejar la cruceta "pegada"
-  function clearInput() { dpadPointer = null; setMove(0, 0); dashUp(); }
+  function clearInput() { releaseDpad(); dashUp(); }
   window.addEventListener("blur", clearInput);
   document.addEventListener("visibilitychange", function () { if (document.hidden) clearInput(); });
   // evitar el menu contextual (pulsacion larga) y el zoom por gestos en iOS
@@ -168,6 +193,90 @@
   }
   if (portrait.addEventListener) portrait.addEventListener("change", onOrientation);
   else if (portrait.addListener) portrait.addListener(onOrientation);
+
+  // ---------------------------------------------------------------- Pantalla y viewport movil
+  var viewportPending = false;
+  function syncViewport() {
+    viewportPending = false;
+    var viewport = window.visualViewport;
+    var height = Math.round(viewport ? viewport.height : window.innerHeight);
+    if (height > 0) document.documentElement.style.setProperty("--mobile-height", height + "px");
+    clearInput();
+    resize();
+  }
+  function queueViewport() {
+    if (viewportPending) return;
+    viewportPending = true; requestAnimationFrame(syncViewport);
+  }
+  window.addEventListener("resize", queueViewport);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", queueViewport);
+
+  var fullscreenHelp = document.getElementById("fullscreen-help");
+  var fullscreenMessage = document.getElementById("fullscreen-message");
+  var displayButtons = document.querySelectorAll("[data-fullscreen]");
+  var helpPausedGame = false, helpPreviousFocus = null, orientationLocked = false;
+  function fullscreenElement() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function standalone() { return !!(navigator.standalone || window.matchMedia("(display-mode: standalone)").matches); }
+  function syncFullscreenButtons() {
+    var active = !!fullscreenElement();
+    displayButtons.forEach(function (button) {
+      button.hidden = standalone();
+      var label = active ? "Salir de pantalla completa" : "Pantalla completa";
+      button.textContent = button.dataset.compact ? (active ? "⊡" : "⛶") : "⛶ " + label;
+      button.title = label; button.setAttribute("aria-label", label);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  }
+  function showFullscreenHelp() {
+    var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    fullscreenMessage.textContent = ios
+      ? "Si Safari no permite pantalla completa, abrí el juego en Safari, tocá Compartir y Añadir a pantalla de inicio. Después abrilo desde ese icono y girá el teléfono en horizontal."
+      : "No se pudo activar la pantalla completa. Abrí el juego directamente en una pestaña de Chrome e intentá de nuevo. También podés añadirlo a la pantalla de inicio desde el menú del navegador.";
+    helpPreviousFocus = document.activeElement;
+    helpPausedGame = canAct();
+    if (helpPausedGame) pauseGame();
+    clearInput(); fullscreenHelp.hidden = false;
+    document.getElementById("fullscreen-help-close").focus();
+  }
+  function closeFullscreenHelp() {
+    fullscreenHelp.hidden = true;
+    if (helpPausedGame && state && state.running && !state.over && paused) resumeGame();
+    helpPausedGame = false;
+    if (helpPreviousFocus && helpPreviousFocus.focus) helpPreviousFocus.focus();
+  }
+  async function toggleFullscreen() {
+    clearInput();
+    try {
+      if (fullscreenElement()) {
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) await exit.call(document);
+      } else {
+        var root = document.documentElement;
+        var request = root.requestFullscreen || root.webkitRequestFullscreen;
+        if (!request) { showFullscreenHelp(); return; }
+        await request.call(root, { navigationUI: "hide" });
+        if (window.screen && screen.orientation && screen.orientation.lock) {
+          try { await screen.orientation.lock("landscape"); orientationLocked = true; } catch (err) {}
+        }
+      }
+    } catch (err) { showFullscreenHelp(); }
+    syncFullscreenButtons(); queueViewport();
+  }
+  displayButtons.forEach(function (button) { button.addEventListener("click", toggleFullscreen); });
+  document.getElementById("fullscreen-help-close").addEventListener("click", closeFullscreenHelp);
+  document.addEventListener("keydown", function (e) {
+    if (!fullscreenHelp.hidden && e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFullscreenHelp(); }
+  }, true);
+  function onFullscreenChange() {
+    if (!fullscreenElement() && orientationLocked) {
+      if (window.screen && screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+      orientationLocked = false;
+    }
+    syncFullscreenButtons(); queueViewport();
+  }
+  document.addEventListener("fullscreenchange", onFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+  syncViewport(); syncFullscreenButtons();
 
   window.TouchControls = { aim: aim, active: true };
 })();
