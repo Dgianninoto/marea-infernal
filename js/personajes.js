@@ -727,18 +727,70 @@ function endMageBlink(p) {
 // apuntado; solo el arma gira hacia el raton (ver drawPlayer).
 
 // Arquero: Explorador del bosque. Load once; keep the original drawing as fallback.
+// Animaciones de skin: solo leen el reloj, las teclas y las recargas existentes.
+function characterVisualPose(p) {
+  const active = state.running && !state.over && !paused && !invOpen && p.dashTime <= 0;
+  const mx = active ? Number(!!(keys.d || keys.arrowright)) - Number(!!(keys.a || keys.arrowleft)) : 0;
+  const my = active ? Number(!!(keys.s || keys.arrowdown)) - Number(!!(keys.w || keys.arrowup)) : 0;
+  const moving = mx !== 0 || my !== 0, t = state.time;
+  const archer = state.weaponId === "bow", mage = state.weaponId === "staff";
+  const step = moving ? Math.sin(t * (archer ? 13 : mage ? 5 : 6)) : 0;
+  const breath = Math.sin(t * (archer ? 2.8 : mage ? 1.8 : 1.3));
+  const release = p.skillCd && p.skillCd[0] > 0 ? clamp(1 - (weaponSkillCooldown(p, 0) - p.skillCd[0]) / 0.16, 0, 1) : 0;
+  let weaponAngle = Math.atan2(p.aimY, p.aimX) + step * 0.025;
+  if (state.weaponId === "necro") {
+    for (let i = state.weaponEffects.length - 1; i >= 0; i--) {
+      const sweep = state.weaponEffects[i];
+      if (sweep.kind === "axe-sweep" && sweep.life > 0 && sweep.prog < 1) {
+        weaponAngle = sweep.start + sweep.arc * sweep.prog; break;
+      }
+    }
+  }
+  return {
+    time: t, step, breath, release,
+    x: mx * (archer ? 1.3 : 0.5),
+    y: archer ? breath * 0.3 - Math.abs(step) * 1.2 : mage ? -1.5 + breath * 1.2 : breath * 0.6,
+    lean: mx * (archer ? 0.065 : mage ? 0.02 : 0.012),
+    cloth: Math.sin(t * (moving ? 7 : 2)) * (moving ? 2.5 : 0.8),
+    weaponAngle
+  };
+}
+
+function drawArcherQuiver(pose) {
+  const flutter = pose ? pose.step * 1.1 : 0;
+  ctx.strokeStyle = "#d4bd88"; ctx.lineWidth = 1.2; ctx.lineCap = "round";
+  for (let i = 0; i < 3; i++) {
+    const x = 11 + i * 3;
+    ctx.beginPath(); ctx.moveTo(x, -10); ctx.lineTo(x + flutter, -23 - i % 2 * 2); ctx.stroke();
+    ctx.strokeStyle = "#bad3a2";
+    ctx.beginPath(); ctx.moveTo(x + flutter - 2, -22); ctx.lineTo(x + flutter, -19); ctx.lineTo(x + flutter + 2, -23); ctx.stroke();
+    ctx.strokeStyle = "#d4bd88";
+  }
+}
+
 var archerSprite = new Image();
 var archerSpriteReady = false;
 archerSprite.onload = () => { archerSpriteReady = true; };
 archerSprite.src = "assets/archer/forest.svg";
 
-function drawBodyArcher() {
+function drawBodyArcher(pose) {
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath(); ctx.ellipse(0, 14, 18, 10, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.save();
+  if (pose) { ctx.translate(pose.x, pose.y); ctx.rotate(pose.lean); }
+  // Borde de la capa separado de la skin para que acompañe los pasos.
+  const hem = pose ? pose.cloth : 0;
+  ctx.fillStyle = "#244636"; ctx.strokeStyle = "#739568"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-13, 1); ctx.lineTo(12, 2);
+  ctx.lineTo(17 + hem, 22); ctx.lineTo(7 + hem, 18);
+  ctx.lineTo(-3 + hem, 24); ctx.lineTo(-17 + hem, 19); ctx.closePath(); ctx.fill(); ctx.stroke();
 
   if (archerSpriteReady) {
     // 96-unit artwork has padding; its visible body matches the original 40px height.
     ctx.drawImage(archerSprite, -24, -24, 48, 48);
+    drawArcherQuiver(pose);
+    ctx.restore();
     return;
   }
 
@@ -762,6 +814,8 @@ function drawBodyArcher() {
   ctx.fillStyle = "#ffcf80";
   ctx.beginPath(); ctx.arc(-2.8, -5.6, 1.4, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(2.8, -5.6, 1.4, 0, Math.PI * 2); ctx.fill();
+  drawArcherQuiver(pose);
+  ctx.restore();
 }
 
 // Maga: figura esbelta (hombros estrechos, cintura marcada, falda abierta), violeta.
@@ -770,14 +824,40 @@ var mageSpriteReady = false;
 mageSprite.onload = () => { mageSpriteReady = true; };
 mageSprite.src = "assets/mage/arcane.svg";
 
-function drawBodyMage() {
+function drawMageCrystals(pose) {
+  if (!pose) return;
+  ctx.save();
+  ctx.shadowColor = "#bd8cff"; ctx.shadowBlur = 8;
+  for (let i = 0; i < 2; i++) {
+    const a = pose.time * 0.75 + i * Math.PI;
+    const x = Math.cos(a) * 25, y = -7 + Math.sin(a) * 9;
+    const size = 3 + pose.release;
+    ctx.fillStyle = i ? "#d6bbff" : "#8b6cde"; ctx.strokeStyle = "#f1e4ff"; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(x, y - size * 1.6); ctx.lineTo(x + size, y);
+    ctx.lineTo(x, y + size * 1.6); ctx.lineTo(x - size, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBodyMage(pose) {
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath(); ctx.ellipse(0, 15, 15, 7, 0, 0, Math.PI * 2); ctx.fill();
+  drawMageCrystals(pose);
+  ctx.save();
+  if (pose) {
+    ctx.translate(pose.x, pose.y); ctx.rotate(pose.lean);
+    ctx.scale(1 + pose.breath * 0.006, 1 - pose.breath * 0.008);
+  }
+  const hem = pose ? pose.cloth : 0;
+  ctx.fillStyle = "#352044"; ctx.strokeStyle = "#9f79ca"; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(-9, 9); ctx.quadraticCurveTo(-15 + hem, 19, -14 + hem, 24);
+  ctx.quadraticCurveTo(0, 28, 14 + hem, 24); ctx.quadraticCurveTo(15 + hem, 19, 9, 9); ctx.closePath(); ctx.fill(); ctx.stroke();
 
   if (mageSpriteReady) {
     // Match the SVG's translate(48 44) scale(1.7) to the original body coordinates.
     const scale = 1 / 1.7;
     ctx.drawImage(mageSprite, -48 * scale, -44 * scale, 96 * scale, 96 * scale);
+    ctx.restore();
     return;
   }
 
@@ -847,14 +927,75 @@ function drawBodyMage() {
   ctx.stroke();
   ctx.lineWidth = 0.8;
   ctx.beginPath(); ctx.moveTo(-1.2, -8.6); ctx.quadraticCurveTo(0, -7.8, 1.2, -8.6); ctx.stroke();
+  ctx.restore();
 }
 
-// Barbaro: triangulo invertido (hombros enormes, cintura angosta), rojo, mirada maligna.
-function drawBodyBarbarian() {
+// Pose exclusivamente visual: lee el movimiento y el barrido existente sin escribir en el jugador.
+function barbarianVisualPose(p) {
+  const walking = state.running && !state.over && !paused && !invOpen && p.dashTime <= 0;
+  const mx = walking ? Number(!!(keys.d || keys.arrowright)) - Number(!!(keys.a || keys.arrowleft)) : 0;
+  const my = walking ? Number(!!(keys.s || keys.arrowdown)) - Number(!!(keys.w || keys.arrowup)) : 0;
+  const moving = mx !== 0 || my !== 0;
+  const stride = state.time * 9;
+  const breath = Math.sin(state.time * 2.2);
+  const aim = Math.atan2(p.aimY, p.aimX);
+  let sweep = null;
+  for (let i = state.weaponEffects.length - 1; i >= 0; i--) {
+    const effect = state.weaponEffects[i];
+    if (effect.kind === "axe-sweep" && effect.life > 0 && effect.prog < 1) { sweep = effect; break; }
+  }
+  const weight = sweep ? Math.sin(Math.PI * clamp(sweep.prog, 0, 1)) : 0;
+  return {
+    breath,
+    step: moving ? Math.sin(stride) : 0,
+    lean: mx * 0.035 + Math.sin(aim) * weight * 0.055,
+    x: mx * 1.2 - Math.cos(aim) * weight * 1.5,
+    y: breath * 0.45 + (moving ? Math.abs(Math.sin(stride)) * 1.1 : 0) - weight * 0.7,
+    cloth: Math.sin(state.time * (moving ? 7 : 2)) * (moving ? 2.2 : 0.6),
+    handX: Math.cos(aim) * weight * 2,
+    handY: Math.sin(aim) * weight * 2,
+    weaponAngle: sweep ? sweep.start + sweep.arc * sweep.prog : aim + (moving ? Math.sin(stride) * 0.035 : 0),
+    weight
+  };
+}
+
+// Barbaro: postura pesada, botas alternadas, cuero y metal gastado.
+function drawBodyBarbarian(pose) {
   ctx.fillStyle = "rgba(0,0,0,0.4)";
   ctx.beginPath(); ctx.ellipse(0, 17, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
 
+  // Las botas se mueven dentro del dibujo; la posicion y colision del personaje no cambian.
+  const step = pose ? pose.step : 0;
+  for (const side of [-1, 1]) {
+    const footY = 19 + side * step * 2.1;
+    ctx.fillStyle = "#231916"; ctx.strokeStyle = "#080605"; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.ellipse(side * 7.5, footY, 5.5, 5, side * 0.12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = "#92918a"; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(side * 7.5 - 3, footY + 1.5); ctx.lineTo(side * 7.5 + 3, footY + 1.5); ctx.stroke();
+  }
+
+  ctx.save();
+  if (pose) {
+    ctx.translate(pose.x, pose.y);
+    ctx.rotate(pose.lean);
+    ctx.scale(1 + pose.breath * 0.009, 1 - pose.breath * 0.006);
+  }
   ctx.lineJoin = "round";
+
+  // Tira de tela y antebrazos bajo la armadura, con movimientos pequenos.
+  ctx.fillStyle = "#4c100e"; ctx.strokeStyle = "#160907"; ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-8, 10); ctx.lineTo(8, 10);
+  ctx.lineTo(7 + (pose ? pose.cloth : 0), 24); ctx.lineTo(1, 21);
+  ctx.lineTo(-5 + (pose ? pose.cloth : 0), 25); ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = "#9c6046"; ctx.strokeStyle = "#24100c"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(side * 18, 3 + side * step * 0.6, 5.5, 9, side * -0.22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#393b3e";
+    ctx.fillRect(side * 18 - 4.5, 6 + side * step * 0.6, 9, 4);
+    ctx.strokeStyle = "#9d9f9e"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(side * 18 - 3, 7 + side * step * 0.6); ctx.lineTo(side * 18 + 3, 7 + side * step * 0.6); ctx.stroke();
+  }
 
   // torso
   ctx.save();
@@ -892,6 +1033,11 @@ function drawBodyBarbarian() {
     ctx.fillStyle = "#5a0f0c"; ctx.fill();
     ctx.lineWidth = 2.4; ctx.strokeStyle = "#000"; ctx.stroke();
     ctx.lineWidth = 1; ctx.strokeStyle = "#ff5a45"; ctx.stroke();
+    // Remaches y marcas sobre el metal: detalles permanentes, sin particulas nuevas.
+    ctx.fillStyle = "#d3b17a";
+    ctx.beginPath(); ctx.arc(side * 25, -14, 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#b37a64"; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(side * 23, -10); ctx.lineTo(side * 27, -7); ctx.stroke();
   }
 
   // cuernos
@@ -944,6 +1090,7 @@ function drawBodyBarbarian() {
   ctx.moveTo(-3.8, -9.6); ctx.lineTo(-2.6, -8.2); ctx.lineTo(-1.4, -9.6);
   ctx.lineTo(0, -8.2); ctx.lineTo(1.4, -9.6); ctx.lineTo(2.6, -8.2); ctx.lineTo(3.8, -9.6);
   ctx.stroke();
+  ctx.restore();
 }
 
 function drawPlayer(p) {
@@ -954,22 +1101,24 @@ function drawPlayer(p) {
   // invuln blink
   if (p.inv > 0 && Math.floor(p.inv * 20) % 2 === 0) ctx.globalAlpha = 0.5;
 
-  const ang = Math.atan2(p.aimY, p.aimX);
+  const barbarianPose = state.weaponId === "axe" ? barbarianVisualPose(p) : null;
+  const visualPose = barbarianPose ? null : characterVisualPose(p);
 
   // Cuerpo segun la clase elegida (bow = Arquero, staff = Maga, axe = Barbaro).
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.scale(p.r / 20, p.r / 20);
-  if (state.weaponId === "bow") drawBodyArcher();
-  else if (state.weaponId === "necro") drawBodyNecromancer();
-  else if (state.weaponId === "staff") drawBodyMage();
-  else drawBodyBarbarian();
+  if (state.weaponId === "bow") drawBodyArcher(visualPose);
+  else if (state.weaponId === "necro") drawBodyNecromancer(visualPose);
+  else if (state.weaponId === "staff") drawBodyMage(visualPose);
+  else drawBodyBarbarian(barbarianPose);
   ctx.restore();
 
   // Draw the selected weapon facing the aim direction.
   ctx.save();
   ctx.translate(p.x, p.y);
-  ctx.rotate(ang);
+  if (barbarianPose) ctx.translate(barbarianPose.handX, barbarianPose.handY);
+  ctx.rotate(barbarianPose ? barbarianPose.weaponAngle : visualPose.weaponAngle);
   if (state.weaponId === "bow") {
     const br = p.r + 10;
     ctx.strokeStyle = "#8a5a2a"; ctx.lineWidth = 3.5; ctx.lineCap = "round";
@@ -978,9 +1127,12 @@ function drawPlayer(p) {
     ctx.beginPath(); ctx.arc(2, 0, br, -1.15, 1.15); ctx.stroke();
     const tipX = 2 + Math.cos(1.15) * br, tipY = Math.sin(1.15) * br;
     ctx.strokeStyle = "rgba(240,223,206,0.85)"; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(tipX, -tipY); ctx.lineTo(tipX, tipY); ctx.stroke();
+    const pull = visualPose.release * 4;
+    ctx.beginPath(); ctx.moveTo(tipX, -tipY); ctx.lineTo(tipX - pull, 0); ctx.lineTo(tipX, tipY); ctx.stroke();
+    ctx.strokeStyle = "#d4bd88"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(tipX - pull, 0); ctx.lineTo(br - 1, 0); ctx.stroke();
   } else if (state.weaponId === "necro") {
-    drawNecromancerWeapon();
+    drawNecromancerWeapon(visualPose);
   } else if (state.weaponId === "staff") {
     ctx.strokeStyle = "#7f542d"; ctx.lineWidth = 5; ctx.lineCap = "round";
     ctx.beginPath(); ctx.moveTo(3, 8); ctx.lineTo(24, -8); ctx.stroke();
@@ -988,6 +1140,9 @@ function drawPlayer(p) {
     ctx.beginPath(); ctx.moveTo(7, 5); ctx.lineTo(24, -8); ctx.stroke();
     ctx.shadowBlur = 12; ctx.shadowColor = "#bd8cff"; ctx.fillStyle = "#bd8cff";
     ctx.beginPath(); ctx.arc(26, -10, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#ead7ff"; ctx.lineWidth = 1;
+    const halo = 6.5 + visualPose.release * 2 + visualPose.breath * 0.4;
+    ctx.beginPath(); ctx.arc(26, -10, halo, state.time, state.time + Math.PI * 1.4); ctx.stroke();
   } else {
     ctx.strokeStyle = "#8a5a2a"; ctx.lineWidth = 5; ctx.lineCap = "round";
     ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(25, 0); ctx.stroke();
@@ -995,6 +1150,16 @@ function drawPlayer(p) {
     ctx.beginPath(); ctx.moveTo(17, -3); ctx.lineTo(24, -13); ctx.lineTo(33, -11);
     ctx.lineTo(28, 0); ctx.lineTo(33, 11); ctx.lineTo(24, 13); ctx.lineTo(17, 3);
     ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Filo gastado y empuñadura, solo en la representacion del arma sostenida.
+    ctx.strokeStyle = barbarianPose && barbarianPose.weight > 0.4 ? "#fff0d4" : "#e0ddd2";
+    ctx.lineWidth = 1.1;
+    ctx.beginPath(); ctx.moveTo(25, -11); ctx.lineTo(30.5, -9.5); ctx.lineTo(26, 0); ctx.lineTo(30.5, 9.5); ctx.lineTo(25, 11); ctx.stroke();
+    ctx.strokeStyle = "#3a2420"; ctx.lineWidth = 1.5;
+    for (let grip = 7; grip <= 16; grip += 3) {
+      ctx.beginPath(); ctx.moveTo(grip - 1, -2); ctx.lineTo(grip + 1, 2); ctx.stroke();
+    }
+    ctx.fillStyle = "#d3b17a";
+    ctx.beginPath(); ctx.arc(23, 0, 1.6, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 

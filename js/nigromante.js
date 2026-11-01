@@ -528,17 +528,41 @@ function drawNecromancer() {
   }
 }
 
-function drawBodyNecromancer() {
+function drawBodyNecromancer(pose) {
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath(); ctx.ellipse(0, 16.5, 18.7, 8.8, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save();
+  // Humo dibujado al vuelo: no crea particulas ni afecta las invocaciones.
+  if (pose) {
+    for (let i = 0; i < 3; i++) {
+      ctx.save();
+      const drift = (pose.time * 0.35 + i / 3) % 1;
+      ctx.globalAlpha *= 0.18 * (1 - drift);
+      ctx.strokeStyle = "#a4d5b4"; ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      const x = Math.sin(pose.time * 1.2 + i * 2) * (9 + drift * 6);
+      ctx.moveTo(x - 3, 19 - drift * 30);
+      ctx.quadraticCurveTo(x + 5, 10 - drift * 30, x, 3 - drift * 30); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.translate(pose.x, pose.y); ctx.rotate(pose.lean);
+    ctx.scale(1 + pose.breath * 0.005, 1 - pose.breath * 0.009);
+    ctx.fillStyle = "#29463a"; ctx.strokeStyle = "#628c71"; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-12, 6); ctx.lineTo(12, 6);
+    ctx.lineTo(16 + pose.cloth, 24); ctx.lineTo(6, 20); ctx.lineTo(-4 + pose.cloth, 26);
+    ctx.lineTo(-17 + pose.cloth, 22); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
   ctx.shadowColor = "#9fe6b2"; ctx.shadowBlur = 8;
   if (necroSprites.necromancer.ready) ctx.drawImage(necroSprites.necromancer.image, -28.6, -30.6, 57.2, 57.2);   // skin un 10 % mas grande (52 -> 57.2)
   else { ctx.fillStyle = "#537663"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill(); }
+  if (pose) {
+    ctx.fillStyle = "#b6f2ca"; ctx.shadowBlur = 4 + (pose.breath + 1) * 2;
+    ctx.beginPath(); ctx.arc(0, 10, 1.7 + pose.release * 0.5, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 }
 
-function drawNecromancerWeapon() {
+function drawNecromancerWeapon(pose) {
   ctx.strokeStyle = "#292d30"; ctx.lineWidth = 6; ctx.lineCap = "round";
   ctx.beginPath(); ctx.moveTo(2, 14); ctx.lineTo(26, -15); ctx.stroke();
   ctx.strokeStyle = "#a5b7a0"; ctx.lineWidth = 2;
@@ -548,4 +572,13 @@ function drawNecromancerWeapon() {
   ctx.quadraticCurveTo(34, -7, 22, -10); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.fillStyle = "#98edb0"; ctx.shadowColor = "#9fe6b2"; ctx.shadowBlur = 10;
   ctx.beginPath(); ctx.arc(25, -13, 3, 0, Math.PI * 2); ctx.fill();
+  if (pose) {
+    ctx.strokeStyle = "#e0f5cb"; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(25, -16); ctx.quadraticCurveTo(37, -15, 40, 1); ctx.stroke();
+    ctx.fillStyle = "#b0e7c0";
+    for (let i = 0; i < 2; i++) {
+      const a = pose.time * 1.1 + i * Math.PI;
+      ctx.beginPath(); ctx.arc(25 + Math.cos(a) * 5, -13 + Math.sin(a) * 5, 0.8, 0, Math.PI * 2); ctx.fill();
+    }
+  }
 }

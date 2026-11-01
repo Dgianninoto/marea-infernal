@@ -238,3 +238,19 @@ El cambio lleva al personaje y su hueste al centro de la siguiente arena. El nue
 ## Integracion con main (build 0.258)
 
 Se conserva el contador de DPS efectivo de GitHub: dano real de los ultimos 15 segundos de juego, sin sobreataque, dividido entre 15 y actualizado cada segundo. El boton de musica permite silenciar solo la banda sonora sin cambiar su volumen ni los efectos, y guarda esa preferencia. Los portales y las correcciones de E/Enter y apertura de cofres se integran sobre esa version.
+
+## Personalidad visual del barbaro (build 0.260)
+
+El barbaro tiene respiracion de reposo, botas que alternan al caminar, inclinacion del torso y tela que acompaña el movimiento. La armadura incorpora remaches y desgaste; el hacha sostenida acompaña el barrido que ya existe. Todo se calcula en las funciones de dibujo, sin modificar el estado de combate: estadisticas, daño, habilidades, recargas, velocidad y colisiones conservan sus valores y funcionamiento.
+
+En el build **0.261**, el arquero suma inclinacion agil, capa y carcaj animados y vibracion de cuerda al disparar. La maga incorpora flotacion suave, tela movil, dos cristales ornamentales y brillo en el baston. El nigromante tiene una respiracion mas lenta, tunica en movimiento, humo tenue y detalles luminosos en la guadaña. Estas animaciones tambien son de dibujo y no agregan proyectiles, invocaciones ni efectos de combate. Las etiquetas visibles del duende del tesoro ahora muestran **Krampus**.
+
+## Señales de peligro (build 0.262)
+
+Se refuerzan los avisos que ya existian: circulos de area, aterrizaje de jefes y corredores de rayos. El borde oscuro mejora el contraste con el escenario; los trazos discontinuos indican preparacion y los continuos indican ataque activo. El aterrizaje incorpora cuatro flechas hacia adentro y los rayos muestran su direccion. Los limites siguen usando el radio, ancho y longitud originales de cada ataque.
+
+El progreso visual de las bombas toma la duracion observada de cada aviso, en lugar de asumir siempre 1,1 segundos. Esa referencia se guarda en una WeakMap exclusiva del dibujo, sin modificar los ataques. El daño, los tiempos de preparacion, las colisiones y las estadisticas permanecen intactos.
+
+## Legibilidad de enemigos (build 0.266)
+
+El saltador, el bombardero de area y el hechicero usan colores planos mas claros: verde, dorado y azul respectivamente. Se conservan las formas, contornos, tamaños y todos los valores de combate.

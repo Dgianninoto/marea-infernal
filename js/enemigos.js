@@ -632,7 +632,7 @@ for (const type of ["imp", "hound", "brute", "leaper", "bomber", "caster"]) {
     sprite.white = white;
     sprite.ready = true;
   };
-  img.src = "assets/enemies/" + type + ".svg";
+  img.src = "assets/enemies/" + type + ".svg?v=266";
 }
 
 function drawEnemySprite(e) {
@@ -738,25 +738,60 @@ function drawEnemy(e) {
   }
 }
 
-function drawAoe(z) {
-  ctx.save();
-  if (z.warn > 0) {
-    const t = performance.now() / 120;
-    const prog = clamp(1 - z.warn / 1.1, 0, 1); // fills up as it's about to go off
-    ctx.fillStyle = "rgba(255,120,30,0.12)";
-    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "rgba(255,150,40," + (0.5 + Math.sin(t) * 0.3) + ")";
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.stroke();
-    // inner fill ring showing countdown
-    ctx.fillStyle = "rgba(255,90,20,0.18)";
-    ctx.beginPath(); ctx.arc(z.x, z.y, z.r * prog, 0, Math.PI * 2); ctx.fill();
-  } else {
-    ctx.globalAlpha = clamp(z.active / 0.35, 0, 1);
-    ctx.shadowBlur = 24; ctx.shadowColor = "#ff7a2a";
-    ctx.fillStyle = "#ff8a3a";
-    ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
+// Memoria exclusiva del dibujo: no añade propiedades ni modifica temporizadores de combate.
+var dangerVisualDurations = new WeakMap();
+function dangerWarningProgress(z) {
+  if (!(z.warn > 0)) return 1;
+  let duration = dangerVisualDurations.get(z);
+  if (!duration || z.warn > duration) {
+    duration = z.warn;
+    dangerVisualDurations.set(z, duration);
   }
+  return clamp(1 - z.warn / duration, 0, 1);
+}
+
+function drawDangerCircle(x, y, radius, progress, landing) {
+  ctx.save();
+  ctx.fillStyle = "rgba(18,6,8,0.24)";
+  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,83,48," + (0.12 + progress * 0.12) + ")";
+  ctx.beginPath(); ctx.arc(x, y, radius * progress, 0, Math.PI * 2); ctx.fill();
+  // Borde oscuro continuo debajo del aviso discontinuo: se ve sobre hielo, fuego y sangre.
+  ctx.setLineDash([]); ctx.strokeStyle = "rgba(12,5,7,0.95)"; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([10, 6]); ctx.strokeStyle = "#ff9b70"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = "#fff0ce"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(x, y, Math.max(1, radius - 5), -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2); ctx.stroke();
+  if (landing) {
+    // Cuatro flechas interiores identifican el aterrizaje sin agrandar el area marcada.
+    ctx.strokeStyle = "#ffe3bf"; ctx.lineWidth = 2.5;
+    for (let i = 0; i < 4; i++) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(i * Math.PI / 2);
+      const outer = radius * 0.70, inner = radius * 0.52, width = Math.min(9, radius * 0.12);
+      ctx.beginPath(); ctx.moveTo(outer, -width); ctx.lineTo(inner, 0); ctx.lineTo(outer, width); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+function drawAoe(z) {
+  if (z.warn > 0) {
+    drawDangerCircle(z.x, z.y, z.r, dangerWarningProgress(z), false);
+    return;
+  }
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.shadowBlur = 18; ctx.shadowColor = "#ff7a2a";
+  ctx.fillStyle = "rgba(255,138,58," + (0.35 + clamp(z.active / 0.35, 0, 1) * 0.45) + ")";
+  ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
+  // El borde sigue visible durante toda la fase activa, aunque el interior se desvanezca.
+  ctx.shadowBlur = 0; ctx.strokeStyle = "#190708"; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "#ffe4b5"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
 }
 
@@ -767,22 +802,35 @@ function drawBeam(z) {
   const L = z.len, W = z.w;
   if (z.warn > 0) {
     const prog = clamp(1 - z.warn / z.warnMax, 0, 1);
-    const t = performance.now() / 90;
-    ctx.fillStyle = "rgba(255,40,40,0.10)";
+    ctx.fillStyle = "rgba(18,6,8,0.35)";
     ctx.fillRect(0, -W / 2, L, W);
     ctx.fillStyle = "rgba(255,60,40," + (0.12 + prog * 0.28) + ")";
     ctx.fillRect(0, -W * prog / 2, L, W * prog);
-    ctx.strokeStyle = "rgba(255,80,50," + (0.55 + Math.sin(t) * 0.3) + ")";
-    ctx.lineWidth = 2; ctx.setLineDash([14, 8]);
+    ctx.setLineDash([]); ctx.strokeStyle = "#160609"; ctx.lineWidth = 7;
     ctx.strokeRect(0, -W / 2, L, W);
+    ctx.strokeStyle = "#ffa37b";
+    ctx.lineWidth = 3; ctx.setLineDash([14, 8]);
+    ctx.strokeRect(0, -W / 2, L, W);
+    ctx.setLineDash([]);
+    // Flechas dentro del corredor muestran el recorrido del rayo.
+    ctx.strokeStyle = "rgba(255,235,204," + (0.45 + prog * 0.4) + ")"; ctx.lineWidth = 2;
+    const arrow = Math.min(8, W * 0.22);
+    for (let x = 28; x + arrow < L; x += 64) {
+      ctx.beginPath(); ctx.moveTo(x - arrow, -arrow); ctx.lineTo(x, 0); ctx.lineTo(x - arrow, arrow); ctx.stroke();
+    }
   } else {
-    ctx.globalAlpha = clamp(z.active / z.activeMax, 0, 1);
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.45 + clamp(z.active / z.activeMax, 0, 1) * 0.55;
     ctx.shadowBlur = 30; ctx.shadowColor = "#ff4a2a";
     ctx.fillStyle = "#ff4a2a";
     ctx.fillRect(0, -W / 2, L, W);
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#fff4d0";
     ctx.fillRect(0, -W * 0.2, L, W * 0.4);
+    ctx.globalAlpha = 1; ctx.strokeStyle = "#180608"; ctx.lineWidth = 6;
+    ctx.strokeRect(0, -W / 2, L, W);
+    ctx.strokeStyle = "#ffd5a8"; ctx.lineWidth = 2;
+    ctx.strokeRect(0, -W / 2, L, W);
   }
   ctx.restore();
 }
@@ -793,17 +841,8 @@ function drawBoss(b) {
 
   // Indicador de aterrizaje: zona del impacto (radio BOSS_LEAP_R) en el suelo, con un circulo interior que crece hasta llenarla
   if (b.hasLeap && b.leaping > 0 && b.leapTx != null) {
-    ctx.save();
     const prog = clamp(1 - b.leaping / (BOSS_LEAP_WARN + (b.leapTime || 0.4)), 0, 1);
-    const ring = 0.55 + Math.sin(t * 8) * 0.25;
-    ctx.fillStyle = "rgba(255,70,40," + (0.14 + 0.16 * prog) + ")";
-    ctx.beginPath(); ctx.arc(b.leapTx, b.leapTy, BOSS_LEAP_R, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "rgba(255,110,60," + (0.18 + 0.22 * prog) + ")";
-    ctx.beginPath(); ctx.arc(b.leapTx, b.leapTy, BOSS_LEAP_R * prog, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "rgba(106,255,160," + ring + ")"; ctx.lineWidth = 4;
-    ctx.shadowBlur = 14; ctx.shadowColor = "#6affa0";
-    ctx.beginPath(); ctx.arc(b.leapTx, b.leapTy, BOSS_LEAP_R, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
+    drawDangerCircle(b.leapTx, b.leapTy, BOSS_LEAP_R, prog, true);
   }
 
   // Indicador de salto: sombra verde bajo el jefe cuando salta
@@ -971,7 +1010,7 @@ function updateGoblin(e, dt, p, dx, dy, d) {
     if (e.portalTime >= GOBLIN_PORTAL_CHANNEL) {
       e.hp = 0; // Desaparece a través del portal
       if (Sound && Sound.goblinEscape) Sound.goblinEscape();
-      floatText(e.x, e.y - 40, "¡El Duende escapó!", "#ff7675");
+      floatText(e.x, e.y - 40, "¡Krampus escapó!", "#ff7675");
       for (let i = 0; i < 30; i++) {
         const a = rand(0, Math.PI * 2), s = rand(60, 240);
         state.particles.push({
@@ -1214,8 +1253,8 @@ function drawGoblinIndicator(ctx) {
   ctx.restore();
   ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
   ctx.lineWidth = 4; ctx.strokeStyle = "#140c08";
-  ctx.strokeText("Duende", 0, 36);
-  ctx.fillStyle = "#ffe59b"; ctx.fillText("Duende", 0, 36);
+  ctx.strokeText("Krampus", 0, 36);
+  ctx.fillStyle = "#ffe59b"; ctx.fillText("Krampus", 0, 36);
   ctx.restore();
 }
 
@@ -1452,7 +1491,7 @@ function drawGoblin(e) {
   ctx.fillStyle = "#ffd84d";
   ctx.font = "bold 9px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("💰 Duende 💰", e.x, barY - 3);
+  ctx.fillText("💰 Krampus 💰", e.x, barY - 3);
 
   ctx.fillStyle = "rgba(40, 10, 10, 0.8)";
   ctx.fillRect(e.x - barW / 2, barY, barW, 3.5);
