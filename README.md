@@ -223,6 +223,18 @@ La banda sonora se genera en `js/musica.js` mediante Web Audio, sin servicios ni
 
 **Falla tectonica** y **Antes del umbral** combinan riffs pesados y breakdowns; **Ceniza digital** tiene groove pesado y melodia de pulsos; **Pulso de hierro**, breakbeat rapido con bajo movil y notas cortas brillantes; **Marea espectral**, medio tiempo atmosferico con acordes sostenidos y percusion espaciada. El desafio final tiene un motivo cromatico y un pulso rapido de tension; el menu usa acordes suaves y percusion discreta. El panel de volumen muestra la pista actual y esta accesible tambien desde el menu.
 
-Al abrir el inventario con **I**, la informacion de oleadas, el boton Inventario, las instrucciones, el volumen, silencio y Debug siguen visibles y accesibles. La tarjeta reserva espacio para esos controles y permite desplazar su contenido cuando la pantalla es pequeña.
+El inventario se abre con **I** y utiliza el layout de pantalla completa de la version descargada de GitHub. Los controles de audio siguen accesibles sobre el inventario. La musica continua sonando mientras se revisa el equipo.
 
 El teclado limpia las teclas retenidas al perder el foco u ocultar la pestaña y devuelve el foco al lienzo al volver a una partida. WASD funciona aun con botones o controles de volumen enfocados; las flechas de un deslizador siguen ajustando su valor y los campos de texto conservan la escritura normal.
+
+## Portales entre etapas
+
+Al completar las oleadas **10, 20, 30, 40 y 50**, el juego espera a que no queden enemigos vivos (incluido el duende), jefes ni enemigos pendientes de aparecer. Entonces abre un portal ovalado animado cerca del personaje, con un camino libre para acercarse. La vida y las habilidades se recuperan, como en los descansos habituales.
+
+Al superponerse con el ovalo visible aparece **Pasar a la siguiente etapa**. El dibujo y el area de interaccion comparten centro y dimensiones; el portal es ligeramente mas grande que el personaje. Se cruza con **E**, **Enter** o el boton **Cruzar** (tambien disponible en tactil). No avanza automaticamente y se puede seguir recogiendo cofres o revisando el inventario. El portal de la oleada 50 lleva al **Desafio final**. Los descansos de las oleadas 5, 15, 25, 35 y 45 conservan el boton Continuar.
+
+El cambio lleva al personaje y su hueste al centro de la siguiente arena. El nuevo tramo selecciona su escenario y musica mediante el flujo habitual. La animacion se dibuja en canvas desde `js/portal.js`, sin imagenes ni descargas adicionales.
+
+## Integracion con main (build 0.258)
+
+Se conserva el contador de DPS efectivo de GitHub: dano real de los ultimos 15 segundos de juego, sin sobreataque, dividido entre 15 y actualizado cada segundo. El boton de musica permite silenciar solo la banda sonora sin cambiar su volumen ni los efectos, y guarda esa preferencia. Los portales y las correcciones de E/Enter y apertura de cofres se integran sobre esa version.

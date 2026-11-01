@@ -705,6 +705,7 @@ function newState(weaponId) {
     time: 0,
     wave: 0,            // becomes 1 on the first startWave()
     phase: "fighting",  // "fighting" | "intermission"
+    stagePortal: null,  // portal activo al completar cada etapa de 10 oleadas
     spawnTimer: 0,
     spawnInterval: 1.4,
     toSpawn: 0,         // enemies still to spawn this wave
@@ -813,13 +814,24 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) clear
 canvas.tabIndex = -1;
 canvas.addEventListener("pointerdown", focusGameCanvas);
 
+// La interaccion llega al juego antes de que Debug u otro control corte el evento.
+window.addEventListener("keydown", e => {
+  if (isTypingTarget(e.target) || !state || !state.running || state.over || paused || invOpen) return;
+  if (e.code === "KeyE" || e.key.toLowerCase() === "e") {
+    e.preventDefault();
+    // Mantener E permite abrir cofres al acercarse; cruzar un portal requiere una pulsacion nueva.
+    if (e.repeat) tryOpenChest(); else tryInteract();
+  } else if (e.key === "Enter" && !e.repeat && tryUseStagePortal()) {
+    e.preventDefault();
+  }
+}, true);
+
 window.addEventListener("keydown", e => {
   var t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
   if (movementKey(e)) return;
   if (e.repeat) return;
   if (e.key === " " || e.code === "Space") { e.preventDefault(); tryDash(); }
-  if (e.key.toLowerCase() === "e") { e.preventDefault(); tryOpenChest(); }
   if (e.key.toLowerCase() === "i") { e.preventDefault(); toggleInventory(); }
   if (e.key === "Escape") {
     e.preventDefault();
@@ -969,7 +981,7 @@ function spawnChestNearPlayer() {
 }
 
 function tryOpenChest() {
-  if (!state.running) return;
+  if (!state || !state.running || state.over || paused || invOpen) return;
   const p = state.player;
   for (const c of state.chests) {
     if (c.opened) continue;
@@ -1018,6 +1030,7 @@ function debugFinalChallenge() {
   startFinalChallenge();
 }
 function startWave() {
+  state.stagePortal = null;
   state.wave++;
   state.phase = "fighting";
   // state.alive is NOT reset: leftover enemies from the previous wave stay counted
@@ -1053,18 +1066,19 @@ function startWave() {
 
 function onWaveCleared() {
   const w = state.wave;
-  if (state.victory) return; // la oleada final termina con la victoria, no con otra oleada
+  if (state.victory || state.phase !== "fighting") return;
+  if (w % 10 === 0 && !canOpenStagePortal()) return;
   state.score += 50 + w * 10;
   state.ash += 3 + Math.floor(w / 3);
   floatText(state.player.x, state.player.y - 40, "Oleada " + w + " superada", "#6affa0");
   Sound.levelup();
   // every 5th wave -> intermission breather; otherwise straight into the next wave
-  if (w % 5 === 0) startIntermission();
+  if (w % 10 === 0) startStagePortal();
+  else if (w % 5 === 0) startIntermission();
   else startWave();
 }
 
-function startIntermission() {
-  state.phase = "intermission";
+function restoreIntermissionResources() {
   // descanso: vida al maximo y habilidades (y esquive) recargadas
   const pr = state.player;
   pr.hp = pr.maxHp;
@@ -1073,6 +1087,11 @@ function startIntermission() {
   pr.dashCd = 0;
   // absorb everything left on the floor (xp/ash orbs, boss drops)
   for (const o of state.orbs) o.pull = true;
+}
+
+function startIntermission() {
+  state.phase = "intermission";
+  restoreIntermissionResources();
   // no countdown: the game waits (no new enemies) until the player presses Continue
   const preFinal = state.wave >= BOSS_FINAL_WAVE;
   if (preFinal) showWarning("¡Prepárate para el Desafío final!<br><span style='font-size:20px'>Revisa tu equipo (I) y continúa cuando estés listo</span>");
@@ -1086,6 +1105,7 @@ function startIntermission() {
 }
 
 function endIntermission() {
+  if (!state || !state.running || state.over || paused || invOpen || state.phase !== "intermission" || state.stagePortal) return;
   interPanel.style.display = "none";
   // tras la oleada final: Desafio final (3 jefes a la vez) en lugar de otra oleada
   if (state.wave >= BOSS_FINAL_WAVE && !state.finalChallenge) startFinalChallenge();
@@ -1209,7 +1229,7 @@ function update(dt) {
     // Waves that end in a pause (every 5th, incl. boss waves) are cleared only when the LAST enemy dies.
     // Other waves start the next one when 15% or less of this wave's enemies remain.
     const remaining = state.toSpawn + state.alive;
-    const done = (state.wave % 5 === 0) ? remaining === 0 : remaining <= state.waveTotal * 0.15;
+    const done = state.wave % 10 === 0 ? canOpenStagePortal() : (state.wave % 5 === 0) ? remaining === 0 : remaining <= state.waveTotal * 0.15;
     if (done && !state.boss && !state.finalChallenge) onWaveCleared();
   }
 
@@ -1674,6 +1694,7 @@ function draw() {
 
   // chests
   for (const c of state.chests) drawChest(c);
+  drawStagePortal();
 
   // orbs
   for (const o of state.orbs) drawOrb(o);
@@ -2458,7 +2479,11 @@ function updateHud() {
   lootTxt.textContent = state.lootCount;
   powerTxt.textContent = p.power;
 
-  if (state.phase === "intermission") {
+  if (state.stagePortal) {
+    tideTimer.textContent = "ETAPA COMPLETADA";
+    tideTimer.classList.remove("low");
+    waveProgress.textContent = isNearStagePortal() ? "Pulsa E o Enter para cruzar" : "Acércate al portal para continuar";
+  } else if (state.phase === "intermission") {
     tideTimer.textContent = "PAUSA";
     tideTimer.classList.add("low");
     waveProgress.textContent = "Pulsa Continuar";
@@ -2864,6 +2889,7 @@ function loop(now) {
   if (inMenu) Music.selectMenu();
   else if (state) Music.selectForWave(state.wave, state.finalChallenge);
   Music.setPlaying(!document.hidden && (inMenu || !!(state && state.running && !state.over && !paused)));
+  updateStagePortalPrompt();
   if (state && state.running) {
     if (!invOpen && !paused) update(dt); // inventory and pause menu freeze the action
     draw();

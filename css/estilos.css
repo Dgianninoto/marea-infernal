@@ -214,6 +214,16 @@
   .inter-title { font-size: 20px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; color: var(--ember-glow); text-shadow: 0 0 12px var(--ember); }
   .inter-sub { color: var(--muted); font-size: 13px; margin: 6px 0 10px; }
 
+  #portal-prompt {
+    position: absolute; left: 50%; bottom: max(170px, 24vh); transform: translateX(-50%);
+    z-index: 30; width: max-content; max-width: calc(100vw - 32px); padding: 12px 18px;
+    border: 1px solid #68cfff; border-radius: 12px; background: rgba(9,11,30,0.94);
+    box-shadow: 0 0 25px rgba(65,160,255,0.25); text-align: center;
+  }
+  #portal-prompt[hidden] { display: none; }
+  #portal-prompt strong { display: block; margin-bottom: 8px; color: #d4f8ff; }
+  .touch #portal-prompt { bottom: 88px; padding: 8px 12px; font-size: 12px; }
+
   /* sound toggle */
   #hud-br { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   #audio-controls { position: relative; z-index: 70; display: flex; gap: 6px; pointer-events: auto; }

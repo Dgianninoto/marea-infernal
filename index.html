@@ -25,10 +25,10 @@
       </div>
     </details>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 255 -> la proxima entrega 256,
-         luego 257, 258, etc. (se muestra como 0.255, 0.256, 0.257...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 259 -> la proxima entrega 260,
+         luego 261, 262, etc. (se muestra como 0.259, 0.260, 0.261...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.255</div>
+    <div id="build-tag">Build 0.259</div>
 
 
     <!-- Boss bar -->
@@ -47,6 +47,11 @@
       <div class="inter-title">Intermedio</div>
       <div class="inter-sub">Oleada superada. Revisa tu equipo con <kbd>I</kbd> y continúa cuando estés listo.</div>
       <button class="btn btn-small" id="inter-continue">Continuar ▶</button>
+    </div>
+
+    <div id="portal-prompt" hidden role="group" aria-labelledby="portal-prompt-title">
+      <strong id="portal-prompt-title">Pasar a la siguiente etapa</strong>
+      <button id="portal-enter" class="btn btn-small" type="button">Cruzar · E / Enter</button>
     </div>
 
     <!-- HUD -->
@@ -122,7 +127,7 @@
           <div id="controls-hint">
             <kbd>W A S D</kbd> / flechas — mover<br />
             <kbd>ratón</kbd> apunta — ataques automáticos<br />
-            <kbd>Espacio</kbd> esquive — <kbd>E</kbd> abrir cofre<br />
+            <kbd>Espacio</kbd> esquive — <kbd>E</kbd> cofre / portal<br />
             <kbd>I</kbd> inventario — <kbd>Esc</kbd> menú
           </div>
           <button id="pause-btn" title="Pausa" aria-label="Pausa">⏸</button>
@@ -433,6 +438,7 @@
      personajes.js y enemigos.js los usan. enemigos.js arranca el juego al final. -->
   <script src="js/mecanica.js"></script>
   <script src="js/musica.js"></script>
+  <script src="js/portal.js"></script>
   <script src="js/personajes.js"></script>
   <script src="js/jefes.js"></script>
   <script src="js/nigromante.js"></script>

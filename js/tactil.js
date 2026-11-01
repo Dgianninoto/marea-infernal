@@ -93,7 +93,7 @@
   // ---------------------------------------------------------------- Cofre y pausa
   chestBtn.addEventListener("pointerdown", function (e) {
     e.preventDefault();
-    if (canAct()) tryOpenChest();
+    if (canAct()) tryInteract();
   });
   pauseBtn.addEventListener("click", function () {
     // igual que la tecla Esc

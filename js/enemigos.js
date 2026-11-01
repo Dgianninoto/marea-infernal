@@ -487,6 +487,7 @@ function spawnEnemy() {
 // Desafio final: tras la pausa de la oleada BOSS_FINAL_WAVE aparecen los BOSS_FINAL_COUNT jefes de BOSS_FINAL_ROSTER,
 // todos a la vez y sin enemigos normales. Se gana al derrotarlos a todos.
 function startFinalChallenge() {
+  state.stagePortal = null;
   const defs = pickFinalBosses();
   state.finalChallenge = true;
   rebuildScenarioObstacles();
