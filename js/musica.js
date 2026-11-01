@@ -14,6 +14,8 @@ var Music = (() => {
   let channel = null, session = null, timer = null;
   let step = 0, nextTime = 0;
   let wanted = false;
+  let muted = false; // silencia solo la musica (los efectos siguen); se recuerda entre partidas
+  try { muted = localStorage.getItem("marea-infernal-music-muted") === "1"; } catch (e) {}
   let noiseBuffer = null;
   const voices = new Set();
   const originalRiffs = [
@@ -214,7 +216,7 @@ var Music = (() => {
     session = null;
   }
   function start() {
-    if (session || !wanted || volume === 0 || !Sound.enabled || Sound.volume === 0) return;
+    if (session || !wanted || muted || volume === 0 || !Sound.enabled || Sound.volume === 0) return;
     if (!channel) channel = Sound.createMusicChannel();
     if (!channel) return;
     const c = channel.context;
@@ -238,6 +240,13 @@ var Music = (() => {
   }
   return {
     get volume() { return volume; },
+    get muted() { return muted; },
+    setMuted(value) {
+      muted = !!value;
+      try { localStorage.setItem("marea-infernal-music-muted", muted ? "1" : "0"); } catch (e) {}
+      if (muted) { if (session) stop(); }
+      else start();
+    },
     get trackName() { return currentTrack.name; },
     selectMenu() { selectTrack(6); },
     selectForWave(wave, finalChallenge) {
@@ -267,6 +276,17 @@ el("music-slider").addEventListener("input", e => {
   Music.setVolume(Number(e.target.value) / 100);
   el("music-value").textContent = Math.round(Music.volume * 100) + " %";
 });
+// Boton de silenciar solo la musica (esquina inferior derecha, junto al de sonido).
+function syncMusicBtn() {
+  const b = el("music-mute-btn"), m = Music.muted;
+  const label = m ? "Activar música" : "Silenciar música";
+  b.textContent = m ? "🔕" : "🎵";
+  b.title = label;
+  b.setAttribute("aria-label", label);
+  b.setAttribute("aria-pressed", String(m));
+}
+el("music-mute-btn").addEventListener("click", () => { Music.setMuted(!Music.muted); syncMusicBtn(); });
+syncMusicBtn();
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) Music.setPlaying(false);
 });

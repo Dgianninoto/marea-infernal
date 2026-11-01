@@ -108,8 +108,11 @@ var BLEED_REAPPLY_RATIO = 0.5; // al reaplicar sobre un objetivo que ya sangra: 
 // Se cuenta el dano REAL: lo que sobra al rematar a un enemigo (sobreataque) no suma.
 var dmgSkill = -1;
 function logDamage(skill, hpBefore, dealt) {
-  if (skill < 0 || !state || !state.dmgStats) return;
-  state.dmgStats[skill] += Math.max(0, Math.min(dealt, hpBefore));
+  if (!state) return;
+  const real = Math.max(0, Math.min(dealt, hpBefore));
+  if (real > 0 && state.dpsLog) state.dpsLog.push({ t: state.time, d: real }); // DPS efectivo (ventana de 15 s)
+  if (skill < 0 || !state.dmgStats) return;
+  state.dmgStats[skill] += real;
 }
 
 // Multiplicador de critico (solo el Arquero tiene Critico). Cada 100 % es un critico ASEGURADO y cada critico suma +1

@@ -763,6 +763,8 @@ function newState(weaponId) {
     necroBuffed: false, // luz verde activa (vida x2 en los esqueletos)
     orbs: [],
     dmgStats: [0, 0, 0], // dano real hecho por cada ataque (basico, intermedio, definitivo)
+    dpsLog: [],          // golpes recientes {t, d}: dano efectivo (sin sobreataque) para el DPS de los ultimos 15 s
+    dpsNext: 1,          // instante de juego de la proxima actualizacion del contador (cada 1 s)
     chests: [],
     batchesSinceChest: 0, // tandas de enemigos aparecidas desde el ultimo cofre
     obstacles: [],      // walls/columns for cover
@@ -1091,9 +1093,24 @@ function endIntermission() {
 }
 
 // ---------------------------------------------------------------- Update
+// DPS efectivo: dano real (sin sobreataque) de los ultimos DPS_WINDOW s dividido entre DPS_WINDOW; se refresca cada 1 s.
+var DPS_WINDOW = 15;
+function updateDps() {
+  if (state.time < state.dpsNext) return;
+  state.dpsNext = state.time + 1;
+  const from = state.time - DPS_WINDOW;
+  const log = state.dpsLog;
+  let i = 0; while (i < log.length && log[i].t <= from) i++;
+  if (i) log.splice(0, i);
+  let sum = 0; for (const h of log) sum += h.d;
+  const node = el("dps-txt");
+  if (node) node.textContent = Math.round(sum / DPS_WINDOW);
+}
+
 function update(dt) {
   const p = state.player;
   state.time += dt;
+  updateDps();
 
   // fin del juego: tras derrotar al jefe final se muestra la victoria
   if (state.victory) {
@@ -2165,26 +2182,15 @@ function openInventory() {
   if (!state || !state.running || state.over) return;
   if (paused) return;
   invOpen = true;
-  document.documentElement.classList.add("inventory-open");
   invScreen.classList.remove("hidden");
-  updateInventoryLayout();
   renderInventory();
 }
 function closeInventory() {
   invOpen = false;
-  document.documentElement.classList.remove("inventory-open");
   invScreen.classList.add("hidden");
   focusGameCanvas();
 }
 function toggleInventory() { invOpen ? closeInventory() : openInventory(); }
-
-function updateInventoryLayout() {
-  if (!invOpen) return;
-  const top = document.querySelector(".hud-top").getBoundingClientRect().bottom + 12;
-  const bottom = window.innerHeight - el("hud-br").getBoundingClientRect().top + 12;
-  invScreen.style.setProperty("--inventory-top", top + "px");
-  invScreen.style.setProperty("--inventory-bottom", bottom + "px");
-}
 
 function itemCard(item) {
   const div = document.createElement("div");
@@ -2395,7 +2401,7 @@ function placeSkillsPanel() {
   }
 }
 window.addEventListener("resize", () => {
-  if (typeof invOpen !== "undefined" && invOpen && state) { updateInventoryLayout(); placeSkillsPanel(); }
+  if (typeof invOpen !== "undefined" && invOpen && state) { placeSkillsPanel(); }
 });
 
 function renderInventory() {
@@ -2673,6 +2679,7 @@ function startGame(weaponId) {
   Sound.resume(); // unlock audio on user gesture
   if (typeof weaponId === "string") selectedWeaponId = getWeapon(weaponId).id;
   state = newState(selectedWeaponId);
+  { const d = document.getElementById("dps-txt"); if (d) d.textContent = "0"; }
   state.debugUsed = !!(debugInfAsh || debugGod);
   updateWeaponHud(state.weaponId);
   recalcStats(state.player); // initialize effective stats

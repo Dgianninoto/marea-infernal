@@ -25,10 +25,10 @@
       </div>
     </details>
     <!-- NOTA PARA QUIEN EDITE ESTE ARCHIVO (Claude): por CADA salida/entrega que se haga de este proyecto
-         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 254 -> la proxima entrega 255,
-         luego 256, 257, etc. (se muestra como 0.254, 0.255, 0.256...). Actualiza este comentario tambien.
+         hay que SUMAR 1 al numero de build de la linea de abajo. Actual: 255 -> la proxima entrega 256,
+         luego 257, 258, etc. (se muestra como 0.255, 0.256, 0.257...). Actualiza este comentario tambien.
          La etiqueta NO lleva fecha. -->
-    <div id="build-tag">Build 0.254</div>
+    <div id="build-tag">Build 0.255</div>
 
 
     <!-- Boss bar -->
@@ -72,6 +72,8 @@
               id="loot-txt">0</b></div>
           <div class="stat-row" style="justify-content:flex-end"><span class="stat-label">Poder</span><b id="power-txt"
               style="color:#ffd84d">0</b></div>
+          <div class="stat-row" style="justify-content:flex-end" title="Daño efectivo (sin sobreataque) de los últimos 15 s ÷ 15"><span class="stat-label">DPS</span><b id="dps-txt"
+              style="color:#ff9d2e">0</b></div>
         </div>
       </div>
 
@@ -126,6 +128,7 @@
           <button id="pause-btn" title="Pausa" aria-label="Pausa">⏸</button>
           <div id="audio-controls">
             <button id="sound-btn" title="Silenciar sonido" aria-label="Silenciar sonido" aria-pressed="false">🔊</button>
+            <button id="music-mute-btn" title="Silenciar música" aria-label="Silenciar música" aria-pressed="false">🎵</button>
             <button id="volume-btn" title="Volumen" aria-label="Ajustar volumen" aria-expanded="false" aria-controls="volume-panel">🎚</button>
             <div id="volume-panel" hidden>
               <label for="volume-slider">General <output id="volume-value" for="volume-slider">100 %</output></label>
