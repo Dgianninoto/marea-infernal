@@ -832,6 +832,19 @@
   position: absolute; right: max(8px, env(safe-area-inset-right));
   bottom: calc(82px + env(safe-area-inset-bottom)); margin-bottom: 0;
 }
+.touch #audio-controls { flex-direction: column; align-items: center; }
+.touch #volume-panel {
+  right: calc(100% + 10px); bottom: 0;
+  max-height: calc(var(--mobile-height, 100dvh) - 110px); overflow-y: auto;
+}
+/* Reservar el lateral para que el audio no tape las mejoras del equipo. */
+.touch .overlay#inv-screen { padding-right: calc(60px + env(safe-area-inset-right)); }
+/* Zona tactil invisible: el boton mantiene su tamaño y aspecto actuales. */
+.touch #inv-btn { position: relative; z-index: 1; touch-action: manipulation; }
+.touch #inv-btn::before {
+  content: ""; position: absolute; left: -10px; right: -10px; top: -8px; height: 48px;
+  pointer-events: auto;
+}
 .touch #fullscreen-btn, .touch #pause-btn, .touch #sound-btn, .touch #music-mute-btn, .touch #volume-btn {
   display: flex; align-items: center; justify-content: center; min-width: 36px; width: 36px; height: 32px;
   padding: 0; border: 1px solid rgba(90,36,16,0.8); border-radius: 6px;

@@ -265,6 +265,8 @@ El boton **⛶** aparece en el menu, junto a los controles de audio y en el avis
 
 El alto del juego sigue el viewport visible, incluidos los cambios por barras del navegador, y conserva los margenes de seguridad. La seleccion de personaje en movil vuelve a permitir desplazamiento. El apuntado automatico, la velocidad, las habilidades y las estadisticas no cambian. Las verificaciones de eventos y pantalla completa se realizaron con simulaciones; queda validar la ergonomia en dispositivos Android/iPhone reales.
 
+En el build **0.269**, los controles de sonido y pantalla completa se apilan verticalmente en el lateral derecho. El inventario reserva ese espacio para evitar que se superpongan con los botones de mejora; el panel de volumen se despliega hacia la izquierda. El boton Inventario conserva su aspecto y suma una zona tactil invisible de 48 px de alto y 10 px adicionales a cada lado. El ajuste solo afecta al modo tactil.
+
 ## Balance, DPS por tramos y esqueleto de jefe (build 0.268)
 
 La pantalla final muestra el DPS promedio por tramo de 10 oleadas. El dash recarga en 2 s para todas las clases y la velocidad por nivel baja a +2. El Arquero gana 0,2 A/s por punto de Cadencia. El Nigromante ajusta su Siega (x2 de Daño, 0,4 A/s base, +0,15 A/s por punto), Velocidad (130 base, +1 por punto de botas), Mando (8 base) y la vida de los arqueros de la Hueste (35 %), y al matar a un jefe este reaparece de inmediato como esqueleto permanente.
