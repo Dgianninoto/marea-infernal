@@ -450,10 +450,10 @@ var AFFIX = {
 var WEAPONS = {
   necro: {
     id: "necro", name: "Guadaña de almas", icon: "💀", color: "#9fe6b2",
-    baseHp: 95, baseDmg: 62, baseRate: 0.8, baseSpeed: 140, baseRegen: 0.5,
-    fireRateStep: 0.3,   // guantes: A/s por punto de Cadencia con este arma (por defecto 0.4)
-    statSteps: { cdr: 5 },   // guantes: +5 % de Recarga por punto con este arma (por defecto 10)
-    weaponStats: [{ key: "dmg", base: 8, step: 2 }, { key: "mando", base: 10, step: 1 }],   // Mando: 10 esqueletos base, +1 por punto gastado (la rareza lo multiplica como al resto)
+    baseHp: 95, baseDmg: 62, baseRate: 0.4, baseSpeed: 130, baseRegen: 0.5,
+    fireRateStep: 0.15,  // guantes: A/s por punto de Cadencia con este arma (por defecto 0.4)
+    statSteps: { cdr: 5, speed: 1 },   // guantes: +5 % de Recarga por punto con este arma (por defecto 10); botas: +1 de Velocidad por punto (por defecto 2)
+    weaponStats: [{ key: "dmg", base: 8, step: 2 }, { key: "mando", base: 8, step: 1 }],   // Mando: 8 esqueletos base, +1 por punto gastado (la rareza lo multiplica como al resto)
     skills: [
       { name: "Siega espectral", icon: "⚔️", cooldown: 1.25 },
       { name: "Hueste espectral", icon: "💀", cooldown: 8 },
@@ -464,6 +464,7 @@ var WEAPONS = {
     id: "bow", name: "Arco", icon: "🏹", color: "#ffd84d",
     baseHp: 120,         // base Vida at level 1 (default 100); level-ups still add +12
     baseRate: 3.1,       // basic attack A/s at level 1
+    fireRateStep: 0.2,   // guantes: A/s por punto de Cadencia con este arma (por defecto 0.4)
     skills: [
       { name: "Flecha", icon: "➶", cooldown: 0.3226 },
       { name: "Abanico", icon: "🏹", cooldown: 5.5 },
@@ -474,9 +475,9 @@ var WEAPONS = {
     id: "staff", name: "Bastón de mago", icon: "🪄", color: "#bd8cff",
     baseDmg: 25,         // base Daño at level 1 (others use 12)
     baseHp: 80,          // base Vida at level 1 (default 100); level-ups still add +12
-    // Esquiva especial (parpadeo arcano): recarga 75 % mas rapida (cooldown / 1.75) y 25 % mas larga
+    // Esquiva especial (parpadeo arcano): 25 % mas larga
     // (distancia x1.25), con efecto violeta similar al teletransporte de los enemigos.
-    dashRecharge: 1.75, dashLength: 1.25, dashFx: "blink",
+    dashLength: 1.25, dashFx: "blink",
     baseSpeed: 120,      // base Velocidad at level 1 (others use 150)
     statSteps: { cdr: 16, fireRate: 0.6, speed: 1 }, // per stat point bought with this weapon: Recarga % (default 10), Cadencia A/s (default 0.4) and Velocidad (boots, default 2)
     // weapon piece stats: Poder (base 0%, +2% per point) replaces Crítico for the mage. Poder agranda el
@@ -494,7 +495,7 @@ var WEAPONS = {
     id: "axe", name: "Hacha", icon: "🪓", color: "#ff7659",
     baseRate: 1.6,       // basic attack A/s at level 1
     baseDmg: 30,         // base Daño at level 1 (others use 12); level-ups still add +2.5
-    baseSpeed: 135,      // base Velocidad at level 1 (others use 150); level-ups still add +4
+    baseSpeed: 135,      // base Velocidad at level 1 (others use 150); level-ups still add +2
     baseHp: 200,         // base Vida at level 1 (others use 100); level-ups still add +12
     baseRegen: 1,        // base Regen at level 1 (others use 0.5) in HP/s
     fireRateStep: 0.2,   // gloves: A/s per Cadencia point with this weapon (default 0.4)
@@ -510,6 +511,7 @@ var WEAPONS = {
     ],
   },
 };
+var DASH_COOLDOWN = 2;   // <<< BALANCE: recarga del dash (s), igual para todas las clases
 var selectedWeaponId = "bow";
 var selectedDifficulty = "hard"; // "easy" | "normal" | "hard" (ver DIFFICULTIES en enemigos.js)
 function getWeapon(id) { return WEAPONS[id] || WEAPONS.bow; }
@@ -740,7 +742,7 @@ function newState(weaponId) {
       equipped: makeBaseEquipment(weapon.id), // start with the 6 base pieces
       power: 0,          // total gear score
       dashCd: 0,         // current cooldown remaining
-      dashMax: 2.2 / (weapon.dashRecharge || 1), // cooldown length (el mago la recarga 75 % mas rapido)
+      dashMax: DASH_COOLDOWN, // cooldown length: 2 s para todas las clases
       dashTime: 0,       // active dash remaining
       dashDur: 0.16 * (weapon.dashLength || 1),  // dash duration (el mago: 25 % mas larga = mas distancia)
       dashFx: weapon.dashFx || null, blinkArrive: 0, // efecto especial de la esquiva (mago: "blink")
@@ -766,6 +768,7 @@ function newState(weaponId) {
     dmgStats: [0, 0, 0], // dano real hecho por cada ataque (basico, intermedio, definitivo)
     dpsLog: [],          // golpes recientes {t, d}: dano efectivo (sin sobreataque) para el DPS de los ultimos 15 s
     dpsNext: 1,          // instante de juego de la proxima actualizacion del contador (cada 1 s)
+    dpsRanges: [],       // por tramo de 10 oleadas: {dmg, time} para el DPS promedio de la pantalla final
     chests: [],
     batchesSinceChest: 0, // tandas de enemigos aparecidas desde el ultimo cofre
     obstacles: [],      // walls/columns for cover
@@ -1131,6 +1134,7 @@ function update(dt) {
   const p = state.player;
   state.time += dt;
   updateDps();
+  if (state.phase === "fighting" && !state.victory) rangeStat().time += dt; // tiempo de combate del tramo actual
 
   // fin del juego: tras derrotar al jefe final se muestra la victoria
   if (state.victory) {
@@ -2374,7 +2378,7 @@ function skillBoxes(p) {
     case "necro": {
       const mpct = Math.round(NECRO_MINION_DAMAGE_RATIO * 100);
       return [
-        { tag: rateTag, lines: [`Barrido de guadaña de <b>${Math.round(NECRO_SWEEP_ARC * 180 / Math.PI)}°</b> entre <b>${balNum(NECRO_SWEEP_INNER)}</b> y <b>${baldosas(NECRO_SWEEP_INNER + NECRO_SWEEP_LENGTH)}</b> de ti. Daño: <b>${f1(d)}</b> (100 % del Daño) a cada enemigo del arco, una vez por barrido.`] },
+        { tag: rateTag, lines: [`Barrido de guadaña de <b>${Math.round(NECRO_SWEEP_ARC * 180 / Math.PI)}°</b> entre <b>${balNum(NECRO_SWEEP_INNER)}</b> y <b>${baldosas(NECRO_SWEEP_INNER + NECRO_SWEEP_LENGTH)}</b> de ti. Daño: <b>${f1(d * NECRO_SWEEP_DMG_MULT)}</b> (${NECRO_SWEEP_DMG_MULT * 100} % del Daño) a cada enemigo del arco, una vez por barrido.`] },
         { tag: cd(1), lines: [
           `Invoca <b>${NECRO_HUESTE_COUNT} esqueletos arqueros</b> que duran hasta que los destruyan. Cada flecha hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> (${mpct} % del Daño), alcanza ${baldosas(NECRO_MINION_RANGE)} y atraviesa los obstáculos. Vida: <b>${Math.round(p.maxHp * NECRO_HUESTE_HP_RATIO)}</b> (${Math.round(NECRO_HUESTE_HP_RATIO * 100)} % de tu vida máxima). Máximo de esqueletos (Mando): <b>${necroMinionCap()}</b>.`,
           `Además, cada ${NECRO_KILLS_PER_SKELETON} bajas se levanta un esqueleto cuerpo a cuerpo con la vida del enemigo caído: hace <b>${pc(NECRO_MINION_DAMAGE_RATIO)}</b> por golpe, uno cada ${f2(necroMinionAttackCd())} s. Duran <b>${f1(necroMinionLife())} s</b> (${NECRO_MINION_LIFE} s base + ${NECRO_MINION_LIFE_PER_MANDO} s por punto de Mando).`,
@@ -2743,7 +2747,20 @@ function renderDmgBreakdown() {
         <div class="dmg-head"><span>${sk.icon} ${escapeHtml(sk.name)}</span><span>${Math.round(stats[i]).toLocaleString()} · ${pct.toFixed(1)}%</span></div>
         <div class="dmg-bar"><div class="dmg-fill" style="width:${pct}%;background:${weapon.color}"></div></div>
       </div>`;
-    }).join("");
+    }).join("") + renderRangeDps();
+}
+
+// DPS promedio por tramo de oleadas: dano real del tramo / segundos de combate del tramo (los intermedios no cuentan).
+function renderRangeDps() {
+  const rows = [];
+  (state.dpsRanges || []).forEach((r, i) => {
+    if (!r || r.time < 0.5) return;
+    const from = i * DPS_RANGE_WAVES + 1, to = (i + 1) * DPS_RANGE_WAVES;
+    const dps = Math.round(r.dmg / r.time);
+    rows.push(`<div class="dps-row"><span>Oleadas ${from}–${to}</span><span><b>${dps.toLocaleString("es")}</b> DPS</span></div>`);
+  });
+  if (!rows.length) return "";
+  return `<div class="dmg-title dps-title">DPS promedio por tramo <span>daño ÷ tiempo de combate</span></div>` + rows.join("");
 }
 
 function endGame(victory) {

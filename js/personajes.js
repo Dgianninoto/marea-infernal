@@ -107,10 +107,17 @@ var BLEED_REAPPLY_RATIO = 0.5; // al reaplicar sobre un objetivo que ya sangra: 
 // se lanza una habilidad (useSkill), al golpear un proyectil (b.skill) y en el impacto del meteorito.
 // Se cuenta el dano REAL: lo que sobra al rematar a un enemigo (sobreataque) no suma.
 var dmgSkill = -1;
+// DPS promedio por tramo de oleadas (1-10, 11-20, 21-30...): dano real hecho y segundos de combate (sin pausas ni intermedios).
+var DPS_RANGE_WAVES = 10;
+function rangeStat() {
+  const i = Math.max(0, Math.floor((state.wave - 1) / DPS_RANGE_WAVES));
+  return state.dpsRanges[i] || (state.dpsRanges[i] = { dmg: 0, time: 0 });
+}
 function logDamage(skill, hpBefore, dealt) {
   if (!state) return;
   const real = Math.max(0, Math.min(dealt, hpBefore));
   if (real > 0 && state.dpsLog) state.dpsLog.push({ t: state.time, d: real }); // DPS efectivo (ventana de 15 s)
+  if (real > 0 && state.dpsRanges) rangeStat().dmg += real;                    // dano por tramo de oleadas (DPS promedio final)
   if (skill < 0 || !state.dmgStats) return;
   state.dmgStats[skill] += real;
 }
@@ -669,7 +676,7 @@ function gainXp(amount) {
     // level-up rewards raise BASE stats, then recalc effective stats
     p.base.maxHp += 12;
     p.base.dmg += 2.5;
-    p.base.speed += 4;
+    p.base.speed += 2;
     recalcStats(p);
     p.hp = p.maxHp; // full heal on level up
     state.shake = Math.max(state.shake, 10);

@@ -520,6 +520,9 @@
 #dmg-breakdown .dmg-head { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--text); margin-bottom: 3px; }
 #dmg-breakdown .dmg-head span:last-child { color: var(--muted); white-space: nowrap; }
 #dmg-breakdown .dmg-bar { height: 8px; border-radius: 4px; overflow: hidden; background: rgba(0,0,0,0.5); border: 1px solid #3a1f14; }
+#dmg-breakdown .dps-title { margin-top: 14px; }
+#dmg-breakdown .dps-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--text); padding: 2px 0; }
+#dmg-breakdown .dps-row span:first-child { color: var(--muted); }
 #dmg-breakdown .dmg-fill { height: 100%; border-radius: 3px; }
 /* La pantalla final ahora es mas alta (resumen de dano): permite desplazarse si no cabe */
 #over-screen { overflow-y: auto; }

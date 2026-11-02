@@ -2,7 +2,7 @@
 // Fourth class: independent summons never affect enemy quotas or boss counts.
 var NECRO_MINION_LIFE_PER_MANDO = 0.1;   // <<< BALANCE: s extra de vida de los esqueletos nacidos de bajas por cada punto de Mando
 var NECRO_MINION_LIFE = 10;   // s que dura un esqueleto nacido de bajas; los arqueros de Hueste no caducan (solo mueren en combate o si les quitan el sitio)
-var NECRO_HUESTE_HP_RATIO = 0.40;   // <<< BALANCE: vida de cada esqueleto de Hueste = 40 % de la vida maxima del personaje
+var NECRO_HUESTE_HP_RATIO = 0.35;   // <<< BALANCE: vida de cada esqueleto de Hueste = 35 % de la vida maxima del personaje
 // Los esqueletos nacidos de una baja por veneno heredan la vida maxima del bicho que murio y desencadeno su aparicion.
 var NECRO_OVER_MIN = 5;             // <<< BALANCE: s minimos que dura la luz verde una vez activada (y mientras la cuenta siga por encima del limite)
 var NECRO_OVER_HP_MULT = 2;         // <<< BALANCE: multiplicador de vida de los esqueletos mientras dura la luz verde
@@ -27,6 +27,7 @@ var NECRO_MINION_ATTACK_CD_BY_RARITY = [1, 0.8, 0.6, 0.4, 0.2];
 var NECRO_SWEEP_ARC = 70 * Math.PI / 180;  // <<< BALANCE: apertura del barrido (rad)
 var NECRO_SWEEP_INNER = 120;               // <<< BALANCE: distancia (px) a la que empieza el arco
 var NECRO_SWEEP_TIME = 0.15;               // <<< BALANCE: s que tarda el barrido en recorrer su arco (el del Barbaro tarda AXE_SWEEP_TIME = 0.22)
+var NECRO_SWEEP_DMG_MULT = 2;               // <<< BALANCE: la Siega espectral hace 2x el daño del arma
 var NECRO_SWEEP_LENGTH = 55;               // <<< BALANCE: largo (px) del arco; llega hasta INNER + LENGTH = 175 px
 // Aura pestilente: pasiva y permanente alrededor del Nigromante. Cada enemigo dentro acumula cargas de veneno.
 var NECRO_AURA_RADIUS = 300;               // radio (px)
@@ -49,7 +50,7 @@ for (const name of ["necromancer", "skeleton", "skeleton-archer"]) {
   image.src = "assets/necro/" + name + ".svg";
 }
 
-// Maximo de esqueletos simultaneos = stat Mando (base 10, +2 por punto gastado en la pieza de arma).
+// Maximo de esqueletos simultaneos = stat Mando (base 8, +1 por punto gastado en la pieza de arma).
 function necroMinionCap() {
   return Math.max(NECRO_MINION_CAP_MIN, Math.floor(state.player.mando || 0));
 }
@@ -61,7 +62,13 @@ function necroMinionLife() {
 
 // Cuenta de esqueletos: los del mapa + los de la reserva (los que no cabian por el limite; no existen en el mapa, esperan su turno).
 function necroMinionCount() {
-  return state.minions.length + state.necroReserve.length;
+  return necroActiveMinions() + state.necroReserve.length;
+}
+// Esqueletos del mapa que ocupan cupo de Mando: los nacidos de jefes (permanentes) no cuentan.
+function necroActiveMinions() {
+  let n = 0;
+  for (const m of state.minions) if (!m.perm) n++;
+  return n;
 }
 
 // Luz verde: activa mientras la cuenta supere el limite y un minimo de NECRO_OVER_MIN s; los esqueletos del mapa tienen entonces la vida x2.
@@ -77,7 +84,7 @@ function syncNecromancerOver() {
 // Reserva como buffer: cuando muere (o caduca) un esqueleto del mapa entra el siguiente de la reserva (FIFO) y la cuenta baja en 1.
 function updateNecromancerOver(dt) {
   const p = state.player;
-  while (state.necroReserve.length && state.minions.length < necroMinionCap()) {
+  while (state.necroReserve.length && necroActiveMinions() < necroMinionCap()) {
     const e = state.necroReserve.shift();
     const a = Math.random() * Math.PI * 2;
     pushNecromancerMinion(e.skill, e.hp, p.x + Math.cos(a) * 44, p.y + Math.sin(a) * 44, 0, e.r);
@@ -97,7 +104,12 @@ function necroMinionAttackCd() {
 // Si ya hay tantos esqueletos como el Mando, el contador se reinicia igualmente y no nace ninguno.
 function registerNecromancerKill(target) {
   if (state.weaponId !== "necro") return;
-  state.necroSouls++;
+  // Jefe: reaparece al instante como esqueleto con su vida y tamaño, sin temporizador de desaparicion y sin ocupar cupo de Mando.
+  // No suma al contador oculto de bajas.
+  if (target && target.type === "boss") {
+    pushNecromancerMinion(2, target.maxHp || 1, target.x, target.y, 0, target.r, true);
+    return;
+  }  state.necroSouls++;
   if (state.necroSouls < NECRO_KILLS_PER_SKELETON) return;
   state.necroSouls = 0;
   const p = state.player;
@@ -105,18 +117,18 @@ function registerNecromancerKill(target) {
   raiseNecromancerSkeletons(Math.atan2(p.aimY, p.aimX), 2, (target && (target.maxHp || target.hp)) || 1, 1, target);
 }
 
-function pushNecromancerMinion(skill, hp, x, y, attackCd, radius) {
+function pushNecromancerMinion(skill, hp, x, y, attackCd, radius, perm) {
   const r = skill === 1 ? NECRO_ARCHER_R : (radius > 0 ? radius : NECRO_SKELETON_R);   // los nacidos de bajas tienen el tamaño del bicho que les da la vida
   const px = clamp(x, WALL + r, WORLD.w - WALL - r), py = clamp(y, WALL + r, WORLD.h - WALL - r);
   const maxHp = Math.max(1, hp || 1);
-  state.minions.push({ x: px, y: py, r, life: skill === 1 ? Infinity : necroMinionLife(), attackCd, swing: 0, skill, archer: skill === 1, hp: maxHp, maxHp, baseMaxHp: maxHp, buffed: false, inv: 0 });   // archer: esqueleto arquero de Hueste (dispara); el resto pelea cuerpo a cuerpo
+  state.minions.push({ x: px, y: py, r, life: skill === 1 || perm ? Infinity : necroMinionLife(), perm: !!perm, attackCd, swing: 0, skill, archer: skill === 1, hp: maxHp, maxHp, baseMaxHp: maxHp, buffed: false, inv: 0 });   // archer: esqueleto arquero de Hueste (dispara); el resto pelea cuerpo a cuerpo
   weaponBurst(px, py, 18, "#9fe6b2", 6);
 }
 
 function raiseNecromancerSkeletons(angle, skill, hp, wanted, origin) {
   const p = state.player;
   state.minions = state.minions.filter(m => m.life > 0);
-  const count = Math.max(0, Math.min(necroMinionCap() - state.minions.length, wanted));
+  const count = Math.max(0, Math.min(necroMinionCap() - necroActiveMinions(), wanted));
   // los que no caben no aparecen en el mapa: van a la reserva (la cuenta pasa del limite) y activan la luz verde
   const extra = wanted - count;
   for (let i = 0; i < extra; i++) state.necroReserve.push({ skill, hp, r: origin && origin.r });
@@ -140,7 +152,7 @@ function useNecromancerSkill(index, angle) {
       kind: "axe-sweep", x: p.x, y: p.y, radius: 0, color: "#9fe6b2",
       duration: NECRO_SWEEP_TIME + AXE_SWEEP_FADE, life: NECRO_SWEEP_TIME + AXE_SWEEP_FADE,
       sweepTime: NECRO_SWEEP_TIME, start: angle - arc / 2, arc, range, inner, prog: 0, edgeColor: "#d0f2a0",
-      damage: p.dmg, hit: new Set(), opacity: axeSweepOpacity(),
+      damage: p.dmg * NECRO_SWEEP_DMG_MULT, hit: new Set(), opacity: axeSweepOpacity(),
     });
     Sound.scythe();
   } else if (index === 1) {

@@ -152,10 +152,10 @@ Sus tres ataques se activan automáticamente con los mismos controles de las otr
 
 - **Siega espectral:** barrido de guadaña en arco, siempre igual: 70° de apertura y 55 px de largo, empezando a 120 px
   del personaje (cubre de 120 a 175 px; el hueco interior no golpea). Ya no cambia de arco ni de radio con el Daño
-  (constantes `NECRO_SWEEP_*` en `js/nigromante.js`). Un cono fantasma indica hacia dónde saldrá el siguiente barrido. Recorre su arco en 0,15 s (el Tajo del Bárbaro tarda 0,22 s) y suena como un silbido grave de aire cortado por la guadaña. Cadencia base: 1,6 ataques por segundo.
+  (constantes `NECRO_SWEEP_*` en `js/nigromante.js`). Un cono fantasma indica hacia dónde saldrá el siguiente barrido. Recorre su arco en 0,15 s (el Tajo del Bárbaro tarda 0,22 s) y suena como un silbido grave de aire cortado por la guadaña. Hace el doble del Daño del arma (`NECRO_SWEEP_DMG_MULT`). Cadencia base: 0,4 ataques por segundo, y cada punto de Cadencia en los guantes suma 0,15 A/s.
 - **Hueste espectral:** se lanza siempre que esté disponible (no depende de las bajas) e invoca 3 esqueletos arqueros
   (`NECRO_HUESTE_COUNT`) que no caducan, hasta **Mando** aliados simultáneos en el mapa (ver abajo). Recarga base: 8 s. Atacan al enemigo o jefe
-  cercano y atraviesan obstáculos; sus flechas también los atraviesan (`noWalls`). Cada uno tiene el 40 % de la vida máxima del personaje (`NECRO_HUESTE_HP_RATIO`).
+  cercano y atraviesan obstáculos; sus flechas también los atraviesan (`noWalls`). Cada uno tiene el 35 % de la vida máxima del personaje (`NECRO_HUESTE_HP_RATIO`).
   Cada golpe hace el 15 % del Daño del Nigromante (`NECRO_MINION_DAMAGE_RATIO`) y atacan cada 1 s con arma Común,
   0,8 s Mágica, 0,6 s Rara, 0,4 s Legendaria y 0,2 s Única (`NECRO_MINION_ATTACK_CD_BY_RARITY`).
 - **Aura pestilente (pasiva):** aura permanente alrededor del Nigromante (300 px). Cada enemigo
@@ -166,6 +166,8 @@ Sus tres ataques se activan automáticamente con los mismos controles de las otr
 **Esqueletos por bajas:** un contador oculto cuenta cada baja (de cualquier origen: guadaña, veneno, esqueletos). La baja que
 completa 3 (`NECRO_KILLS_PER_SKELETON`) levanta un esqueleto con la vida máxima del bicho que acaba de morir y el contador
 vuelve a 0.
+
+**Esqueleto de jefe:** al derrotar a un jefe con el Nigromante, este reaparece de inmediato como esqueleto en el mismo lugar, con su vida máxima y su tamaño. No tiene temporizador de desaparición (dura hasta que lo destruyan), no ocupa cupo de Mando y no suma al contador oculto de bajas (ver `registerNecromancerKill` en `js/nigromante.js`).
 
 **Reserva y luz verde:** si al invocar (por bajas o con Hueste) ya hay tantos esqueletos en el mapa como el Mando, los que no caben **no aparecen en el mapa**: pasan a una **reserva** (buffer) y la cuenta del contador supera el límite (por ejemplo 12/10). Cuando un esqueleto del mapa muere (en combate o por caducidad) entra en su lugar el siguiente de la reserva (en orden de llegada, junto al personaje, con la vida y el tipo con que se invocó; los nacidos de bajas empiezan entonces sus 10 s) y la cuenta baja en 1. La reserva no tiene temporizador propio. Mientras la cuenta esté por encima del límite, y como mínimo `NECRO_OVER_MIN` = 5 s desde la última entrada en reserva, se enciende una **luz verde** en la barra del contador y en los esqueletos del mapa, y la vida de estos se multiplica por `NECRO_OVER_HP_MULT` = 2 (también la actual). Al acabar el efecto la vida máxima vuelve a la normal y la actual se recorta si la supera. La barra discreta del dock muestra la cuenta en el centro (cuenta/Mando).
 
@@ -262,3 +264,7 @@ La cruceta tiene un area tactil mas amplia y un centro que sigue al dedo. Conser
 El boton **⛶** aparece en el menu, junto a los controles de audio y en el aviso de girar el dispositivo. Solicita pantalla completa con la interfaz del navegador oculta y, cuando esta permitido, orientacion horizontal. Permite salir de ese modo sin abandonar la partida. Si el navegador no ofrece o rechaza la API, muestra ayuda sin bloquear el juego: en iPhone, abrir desde Safari y añadir a la pantalla de inicio. La configuracion web incluye modo standalone para esa apertura; no agrega funciones offline.
 
 El alto del juego sigue el viewport visible, incluidos los cambios por barras del navegador, y conserva los margenes de seguridad. La seleccion de personaje en movil vuelve a permitir desplazamiento. El apuntado automatico, la velocidad, las habilidades y las estadisticas no cambian. Las verificaciones de eventos y pantalla completa se realizaron con simulaciones; queda validar la ergonomia en dispositivos Android/iPhone reales.
+
+## Balance, DPS por tramos y esqueleto de jefe (build 0.268)
+
+La pantalla final muestra el DPS promedio por tramo de 10 oleadas. El dash recarga en 2 s para todas las clases y la velocidad por nivel baja a +2. El Arquero gana 0,2 A/s por punto de Cadencia. El Nigromante ajusta su Siega (x2 de Daño, 0,4 A/s base, +0,15 A/s por punto), Velocidad (130 base, +1 por punto de botas), Mando (8 base) y la vida de los arqueros de la Hueste (35 %), y al matar a un jefe este reaparece de inmediato como esqueleto permanente.
