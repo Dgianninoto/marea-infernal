@@ -178,7 +178,18 @@
   // si la pantalla se oscurece o cambia de app con un dedo apoyado, no dejar la cruceta "pegada"
   function clearInput() { releaseDpad(); dashUp(); }
   window.addEventListener("blur", clearInput);
-  document.addEventListener("visibilitychange", function () { if (document.hidden) clearInput(); });
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) return;
+    clearInput();
+    // El inventario ya detiene la partida; al salir de la app dejamos una pausa
+    // explicita para que cerrar el inventario al volver no reanude el combate.
+    if (state && state.running && !state.over) {
+      if (invOpen) closeInventory();
+      if (!paused) pauseGame();
+    }
+    // Una ayuda de pantalla completa abierta no debe reanudar tras interrupcion.
+    helpPausedGame = false;
+  });
   // evitar el menu contextual (pulsacion larga) y el zoom por gestos en iOS
   document.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   document.addEventListener("gesturestart", function (e) { e.preventDefault(); });

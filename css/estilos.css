@@ -855,3 +855,13 @@
 .touch .inv-card { height: calc(var(--mobile-height, 100dvh) - 12px); max-height: calc(var(--mobile-height, 100dvh) - 12px); }
 #fullscreen-help { z-index: 250; }
 #fullscreen-help[hidden], [data-fullscreen][hidden] { display: none !important; }
+
+/* Mejoras tactiles: mayor contraste y blancos de pulsacion mas comodos. */
+.touch #dpad { border-color: rgba(255, 180, 100, 0.65); background: rgba(18, 9, 6, 0.48); }
+.touch #dpad.dragging { box-shadow: 0 0 12px rgba(255, 140, 60, 0.45); }
+.touch #pause-btn { position: relative; }
+.touch #pause-btn::after {
+  content: ""; position: absolute; inset: -6px -4px; pointer-events: auto;
+}
+.touch #inv-close { min-height: 44px; }
+.touch #equip-list button { min-height: 40px; }

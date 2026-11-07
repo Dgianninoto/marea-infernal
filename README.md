@@ -183,7 +183,7 @@ ataques se atribuye a la habilidad que los invocó en el resumen final. El ranki
 
 ## Dificultades
 
-Se eligen en la pantalla de selección de arma (por defecto **Difícil**, la dificultad original). La tabla `DIFFICULTIES`
+Se eligen en la pantalla de selección de arma (por defecto **Normal**). La tabla `DIFFICULTIES`
 está en `js/enemigos.js`:
 
 | Dificultad | Bichos: vida (oleada 50) | Bichos: daño (oleada 50) | Vida de los jefes | Multiplicador de daño de los jefes |

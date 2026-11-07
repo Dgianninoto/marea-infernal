@@ -513,7 +513,7 @@ var WEAPONS = {
 };
 var DASH_COOLDOWN = 2;   // <<< BALANCE: recarga del dash (s), igual para todas las clases
 var selectedWeaponId = "bow";
-var selectedDifficulty = "hard"; // "easy" | "normal" | "hard" (ver DIFFICULTIES en enemigos.js)
+var selectedDifficulty = "normal"; // "easy" | "normal" | "hard" (ver DIFFICULTIES en enemigos.js)
 function getWeapon(id) { return WEAPONS[id] || WEAPONS.bow; }
 
 // each piece has one or more stats; every stat has its own base value and its own stat points
@@ -2836,7 +2836,7 @@ function saveCurrentScore() {
 
 // ---- menu buttons
 el("btn-play").addEventListener("click", () => showMenuView("weapons"));
-// selector de dificultad (vista de armas): por defecto Difícil, la dificultad original
+// selector de dificultad (vista de armas): por defecto Normal
 function setDifficulty(id) {
   if (typeof DIFFICULTIES === "undefined" || !DIFFICULTIES[id]) id = "hard";
   selectedDifficulty = id;
